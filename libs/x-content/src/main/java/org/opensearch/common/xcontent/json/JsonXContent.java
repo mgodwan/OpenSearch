@@ -36,6 +36,8 @@ import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.StreamWriteFeature;
+
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;
@@ -70,6 +72,8 @@ public class JsonXContent implements XContent {
         jsonFactory.configure(JsonFactory.Feature.FAIL_ON_SYMBOL_HASH_OVERFLOW, false); // this trips on many mappings now...
         // Do not automatically close unclosed objects/arrays in com.fasterxml.jackson.core.json.UTF8JsonGenerator#close() method
         jsonFactory.configure(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT, false);
+        jsonFactory.configure(JsonParser.Feature.USE_FAST_DOUBLE_PARSER, true);
+        jsonFactory.configure(StreamWriteFeature.USE_FAST_DOUBLE_WRITER.mappedFeature(), true);
         jsonFactory.configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true);
         jsonXContent = new JsonXContent();
     }
