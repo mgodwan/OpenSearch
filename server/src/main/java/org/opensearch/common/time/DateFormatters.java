@@ -244,7 +244,7 @@ public class DateFormatters {
      * This is not fully compatible to the existing spec, which would require far more edge cases, but merely compatible with the
      * existing joda time ISO date formatter
      */
-    private static final DateFormatter ISO_8601 = new JavaDateFormatter(
+    public static final DateFormatter ISO_8601 = new JavaDateFormatter(
         "iso8601",
         STRICT_DATE_OPTIONAL_TIME_PRINTER,
         new DateTimeFormatterBuilder().append(STRICT_YEAR_MONTH_DAY_FORMATTER)
@@ -1957,6 +1957,14 @@ public class DateFormatters {
             .withResolverStyle(ResolverStyle.STRICT)
     );
 
+    public static final DateFormatter ZONED_FORMAT_PARSER = new FastISODateFormatter(new JavaDateFormatter(
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd'T'HH:mm:ssX").toFormatter(Locale.ROOT).withResolverStyle(ResolverStyle.STRICT)), false);
+
+    public static final DateFormatter HTTP_LOGS_FORMAT_PARSER = new FastISODateFormatter(new JavaDateFormatter(
+        "yyyy-MM-dd HH:mm:ss",
+        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd HH:mm:ss").toFormatter(Locale.ROOT).withResolverStyle(ResolverStyle.STRICT)), true);
+
     /////////////////////////////////////////
     //
     // end lenient formatters
@@ -1984,7 +1992,11 @@ public class DateFormatters {
                 );
         }
 
-        if (FormatNames.ISO8601.matches(input)) {
+        if ("yyyy-MM-dd'T'HH:mm:ssX".equals(input)) {
+            return ZONED_FORMAT_PARSER;
+        } else if("yyyy-MM-dd HH:mm:ss".equals(input)) {
+            return HTTP_LOGS_FORMAT_PARSER;
+        } else if (FormatNames.ISO8601.matches(input)) {
             return ISO_8601;
         } else if (FormatNames.BASIC_DATE.matches(input)) {
             return BASIC_DATE;

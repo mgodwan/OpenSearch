@@ -158,6 +158,9 @@ public interface DateFormatter {
         List<String> patterns = splitCombinedPatterns(format);
         List<DateFormatter> formatters = patterns.stream().map(DateFormatters::forPattern).collect(Collectors.toList());
 
+        if (formatters.size() == 1) {
+            return formatters.get(0);
+        }
         return JavaDateFormatter.combined(input, formatters);
     }
 
