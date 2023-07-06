@@ -8,12 +8,16 @@
 
 package org.opensearch.common.time;
 
+import com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal;
+import org.opensearch.index.mapper.DateFieldMapper;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
 
 public class FastDTParser {
@@ -55,6 +59,7 @@ public class FastDTParser {
             final ZoneOffset offset = ZoneOffset.ofHoursMinutes(isPositiveOffset ? offHour : -offHour, isPositiveOffset ? offMin : -offMin);
             if (tmp[19] == '.') {
                 final int nanos = readNanos(tmp, len - 6, 20);
+                OffsetDateTime dt;
                 return OffsetDateTime.of(year, month, day, hour, min, sec, nanos, offset);
             }
             return OffsetDateTime.of(year, month, day, hour, min, sec, 0, offset);
@@ -136,8 +141,11 @@ public class FastDTParser {
 
 
     public static void main(String[] args) {
-        System.out.println(FastDTParser.parse("2022-04-05 22:00:12Z"));
-        System.out.println(FastDTParser.parseLocalDateTime("2022-04-05 22:00:12", null));
-        System.out.println(DateFormatters.ISO_8601.parse("2022-04-05T22:00:12Z"));
+//        System.out.println(FastDTParser.parse("2022-04-05 22:00:12Z"));
+//        System.out.println(FastDTParser.parseLocalDateTime("2022-04-05 22:00:12", null));
+//        System.out.println(DateFormatters.ISO_8601.parse("2022-04-05T22:00:12Z"));
+ //       DateFieldMapper.DEFAULT_DATE_TIME_FORMATTER.parse("1687933988");
+        System.out.println(com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal.toString(9.80908925027371949647e-45));
+        System.out.println(Double.toString(9.80908925027371949647e-45));
     }
 }

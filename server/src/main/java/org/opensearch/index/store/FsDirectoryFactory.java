@@ -32,6 +32,7 @@
 
 package org.opensearch.index.store;
 
+import org.apache.lucene.misc.store.DirectIODirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.FileSwitchDirectory;
@@ -142,12 +143,12 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
      * @opensearch.internal
      */
     static final class HybridDirectory extends NIOFSDirectory {
-        private final MMapDirectory delegate;
+        private final FilterDirectory delegate;
         private final Set<String> mmapExtensions;
 
         HybridDirectory(LockFactory lockFactory, MMapDirectory delegate, Set<String> mmapExtensions) throws IOException {
             super(delegate.getDirectory(), lockFactory);
-            this.delegate = delegate;
+            this.delegate = new DirectIODirectory(delegate);
             this.mmapExtensions = mmapExtensions;
         }
 
@@ -178,7 +179,7 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
         }
 
         MMapDirectory getDelegate() {
-            return delegate;
+            return (MMapDirectory) delegate.getDelegate();
         }
     }
 

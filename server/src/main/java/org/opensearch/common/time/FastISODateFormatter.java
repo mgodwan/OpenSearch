@@ -27,19 +27,20 @@ public class FastISODateFormatter implements DateFormatter {
         if (local) {
             return FastDTParser.parseLocalDateTime(input, javaDateFormatter);
         }
-        return FastDTParser.parse(input);
+        return FastDTParser.
+            parse(input);
     }
 
     @Override
     public DateFormatter withZone(ZoneId zoneId) {
-        return null;
+        return javaDateFormatter.withZone(zoneId);
     }
 
     @Override
     public DateFormatter withLocale(Locale locale) {
-        if (Locale.ROOT.equals(locale)) {
-            return this;
-        }
+//        if (Locale.ROOT.equals(locale)) {
+//            return this;
+//        }
         return this.javaDateFormatter.withLocale(locale);
     }
 
@@ -66,5 +67,10 @@ public class FastISODateFormatter implements DateFormatter {
     @Override
     public DateMathParser toDateMathParser() {
         return this.javaDateFormatter.toDateMathParser();
+    }
+
+    public static void main(String[] args) {
+        System.out.println(Double.toString(1.239 ));
+        System.out.println(com.fasterxml.jackson.core.io.schubfach.DoubleToDecimal.toString(1.239 ));
     }
 }
