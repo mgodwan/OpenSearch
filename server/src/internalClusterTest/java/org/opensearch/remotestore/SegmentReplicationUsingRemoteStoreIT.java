@@ -63,4 +63,9 @@ public class SegmentReplicationUsingRemoteStoreIT extends SegmentReplicationIT {
     public void teardown() {
         assertAcked(clusterAdmin().prepareDeleteRepository(REPOSITORY_NAME));
     }
+
+    @Override
+    public void testPressureServiceStats() throws Exception {
+        super.testPressureServiceStats();
+    }
 }

@@ -29,6 +29,7 @@ import org.opensearch.index.engine.InternalEngine;
 import org.opensearch.index.remote.RemoteRefreshSegmentTracker;
 import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.store.RemoteSegmentStoreDirectory;
+import org.opensearch.index.store.remote.metadata.RemoteSegmentMetadata;
 import org.opensearch.indices.replication.checkpoint.ReplicationCheckpoint;
 import org.opensearch.indices.replication.checkpoint.SegmentReplicationCheckpointPublisher;
 import org.opensearch.threadpool.Scheduler;
@@ -71,6 +72,8 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
      */
     private static final int REMOTE_REFRESH_RETRY_MAX_INTERVAL_MILLIS = 10_000;
 
+    private static final int INVALID_PRIMARY_TERM = -1;
+
     /**
      * Exponential back off policy with max retry interval.
      */
@@ -82,7 +85,7 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
     // Visible for testing
     static final Set<String> EXCLUDE_FILES = Set.of("write.lock");
     // Visible for testing
-    static final int LAST_N_METADATA_FILES_TO_KEEP = 10;
+    public static final int LAST_N_METADATA_FILES_TO_KEEP = 10;
 
     private final IndexShard indexShard;
     private final Directory storeDirectory;
@@ -118,15 +121,18 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
         this.storeDirectory = indexShard.store().directory();
         this.remoteDirectory = (RemoteSegmentStoreDirectory) ((FilterDirectory) ((FilterDirectory) indexShard.remoteStore().directory())
             .getDelegate()).getDelegate();
-        this.primaryTerm = indexShard.getOperationPrimaryTerm();
         localSegmentChecksumMap = new HashMap<>();
+        RemoteSegmentMetadata remoteSegmentMetadata = null;
         if (indexShard.routingEntry().primary()) {
             try {
-                this.remoteDirectory.init();
+                remoteSegmentMetadata = this.remoteDirectory.init();
             } catch (IOException e) {
                 logger.error("Exception while initialising RemoteSegmentStoreDirectory", e);
             }
         }
+        // initializing primary term with the primary term of latest metadata in remote store.
+        // if no metadata is present, this value will be initilized with -1.
+        this.primaryTerm = remoteSegmentMetadata != null ? remoteSegmentMetadata.getPrimaryTerm() : INVALID_PRIMARY_TERM;
         this.segmentTracker = segmentTracker;
         resetBackOffDelayIterator();
         this.checkpointPublisher = checkpointPublisher;
@@ -163,8 +169,9 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
      */
     @Override
     public void afterRefresh(boolean didRefresh) {
-
-        if (didRefresh || remoteDirectory.getSegmentsUploadedToRemoteStore().isEmpty()) {
+        if (this.primaryTerm != indexShard.getOperationPrimaryTerm()
+            || didRefresh
+            || remoteDirectory.getSegmentsUploadedToRemoteStore().isEmpty()) {
             updateLocalRefreshTimeAndSeqNo();
             try {
                 indexShard.getThreadPool().executor(ThreadPool.Names.REMOTE_REFRESH).submit(() -> syncSegments(false)).get();
@@ -179,7 +186,8 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
             return;
         }
         beforeSegmentsSync(isRetry);
-        long refreshTimeMs = segmentTracker.getLocalRefreshTimeMs(), refreshSeqNo = segmentTracker.getLocalRefreshSeqNo();
+        long refreshTimeMs = segmentTracker.getLocalRefreshTimeMs(), refreshClockTimeMs = segmentTracker.getLocalRefreshClockTimeMs();
+        long refreshSeqNo = segmentTracker.getLocalRefreshSeqNo();
         long bytesBeforeUpload = segmentTracker.getUploadBytesSucceeded(), startTimeInNS = System.nanoTime();
         boolean shouldRetry = true;
         try {
@@ -192,9 +200,8 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
                 // if a new segments_N file is present in local that is not uploaded to remote store yet, it
                 // is considered as a first refresh post commit. A cleanup of stale commit files is triggered.
                 // This is done to avoid delete post each refresh.
-                // Ideally, we want this to be done in async flow. (GitHub issue #4315)
                 if (isRefreshAfterCommit()) {
-                    deleteStaleCommits();
+                    remoteDirectory.deleteStaleSegmentsAsync(LAST_N_METADATA_FILES_TO_KEEP);
                 }
 
                 try (GatedCloseable<SegmentInfos> segmentInfosGatedCloseable = indexShard.getSegmentInfosSnapshot()) {
@@ -231,7 +238,7 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
                             // Start metadata file upload
                             uploadMetadata(localSegmentsPostRefresh, segmentInfos);
                             clearStaleFilesFromLocalSegmentChecksumMap(localSegmentsPostRefresh);
-                            onSuccessfulSegmentsSync(refreshTimeMs, refreshSeqNo, lastRefreshedCheckpoint, checkpoint);
+                            onSuccessfulSegmentsSync(refreshTimeMs, refreshClockTimeMs, refreshSeqNo, lastRefreshedCheckpoint, checkpoint);
                             // At this point since we have uploaded new segments, segment infos and segment metadata file,
                             // along with marking minSeqNoToKeep, upload has succeeded completely.
                             shouldRetry = false;
@@ -277,6 +284,7 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
 
     private void onSuccessfulSegmentsSync(
         long refreshTimeMs,
+        long refreshClockTimeMs,
         long refreshSeqNo,
         long lastRefreshedCheckpoint,
         ReplicationCheckpoint checkpoint
@@ -284,7 +292,7 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
         // Update latest uploaded segment files name in segment tracker
         segmentTracker.setLatestUploadedFiles(latestFileNameSizeOnLocalMap.keySet());
         // Update the remote refresh time and refresh seq no
-        updateRemoteRefreshTimeAndSeqNo(refreshTimeMs, refreshSeqNo);
+        updateRemoteRefreshTimeAndSeqNo(refreshTimeMs, refreshClockTimeMs, refreshSeqNo);
         // Reset the backoffDelayIterator for the future failures
         resetBackOffDelayIterator();
         // Cancel the scheduled cancellable retry if possible and set it to null
@@ -372,18 +380,11 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
         return localSegmentChecksumMap.get(file);
     }
 
-    private void deleteStaleCommits() {
-        try {
-            remoteDirectory.deleteStaleSegments(LAST_N_METADATA_FILES_TO_KEEP);
-        } catch (IOException e) {
-            logger.info("Exception while deleting stale commits from remote segment store, will retry delete post next commit", e);
-        }
-    }
-
     /**
      * Updates the last refresh time and refresh seq no which is seen by local store.
      */
     private void updateLocalRefreshTimeAndSeqNo() {
+        segmentTracker.updateLocalRefreshClockTimeMs(System.currentTimeMillis());
         segmentTracker.updateLocalRefreshTimeMs(System.nanoTime() / 1_000_000L);
         segmentTracker.updateLocalRefreshSeqNo(segmentTracker.getLocalRefreshSeqNo() + 1);
     }
@@ -391,7 +392,8 @@ public final class RemoteStoreRefreshListener implements ReferenceManager.Refres
     /**
      * Updates the last refresh time and refresh seq no which is seen by remote store.
      */
-    private void updateRemoteRefreshTimeAndSeqNo(long refreshTimeMs, long refreshSeqNo) {
+    private void updateRemoteRefreshTimeAndSeqNo(long refreshTimeMs, long refreshClockTimeMs, long refreshSeqNo) {
+        segmentTracker.updateRemoteRefreshClockTimeMs(refreshClockTimeMs);
         segmentTracker.updateRemoteRefreshTimeMs(refreshTimeMs);
         segmentTracker.updateRemoteRefreshSeqNo(refreshSeqNo);
     }

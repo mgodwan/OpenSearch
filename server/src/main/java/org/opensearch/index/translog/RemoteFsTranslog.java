@@ -14,8 +14,8 @@ import org.opensearch.common.SetOnce;
 import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.core.util.FileSystemUtils;
-import org.opensearch.core.common.lease.Releasable;
-import org.opensearch.core.common.lease.Releasables;
+import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lease.Releasables;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.index.translog.transfer.BlobStoreTransferService;
 import org.opensearch.index.translog.transfer.FileTransferTracker;
@@ -421,6 +421,20 @@ public class RemoteFsTranslog extends Translog {
             // Second we delete all stale metadata files from remote store
             translogTransferManager.deleteStaleTranslogMetadataFilesAsync();
         }
+    }
+
+    public static void cleanup(Repository repository, ShardId shardId, ThreadPool threadPool) throws IOException {
+        assert repository instanceof BlobStoreRepository : "repository should be instance of BlobStoreRepository";
+        BlobStoreRepository blobStoreRepository = (BlobStoreRepository) repository;
+        FileTransferTracker fileTransferTracker = new FileTransferTracker(shardId);
+        TranslogTransferManager translogTransferManager = buildTranslogTransferManager(
+            blobStoreRepository,
+            threadPool,
+            shardId,
+            fileTransferTracker
+        );
+        // clean up all remote translog files
+        translogTransferManager.deleteTranslogFiles();
     }
 
     protected void onDelete() {

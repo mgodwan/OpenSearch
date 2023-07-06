@@ -67,8 +67,8 @@ import org.opensearch.common.util.CollectionUtils;
 import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.common.util.concurrent.ConcurrentMapLong;
 import org.opensearch.common.util.io.IOUtils;
-import org.opensearch.core.common.lease.Releasable;
-import org.opensearch.core.common.lease.Releasables;
+import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lease.Releasables;
 import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexNotFoundException;
@@ -1550,7 +1550,9 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     }
 
     public static boolean canMatchSearchAfter(FieldDoc searchAfter, MinAndMax<?> minMax, FieldSortBuilder primarySortField) {
-        if (searchAfter != null && minMax != null && primarySortField != null) {
+        // Check for sort.missing == null, since in case of missing values sort queries, if segment/shard's min/max
+        // is out of search_after range, it still should be printed and hence we should not skip segment/shard.
+        if (searchAfter != null && minMax != null && primarySortField != null && primarySortField.missing() == null) {
             final Object searchAfterPrimary = searchAfter.fields[0];
             if (primarySortField.order() == SortOrder.DESC) {
                 if (minMax.compareMin(searchAfterPrimary) > 0) {

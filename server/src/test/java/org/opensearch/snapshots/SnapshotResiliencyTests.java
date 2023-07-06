@@ -1835,7 +1835,7 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                     emptyMap(),
                     null,
                     emptyMap(),
-                    new RemoteSegmentStoreDirectoryFactory(() -> repositoriesService),
+                    new RemoteSegmentStoreDirectoryFactory(() -> repositoriesService, threadPool),
                     repositoriesServiceReference::get,
                     fileCacheCleaner
                 );
@@ -1867,7 +1867,8 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                         recoverySettings,
                         transportService,
                         new SegmentReplicationSourceFactory(transportService, recoverySettings, clusterService),
-                        indicesService
+                        indicesService,
+                        clusterService
                     ),
                     mock(SegmentReplicationSourceService.class),
                     shardStateAction,

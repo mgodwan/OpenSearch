@@ -97,7 +97,7 @@ import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.common.lease.Releasable;
+import org.opensearch.common.lease.Releasable;
 import org.opensearch.core.util.BytesRefUtils;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
@@ -2787,6 +2787,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     public InputStream maybeRateLimitSnapshots(InputStream stream) {
         return maybeRateLimit(stream, () -> snapshotRateLimiter, snapshotRateLimitingTimeInNanos);
+    }
+
+    @Override
+    public RemoteStoreShardShallowCopySnapshot getRemoteStoreShallowCopyShardMetadata(
+        SnapshotId snapshotId,
+        IndexId indexId,
+        ShardId snapshotShardId
+    ) {
+        final BlobContainer container = shardContainer(indexId, snapshotShardId);
+        return loadShallowCopyShardSnapshot(container, snapshotId);
     }
 
     @Override
