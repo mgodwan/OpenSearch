@@ -36,6 +36,7 @@ import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.Nullable;
@@ -54,11 +55,9 @@ import org.opensearch.index.query.QueryShardException;
 import org.opensearch.search.lookup.SearchLookup;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Internal field mapper for storing source (and recovery source)
@@ -199,15 +198,59 @@ public class SourceFieldMapper extends MetadataFieldMapper {
         return complete;
     }
 
+
+    private static Trie ordinals = new Trie();
+
+    static {
+        ordinals.put("\"total_amount\"", (byte) 0);
+        ordinals.put("\"improvement_surcharge\"", (byte) 1);
+        ordinals.put("\"pickup_location\"", (byte) 2);
+        ordinals.put("\"pickup_datetime\"", (byte) 3);
+        ordinals.put("\"trip_type\"", (byte) 4);
+        ordinals.put("\"dropoff_datetime\"", (byte) 5);
+        ordinals.put("\"rate_code_id\"", (byte) 6);
+        ordinals.put("\"tolls_amount\"", (byte) 7);
+        ordinals.put("\"dropoff_location\"", (byte) 8);
+        ordinals.put("\"passenger_count\"", (byte) 9);
+        ordinals.put("\"fare_amount\"", (byte) 10);
+        ordinals.put("\"extra\"", (byte) 11);
+        ordinals.put("\"trip_distance\"", (byte) 12);
+        ordinals.put("\"tip_amount\"", (byte) 13);
+        ordinals.put("\"store_and_fwd_flag\"", (byte) 14);
+        ordinals.put("\"payment_type\"", (byte) 15);
+        ordinals.put("\"mta_tax\"", (byte) 16);
+        ordinals.put("\"vendor_id\"", (byte) 17);
+    }
+
+
     @Override
     public void preParse(ParseContext context) throws IOException {
+        Trie.Matcher matcher = new Trie.Matcher(ordinals);
         BytesReference originalSource = context.sourceToParse().source();
         XContentType contentType = context.sourceToParse().getXContentType();
         final BytesReference adaptedSource = applyFilters(originalSource, contentType);
 
         if (adaptedSource != null) {
             final BytesRef ref = adaptedSource.toBytesRef();
-            context.doc().add(new StoredField(fieldType().name(), ref.bytes, ref.offset, ref.length));
+            int index = ref.offset;
+            byte[] arr = new byte[ref.length];
+            int len = 0;
+            for (int i = ref.offset; i < ref.offset + ref.length; i ++) {
+                byte b = ref.bytes[i];
+                arr[len ++] = b;
+                Byte flick = matcher.match(b);
+                if (flick == null) {
+                    matcher.reset();
+                } else if (flick > -1) {
+                    len -= matcher.currentLength();
+                    arr[len++] = (byte)'"';
+                    arr[len++] = flick;
+                    arr[len++] = (byte)'"';
+                } else if (b == '"' && !matcher.isFirstCharacter()){
+                    matcher.reset();
+                }
+            }
+            context.doc().add(new StoredField(fieldType().name(), arr, 0, len));
         }
 
         if (originalSource != null && adaptedSource != originalSource) {
@@ -217,6 +260,12 @@ public class SourceFieldMapper extends MetadataFieldMapper {
             context.doc().add(new NumericDocValuesField(RECOVERY_SOURCE_NAME, 1));
         }
     }
+
+    @Override
+    public void postParse(ParseContext context) throws IOException {
+
+    }
+
 
     @Nullable
     public BytesReference applyFilters(@Nullable BytesReference originalSource, @Nullable XContentType contentType) throws IOException {
