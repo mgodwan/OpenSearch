@@ -43,6 +43,7 @@ import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.translog.Translog;
 
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * This is a utility class that holds the per request state needed to perform bulk operations on the primary.
@@ -124,6 +125,10 @@ class BulkPrimaryExecutionContext {
     /** gets the current, untranslated item request */
     public DocWriteRequest<?> getCurrent() {
         return getCurrentItem().request();
+    }
+
+    public Map<String, Object> getCurrentParsedFields() {
+        return request.parsedEntities[currentIndex];
     }
 
     public BulkShardRequest getBulkShardRequest() {

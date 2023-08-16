@@ -32,6 +32,7 @@
 
 package org.opensearch.index.mapper;
 
+import java.util.Map;
 import java.util.Objects;
 
 import org.opensearch.common.Nullable;
@@ -55,6 +56,8 @@ public class SourceToParse {
     private final @Nullable String routing;
 
     private final XContentType xContentType;
+
+    public Map<String, Object> parsedFields;
 
     public SourceToParse(String index, String id, BytesReference source, XContentType xContentType, @Nullable String routing) {
         this.index = Objects.requireNonNull(index);

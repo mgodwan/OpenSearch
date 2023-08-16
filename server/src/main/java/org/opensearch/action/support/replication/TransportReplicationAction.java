@@ -726,7 +726,7 @@ public abstract class TransportReplicationAction<
      *
      * @opensearch.internal
      */
-    private final class AsyncReplicaAction extends AbstractRunnable implements ActionListener<Releasable> {
+    public final class AsyncReplicaAction extends AbstractRunnable implements ActionListener<Releasable> {
         private final ActionListener<ReplicaResponse> onCompletionListener;
         private final IndexShard replica;
         /**

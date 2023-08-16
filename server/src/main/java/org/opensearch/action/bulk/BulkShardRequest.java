@@ -43,7 +43,9 @@ import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.index.shard.ShardId;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -59,16 +61,20 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
 
     private final BulkItemRequest[] items;
 
+    public Map<String, Object>[] parsedEntities;
+
     public BulkShardRequest(StreamInput in) throws IOException {
         super(in);
         final ShardId itemShardId = in.getVersion().onOrAfter(COMPACT_SHARD_ID_VERSION) ? shardId : null;
         items = in.readArray(i -> i.readOptionalWriteable(inpt -> new BulkItemRequest(itemShardId, inpt)), BulkItemRequest[]::new);
+        parsedEntities = new HashMap[items.length];
     }
 
     public BulkShardRequest(ShardId shardId, RefreshPolicy refreshPolicy, BulkItemRequest[] items) {
         super(shardId);
         this.items = items;
         setRefreshPolicy(refreshPolicy);
+        parsedEntities = new HashMap[items.length];
     }
 
     public BulkItemRequest[] items() {

@@ -50,10 +50,7 @@ import org.opensearch.index.mapper.DynamicTemplate.XContentFieldType;
 
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import static org.opensearch.index.mapper.FieldMapper.IGNORE_MALFORMED_SETTING;
 
@@ -78,7 +75,6 @@ final class DocumentParser {
         final Mapping mapping = docMapper.mapping();
         final ParseContext.InternalParseContext context;
         final XContentType xContentType = source.getXContentType();
-
         try (
             XContentParser parser = XContentHelper.createParser(
                 docMapperParser.getXContentRegistry(),
@@ -125,6 +121,14 @@ final class DocumentParser {
         XContentParser parser
     ) throws IOException {
         final boolean emptyDoc = isEmptyDoc(mapping, parser);
+
+        if (context.sourceToParse().parsedFields != null) {
+            for (Map.Entry<String, Object> entry: context.sourceToParse().parsedFields.entrySet()) {
+                context.docMapper().mapping().getMetadataMapper(entry.getKey());
+            }
+        } else {
+            context.sourceToParse().parsedFields = new HashMap<>();
+        }
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.preParse(context);
