@@ -85,8 +85,9 @@ final class DocumentParser {
         ) {
             context = new ParseContext.InternalParseContext(indexSettings, docMapperParser, docMapper, source, parser);
             validateStart(parser);
-            internalParseDocument(mapping, metadataFieldsMappers, context, parser);
-            validateEnd(parser);
+            if(internalParseDocument(mapping, metadataFieldsMappers, context, parser)) {
+                validateEnd(parser);
+            }
         } catch (Exception e) {
             throw wrapInMapperParsingException(source, e);
         }
@@ -114,21 +115,13 @@ final class DocumentParser {
         return false;
     }
 
-    private static void internalParseDocument(
+    private static boolean internalParseDocument(
         Mapping mapping,
         MetadataFieldMapper[] metadataFieldsMappers,
         ParseContext.InternalParseContext context,
         XContentParser parser
     ) throws IOException {
         final boolean emptyDoc = isEmptyDoc(mapping, parser);
-
-        if (context.sourceToParse().parsedFields != null) {
-            for (Map.Entry<String, Object> entry: context.sourceToParse().parsedFields.entrySet()) {
-                context.docMapper().mapping().getMetadataMapper(entry.getKey());
-            }
-        } else {
-            context.sourceToParse().parsedFields = new HashMap<>();
-        }
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.preParse(context);
@@ -144,6 +137,8 @@ final class DocumentParser {
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.postParse(context);
         }
+
+        return true;
     }
 
     private static void validateStart(XContentParser parser) throws IOException {
@@ -379,16 +374,27 @@ final class DocumentParser {
         return parent.mappingUpdate(mapper);
     }
 
-    static void parseObjectOrNested(ParseContext context, ObjectMapper mapper) throws IOException {
+    static boolean parseObjectOrNested(ParseContext context, ObjectMapper mapper) throws IOException {
+        if (!context.sourceToParse().parsedFields.isEmpty()) {
+            for (Map.Entry<String, Object> entry: context.sourceToParse().parsedFields.entrySet()) {
+                String key = entry.getKey();
+                Object val = entry.getValue();
+                Mapper mapper1 = getMapper(context, mapper, key, new String[]{key});
+                ParseContext finContext = context.createExternalValueContext(val);
+                parseObjectOrField(finContext, mapper1);
+            }
+            return false;
+        }
+
         if (mapper.isEnabled() == false) {
             context.parser().skipChildren();
-            return;
+            return true;
         }
         XContentParser parser = context.parser();
         XContentParser.Token token = parser.currentToken();
         if (token == XContentParser.Token.VALUE_NULL) {
             // the object is null ("obj1" : null), simply bail
-            return;
+            return true;
         }
 
         String currentFieldName = parser.currentName();
@@ -421,6 +427,8 @@ final class DocumentParser {
         if (nested.isNested()) {
             nested(context, nested);
         }
+
+        return true;
     }
 
     private static void innerParseObject(

@@ -98,6 +98,10 @@ class BulkPrimaryExecutionContext {
         advance();
     }
 
+    public int getCurrentIndex() {
+        return currentIndex;
+    }
+
     private int findNextNonAborted(int startIndex) {
         final int length = request.items().length;
         while (startIndex < length && isAborted(request.items()[startIndex].getPrimaryResponse())) {

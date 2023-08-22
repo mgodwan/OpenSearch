@@ -108,6 +108,7 @@ import org.opensearch.transport.TransportRequestOptions;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -593,7 +594,12 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         ActionListener<Void> itemDoneListener
     ) throws Exception {
         final DocWriteRequest.OpType opType = context.getCurrent().opType();
-        final Map<String, Object> parsedEntity = context.getCurrentParsedFields();
+        Map<String, Object> parsedEntity = context.getCurrentParsedFields();
+
+        if (parsedEntity == null) {
+            context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()] = new HashMap<>();
+            parsedEntity = context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()];
+        }
 
         final UpdateHelper.Result updateResult;
         if (opType == DocWriteRequest.OpType.UPDATE) {
