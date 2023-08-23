@@ -71,6 +71,7 @@ import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.compress.CompressedXContent;
 import org.opensearch.common.inject.Inject;
+import org.opensearch.common.io.stream.OutputStreamStreamOutput;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.settings.Settings;
@@ -112,6 +113,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -597,7 +599,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         Map<String, Object> parsedEntity = context.getCurrentParsedFields();
 
         if (parsedEntity == null) {
-            context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()] = new HashMap<>();
+            context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()] = new ConcurrentHashMap<>();
             parsedEntity = context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()];
         }
 

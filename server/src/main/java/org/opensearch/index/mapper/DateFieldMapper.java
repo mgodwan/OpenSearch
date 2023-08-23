@@ -678,6 +678,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
             }
         } else {
             dateAsString = context.parser().textOrNull();
+            context.sourceToParse().parsedFields.put(this.name(), dateAsString);
         }
 
         long timestamp;

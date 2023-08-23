@@ -47,6 +47,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
@@ -67,14 +68,23 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
         super(in);
         final ShardId itemShardId = in.getVersion().onOrAfter(COMPACT_SHARD_ID_VERSION) ? shardId : null;
         items = in.readArray(i -> i.readOptionalWriteable(inpt -> new BulkItemRequest(itemShardId, inpt)), BulkItemRequest[]::new);
-        parsedEntities = new HashMap[items.length];
+        parsedEntities = in.readArray(is -> {
+            Map<String, Object> map = new ConcurrentHashMap<>();
+            int sz = is.readInt();
+            for (int i = 0; i < sz; i ++) {
+                String key = is.readString();
+                String val = is.readString();
+                map.put(key, val);
+            }
+            return map;
+        }, ConcurrentHashMap[]::new);
     }
 
     public BulkShardRequest(ShardId shardId, RefreshPolicy refreshPolicy, BulkItemRequest[] items) {
         super(shardId);
         this.items = items;
         setRefreshPolicy(refreshPolicy);
-        parsedEntities = new HashMap[items.length];
+        parsedEntities = new ConcurrentHashMap[items.length];
     }
 
     public BulkItemRequest[] items() {
@@ -109,6 +119,15 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
                 o.writeBoolean(false);
             }
         } : StreamOutput::writeOptionalWriteable, items);
+        out.writeArray((o, v) -> {
+            o.writeInt(v == null ? 0 : v.size());
+            if (v != null) {
+                for (Map.Entry<String, Object> entry : v.entrySet()) {
+                    o.writeString(entry.getKey());
+                    o.writeString(entry.getValue().toString());
+                }
+            }
+        }, parsedEntities);
     }
 
     @Override
@@ -131,6 +150,11 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
                 break;
             case NONE:
                 break;
+        }
+
+        b.append("Parsed Entities: " + parsedEntities.length + " \n");
+        for (Map<String, Object> v: parsedEntities) {
+            b.append(v);
         }
         return b.toString();
     }

@@ -88,6 +88,7 @@ final class DocumentParser {
             if(internalParseDocument(mapping, metadataFieldsMappers, context, parser)) {
                 validateEnd(parser);
             }
+            //context.sourceToParse().parsedFields.forEach((k,v) -> System.out.println(k + " -> " + v));
         } catch (Exception e) {
             throw wrapInMapperParsingException(source, e);
         }
@@ -127,18 +128,19 @@ final class DocumentParser {
             metadataMapper.preParse(context);
         }
 
+        boolean val = false;
         if (mapping.root.isEnabled() == false) {
             // entire type is disabled
             parser.skipChildren();
         } else if (emptyDoc == false) {
-            parseObjectOrNested(context, mapping.root);
+             val = parseObjectOrNested(context, mapping.root);
         }
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.postParse(context);
         }
 
-        return true;
+        return val;
     }
 
     private static void validateStart(XContentParser parser) throws IOException {
