@@ -472,6 +472,8 @@ public abstract class Engine implements Closeable {
         private Translog.Location translogLocation;
         private long took;
 
+        public int fieldCount;
+
         protected Result(Operation.TYPE operationType, Exception failure, long version, long term, long seqNo) {
             this.operationType = operationType;
             this.failure = Objects.requireNonNull(failure);

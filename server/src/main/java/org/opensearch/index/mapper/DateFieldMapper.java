@@ -669,6 +669,8 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
     @Override
     protected void parseCreateField(ParseContext context) throws IOException {
         String dateAsString;
+        long timestamp = -1;
+
         if (context.externalValueSet()) {
             Object dateAsObject = context.externalValue();
             if (dateAsObject == null) {
@@ -676,20 +678,21 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
             } else {
                 dateAsString = dateAsObject.toString();
             }
+            timestamp = Long.parseLong(dateAsString);
         } else {
             dateAsString = context.parser().textOrNull();
-            context.sourceToParse().parsedFields.put(this.name(), dateAsString);
         }
 
-        long timestamp;
+
         if (dateAsString == null) {
             if (nullValue == null) {
                 return;
             }
             timestamp = nullValue;
-        } else {
+        } else if (timestamp == -1) {
             try {
                 timestamp = fieldType().parse(dateAsString);
+                context.sourceToParse().parsedFields.put(this.name(), timestamp);
             } catch (IllegalArgumentException | OpenSearchParseException | DateTimeException | ArithmeticException e) {
                 if (ignoreMalformed) {
                     context.addIgnoredField(mappedFieldType.name());

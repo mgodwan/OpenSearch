@@ -40,8 +40,10 @@ import org.apache.lucene.util.BitUtil;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.OpenSearchParseException;
 import org.opensearch.common.geo.GeoUtils.EffectivePoint;
+import org.opensearch.common.io.stream.NamedWriteable;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.geometry.Geometry;
@@ -63,12 +65,18 @@ import static org.opensearch.index.mapper.AbstractPointGeometryFieldMapper.Names
  *
  * @opensearch.internal
  */
-public class GeoPoint implements ToXContentFragment {
+public class GeoPoint implements ToXContentFragment, NamedWriteable {
 
     protected double lat;
     protected double lon;
 
     public GeoPoint() {}
+
+    public static final String NAME = "geo_point";
+    @Override
+    public String getWriteableName() {
+        return NAME;
+    }
 
     /**
      * Create a new Geopoint from a string. This String must either be a geohash

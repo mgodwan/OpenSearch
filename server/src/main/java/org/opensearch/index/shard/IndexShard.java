@@ -1026,7 +1026,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             return new Engine.IndexResult(e, version, opPrimaryTerm, seqNo);
         }
 
-        return index(engine, operation);
+        Engine.IndexResult result = index(engine, operation);
+        return result;
     }
 
     public static Engine.Index prepareIndex(
@@ -1050,7 +1051,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             doc.addDynamicMappingsUpdate(docMapper.getMapping());
         }
         Term uid = new Term(IdFieldMapper.NAME, Uid.encodeId(doc.id()));
-        return new Engine.Index(
+        Engine.Index index = new Engine.Index(
             uid,
             doc,
             seqNo,
@@ -1064,6 +1065,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             ifSeqNo,
             ifPrimaryTerm
         );
+        return index;
     }
 
     private Engine.IndexResult index(Engine engine, Engine.Index index) throws IOException {

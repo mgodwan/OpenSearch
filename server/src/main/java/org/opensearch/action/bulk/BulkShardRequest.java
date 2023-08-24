@@ -38,15 +38,13 @@ import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.support.replication.ReplicatedWriteRequest;
 import org.opensearch.action.support.replication.ReplicationRequest;
+import org.opensearch.common.geo.GeoPoint;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.index.shard.ShardId;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -64,6 +62,17 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
 
     public Map<String, Object>[] parsedEntities;
 
+    private static enum Type {
+        INT,
+        LONG,
+        SHORT,
+        BYTE,
+        DOUBLE,
+        STRING,
+        FLOAT,
+        GEO_POINT
+    }
+
     public BulkShardRequest(StreamInput in) throws IOException {
         super(in);
         final ShardId itemShardId = in.getVersion().onOrAfter(COMPACT_SHARD_ID_VERSION) ? shardId : null;
@@ -73,7 +82,34 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
             int sz = is.readInt();
             for (int i = 0; i < sz; i ++) {
                 String key = is.readString();
-                String val = is.readString();
+                Object val = null;
+                Type t = in.readEnum(Type.class);
+                switch (t) {
+                    case INT:
+                        val = in.readInt();
+                        break;
+                    case LONG:
+                        val = in.readLong();
+                        break;
+                    case FLOAT:
+                        val = in.readFloat();
+                        break;
+                    case DOUBLE:
+                        val = in.readDouble();
+                        break;
+                    case SHORT:
+                        val = in.readShort();
+                        break;
+                    case BYTE:
+                        val = in.readByte();
+                        break;
+                    case STRING:
+                        val = in.readString();
+                        break;
+                    case GEO_POINT:
+                        val = in.readNamedWriteableList(GeoPoint.class);
+                        break;
+                }
                 map.put(key, val);
             }
             return map;
@@ -108,6 +144,9 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
         return indices.toArray(new String[0]);
     }
 
+
+    private static final List<? extends GeoPoint> gpl = new ArrayList<>();
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
@@ -124,7 +163,35 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
             if (v != null) {
                 for (Map.Entry<String, Object> entry : v.entrySet()) {
                     o.writeString(entry.getKey());
-                    o.writeString(entry.getValue().toString());
+                    Object val = entry.getValue();
+                    if (val instanceof Number) {
+                        if (val instanceof Integer) {
+                            o.writeEnum(Type.INT);
+                            o.writeInt((int) val);
+                        } else if (val instanceof Long) {
+                            o.writeEnum(Type.LONG);
+                            o.writeLong((long) val);
+                        } else if (val instanceof Float) {
+                            o.writeEnum(Type.FLOAT);
+                            o.writeFloat((float) val);
+                        } else if (val instanceof Double) {
+                            o.writeEnum(Type.DOUBLE);
+                            o.writeDouble((double) val);
+                        } else if (val instanceof Short) {
+                            o.writeEnum(Type.SHORT);
+                            o.writeShort((short) val);
+                        }
+                        else if (val instanceof Byte) {
+                            o.writeEnum(Type.BYTE);
+                            o.writeByte((byte) val);
+                        }
+                    } else if (val.getClass().isAssignableFrom(gpl.getClass())) {
+                        o.writeEnum(Type.GEO_POINT);
+                        o.writeNamedWriteableList((List<? extends GeoPoint>) entry.getValue());
+                    } else {
+                        o.writeEnum(Type.STRING);
+                        o.writeString(entry.getValue().toString());
+                    }
                 }
             }
         }, parsedEntities);

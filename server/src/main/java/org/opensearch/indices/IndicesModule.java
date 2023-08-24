@@ -37,6 +37,7 @@ import org.opensearch.action.admin.indices.rollover.MaxAgeCondition;
 import org.opensearch.action.admin.indices.rollover.MaxDocsCondition;
 import org.opensearch.action.admin.indices.rollover.MaxSizeCondition;
 import org.opensearch.action.resync.TransportResyncReplicationAction;
+import org.opensearch.common.geo.GeoPoint;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.core.ParseField;
 import org.opensearch.common.inject.AbstractModule;
@@ -115,6 +116,7 @@ public class IndicesModule extends AbstractModule {
         namedWritables.add(new NamedWriteableRegistry.Entry(Condition.class, MaxAgeCondition.NAME, MaxAgeCondition::new));
         namedWritables.add(new NamedWriteableRegistry.Entry(Condition.class, MaxDocsCondition.NAME, MaxDocsCondition::new));
         namedWritables.add(new NamedWriteableRegistry.Entry(Condition.class, MaxSizeCondition.NAME, MaxSizeCondition::new));
+        namedWritables.add(new NamedWriteableRegistry.Entry(GeoPoint.class, GeoPoint.NAME, GeoPoint::new));
     }
 
     public List<NamedWriteableRegistry.Entry> getNamedWriteables() {

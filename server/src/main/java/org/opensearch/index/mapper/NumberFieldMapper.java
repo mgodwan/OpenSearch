@@ -1404,6 +1404,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
             numericValue = fieldType().type.parse(value, coerce.value());
         }
 
+        context.sourceToParse().parsedFields.put(this.name(), numericValue);
         context.doc().addAll(fieldType().type.createFields(fieldType().name(), numericValue, indexed, hasDocValues, stored));
 
         if (hasDocValues == false && (stored || indexed)) {
