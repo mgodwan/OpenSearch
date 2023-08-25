@@ -692,7 +692,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
         } else if (timestamp == -1) {
             try {
                 timestamp = fieldType().parse(dateAsString);
-                context.sourceToParse().parsedFields.put(this.name(), timestamp);
+                context.sourceToParse().parsedFields.put(Keys.getId(this.name()), timestamp);
             } catch (IllegalArgumentException | OpenSearchParseException | DateTimeException | ArithmeticException e) {
                 if (ignoreMalformed) {
                     context.addIgnoredField(mappedFieldType.name());

@@ -596,7 +596,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         ActionListener<Void> itemDoneListener
     ) throws Exception {
         final DocWriteRequest.OpType opType = context.getCurrent().opType();
-        Map<String, Object> parsedEntity = context.getCurrentParsedFields();
+        Map<Short, Object> parsedEntity = context.getCurrentParsedFields();
 
         if (parsedEntity == null) {
             context.getBulkShardRequest().parsedEntities[context.getCurrentIndex()] = new ConcurrentHashMap<>();
@@ -896,7 +896,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
     private static Engine.Result performOpOnReplica(
         DocWriteResponse primaryResponse,
         DocWriteRequest<?> docWriteRequest,
-        Map<String, Object> parsedFields,
+        Map<Short, Object> parsedFields,
         IndexShard replica
     ) throws Exception {
         final Engine.Result result;

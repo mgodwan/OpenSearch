@@ -1025,7 +1025,7 @@ public class TextFieldMapper extends ParametrizedFieldMapper {
             value = context.externalValue().toString();
         } else {
             value = context.parser().textOrNull();
-            context.sourceToParse().parsedFields.put(this.name(), value);
+            context.sourceToParse().parsedFields.put(Keys.getId(this.name()), value);
         }
 
         if (value == null) {

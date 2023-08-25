@@ -131,7 +131,7 @@ class BulkPrimaryExecutionContext {
         return getCurrentItem().request();
     }
 
-    public Map<String, Object> getCurrentParsedFields() {
+    public Map<Short, Object> getCurrentParsedFields() {
         return request.parsedEntities[currentIndex];
     }
 

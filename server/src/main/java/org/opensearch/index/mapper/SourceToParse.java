@@ -57,7 +57,7 @@ public class SourceToParse {
 
     private final XContentType xContentType;
 
-    public Map<String, Object> parsedFields;
+    public Map<Short, Object> parsedFields;
 
     public SourceToParse(String index, String id, BytesReference source, XContentType xContentType, @Nullable String routing) {
         this.index = Objects.requireNonNull(index);

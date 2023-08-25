@@ -449,7 +449,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
                 value = nullValue;
             } else {
                 value = parser.textOrNull();
-                context.sourceToParse().parsedFields.put(this.name(), value);
+                context.sourceToParse().parsedFields.put(Keys.getId(this.name()), value);
             }
         }
 

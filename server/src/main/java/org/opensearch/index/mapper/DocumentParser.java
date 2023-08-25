@@ -80,7 +80,8 @@ final class DocumentParser {
                 docMapperParser.getXContentRegistry(),
                 LoggingDeprecationHandler.INSTANCE,
                 source.source(),
-                xContentType
+                xContentType,
+                source.parsedFields
             )
         ) {
             context = new ParseContext.InternalParseContext(indexSettings, docMapperParser, docMapper, source, parser);
@@ -122,7 +123,7 @@ final class DocumentParser {
         ParseContext.InternalParseContext context,
         XContentParser parser
     ) throws IOException {
-        final boolean emptyDoc = isEmptyDoc(mapping, parser);
+        final boolean emptyDoc = false; //isEmptyDoc(mapping, parser);
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.preParse(context);
@@ -378,8 +379,8 @@ final class DocumentParser {
 
     static boolean parseObjectOrNested(ParseContext context, ObjectMapper mapper) throws IOException {
         if (!context.sourceToParse().parsedFields.isEmpty()) {
-            for (Map.Entry<String, Object> entry: context.sourceToParse().parsedFields.entrySet()) {
-                String key = entry.getKey();
+            for (Map.Entry<Short, Object> entry: context.sourceToParse().parsedFields.entrySet()) {
+                String key = Keys.getKey(entry.getKey());
                 Object val = entry.getValue();
                 Mapper mapper1 = getMapper(context, mapper, key, new String[]{key});
                 ParseContext finContext = context.createExternalValueContext(val);

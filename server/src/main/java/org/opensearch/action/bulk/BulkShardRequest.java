@@ -60,30 +60,53 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
 
     private final BulkItemRequest[] items;
 
-    public Map<String, Object>[] parsedEntities;
+    public Map<Short, Object>[] parsedEntities;
 
     private static enum Type {
-        INT,
-        LONG,
-        SHORT,
-        BYTE,
-        DOUBLE,
-        STRING,
-        FLOAT,
-        GEO_POINT
+        INT((short) 0),
+        LONG((short) 1),
+        SHORT((short) 2),
+        BYTE((short) 3),
+        DOUBLE((short) 4),
+        STRING((short) 5),
+        FLOAT((short) 6),
+        GEO_POINT((short) 7);
+
+        short s;
+        Type(short s) {
+            this.s = s;
+        }
+        short getval() {
+            return s;
+        }
+
+        static Type [] arr;
+
+        static {
+            arr = new Type[Type.values().length];
+            for (Type t: Type.values()) {
+                arr[t.getval()] = t;
+            }
+        }
+
+        static Type from(short s) {
+            return arr[s];
+        }
     }
+
+
 
     public BulkShardRequest(StreamInput in) throws IOException {
         super(in);
         final ShardId itemShardId = in.getVersion().onOrAfter(COMPACT_SHARD_ID_VERSION) ? shardId : null;
         items = in.readArray(i -> i.readOptionalWriteable(inpt -> new BulkItemRequest(itemShardId, inpt)), BulkItemRequest[]::new);
         parsedEntities = in.readArray(is -> {
-            Map<String, Object> map = new ConcurrentHashMap<>();
             int sz = is.readInt();
+            Map<Short, Object> map = new ConcurrentHashMap<>(sz);
             for (int i = 0; i < sz; i ++) {
-                String key = is.readString();
+                short key = is.readShort();
                 Object val = null;
-                Type t = in.readEnum(Type.class);
+                Type t = Type.from(in.readShort());
                 switch (t) {
                     case INT:
                         val = in.readInt();
@@ -107,7 +130,10 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
                         val = in.readString();
                         break;
                     case GEO_POINT:
-                        val = in.readNamedWriteableList(GeoPoint.class);
+                        int cnt = in.readInt();
+                        List<GeoPoint> points = new ArrayList<GeoPoint>(cnt);
+                        for (int ii = 0; ii < cnt; ii ++) points.add(new GeoPoint(in));
+                        val = points;
                         break;
                 }
                 map.put(key, val);
@@ -161,35 +187,37 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
         out.writeArray((o, v) -> {
             o.writeInt(v == null ? 0 : v.size());
             if (v != null) {
-                for (Map.Entry<String, Object> entry : v.entrySet()) {
-                    o.writeString(entry.getKey());
+                for (Map.Entry<Short, Object> entry : v.entrySet()) {
+                    o.writeShort(entry.getKey());
                     Object val = entry.getValue();
                     if (val instanceof Number) {
                         if (val instanceof Integer) {
-                            o.writeEnum(Type.INT);
+                            o.writeShort(Type.INT.getval());
                             o.writeInt((int) val);
                         } else if (val instanceof Long) {
-                            o.writeEnum(Type.LONG);
+                            o.writeShort(Type.LONG.getval());
                             o.writeLong((long) val);
                         } else if (val instanceof Float) {
-                            o.writeEnum(Type.FLOAT);
+                            o.writeShort(Type.FLOAT.getval());
                             o.writeFloat((float) val);
                         } else if (val instanceof Double) {
-                            o.writeEnum(Type.DOUBLE);
+                            o.writeShort(Type.DOUBLE.getval());
                             o.writeDouble((double) val);
                         } else if (val instanceof Short) {
-                            o.writeEnum(Type.SHORT);
+                            o.writeShort(Type.SHORT.getval());
                             o.writeShort((short) val);
                         }
                         else if (val instanceof Byte) {
-                            o.writeEnum(Type.BYTE);
+                            o.writeShort(Type.BYTE.getval());
                             o.writeByte((byte) val);
                         }
                     } else if (val.getClass().isAssignableFrom(gpl.getClass())) {
-                        o.writeEnum(Type.GEO_POINT);
-                        o.writeNamedWriteableList((List<? extends GeoPoint>) entry.getValue());
+                        o.writeShort(Type.GEO_POINT.getval());
+                        List<? extends GeoPoint> gpls = (List<? extends GeoPoint>) val;
+                        o.writeInt(gpls.size());
+                        for (int i = 0; i < gpls.size(); i ++) gpls.get(i).writeTo(o);
                     } else {
-                        o.writeEnum(Type.STRING);
+                        o.writeShort(Type.STRING.getval());
                         o.writeString(entry.getValue().toString());
                     }
                 }
@@ -220,7 +248,7 @@ public class BulkShardRequest extends ReplicatedWriteRequest<BulkShardRequest> i
         }
 
         b.append("Parsed Entities: " + parsedEntities.length + " \n");
-        for (Map<String, Object> v: parsedEntities) {
+        for (Map<Short, Object> v: parsedEntities) {
             b.append(v);
         }
         return b.toString();

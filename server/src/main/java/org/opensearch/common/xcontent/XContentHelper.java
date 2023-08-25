@@ -53,6 +53,8 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,6 +99,19 @@ public class XContentHelper {
         }
     }
 
+    private static final BytesReference DUMMY_SOURCE = BytesReference.fromByteBuffer(ByteBuffer.wrap("{}".getBytes(StandardCharsets.UTF_8)));
+    public static XContentParser createParser(
+        NamedXContentRegistry xContentRegistry,
+        DeprecationHandler deprecationHandler,
+        BytesReference bytes,
+        MediaType mediaType,
+        Map map
+    ) throws IOException {
+        if (!map.isEmpty()) {
+            return createParser(xContentRegistry, deprecationHandler, DUMMY_SOURCE, mediaType);
+        }
+        return createParser(xContentRegistry, deprecationHandler, bytes, mediaType);
+    }
     /**
      * Creates a parser for the bytes using the supplied content-type
      */

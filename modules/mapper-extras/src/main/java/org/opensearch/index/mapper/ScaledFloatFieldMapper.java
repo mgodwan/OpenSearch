@@ -401,7 +401,7 @@ public class ScaledFloatFieldMapper extends ParametrizedFieldMapper {
                 }
             }
             value = numericValue;
-            context.sourceToParse().parsedFields.put(this.name(), numericValue);
+            context.sourceToParse().parsedFields.put(Keys.getId(this.name()), numericValue);
         }
 
         if (value == null) {

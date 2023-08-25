@@ -403,7 +403,7 @@ public abstract class AbstractGeometryFieldMapper<Parsed, Processed> extends Fie
                     return;
                 }
                 shape = geometryIndexer.prepareForIndexing(geometry);
-                context.sourceToParse().parsedFields.put(this.name(), shape);
+                context.sourceToParse().parsedFields.put(Keys.getId(this.name()), shape);
             }
 
             List<IndexableField> fields = new ArrayList<>();
