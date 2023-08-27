@@ -38,10 +38,14 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
+import org.opensearch.common.MemoizedSupplier;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.mapper.CompletionFieldMapper;
+import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
+import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
+import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
 
 /**
  * {@link PerFieldMappingPostingFormatCodec This postings format} is the default
@@ -58,6 +62,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new Lucene90DocValuesFormat();
 
+    private MemoizedSupplier<PostingsFormat> bloomedPostingFormatSupplier;
+
     static {
         assert Codec.forName(Lucene.LATEST_CODEC).getClass().isAssignableFrom(PerFieldMappingPostingFormatCodec.class)
             : "PerFieldMappingPostingFormatCodec must subclass the latest " + "lucene codec: " + Lucene.LATEST_CODEC;
@@ -67,6 +73,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
         super(compressionMode);
         this.mapperService = mapperService;
         this.logger = logger;
+        this.bloomedPostingFormatSupplier = new MemoizedSupplier<PostingsFormat>(() -> new BloomFilteringPostingsFormat(super.postingsFormat(), new DefaultBloomFilterFactory()));
     }
 
     @Override
@@ -76,6 +83,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             logger.warn("no index mapper found for field: [{}] returning default postings format", field);
         } else if (fieldType instanceof CompletionFieldMapper.CompletionFieldType) {
             return CompletionFieldMapper.CompletionFieldType.postingsFormat();
+        } else if (field == IdFieldMapper.NAME) {
+            return bloomedPostingFormatSupplier.get();
         }
         return super.getPostingsFormatForField(field);
     }
