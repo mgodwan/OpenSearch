@@ -39,6 +39,7 @@ import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.index.codec.fuzzy.FuzzyFilterPostingsFormat;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -86,7 +87,8 @@ public class SegmentsStats implements Writeable, ToXContentFragment {
         Map.entry("tvx", "Term Vector Index"),
         Map.entry("tvd", "Term Vector Documents"),
         Map.entry("tvf", "Term Vector Fields"),
-        Map.entry("liv", "Live Documents")
+        Map.entry("liv", "Live Documents"),
+        Map.entry(FuzzyFilterPostingsFormat.FUZZY_FILTER_DATA_EXTENSION, "Fuzzy Set")
     );
 
     public SegmentsStats() {

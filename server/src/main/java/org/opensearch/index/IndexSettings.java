@@ -47,6 +47,8 @@ import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.core.common.Strings;
+
+import org.opensearch.index.codec.fuzzy.FuzzySetParameters;
 import org.opensearch.index.translog.Translog;
 import org.opensearch.indices.replication.common.ReplicationType;
 import org.opensearch.ingest.IngestService;
@@ -604,6 +606,23 @@ public final class IndexSettings {
         Property.IndexScope
     );
 
+    public static final Setting<Boolean> DOC_ID_FUZZY_SET_ENABLED_SETTING = Setting.boolSetting(
+        "index.doc_id_fuzzy_set.enabled",
+        false,
+        Property.IndexScope,
+        Property.Dynamic
+    );
+
+    public static final Setting<Double> DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING = Setting.doubleSetting(
+        "index.doc_id_fuzzy_set.false_positive_probability",
+        FuzzySetParameters.DEFAULT_FALSE_POSITIVE_PROBABILITY,
+        0.0d,
+        0.4096d,
+        Property.IndexScope,
+
+        Property.Dynamic
+    );
+
     private final Index index;
     private final Version version;
     private final Logger logger;
@@ -645,6 +664,10 @@ public final class IndexSettings {
     private volatile long retentionLeaseMillis;
 
     private volatile String defaultSearchPipeline;
+
+    private volatile boolean useBloomFilterForDocIds;
+
+    private volatile double bloomFilterForDocIdFalsePositiveProbability;
 
     /**
      * The maximum age of a retention lease before it is considered expired.
@@ -842,6 +865,9 @@ public final class IndexSettings {
         setMergeOnFlushPolicy(scopedSettings.get(INDEX_MERGE_ON_FLUSH_POLICY));
         defaultSearchPipeline = scopedSettings.get(DEFAULT_SEARCH_PIPELINE);
 
+        useBloomFilterForDocIds = scopedSettings.get(DOC_ID_FUZZY_SET_ENABLED_SETTING);
+        bloomFilterForDocIdFalsePositiveProbability = scopedSettings.get(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING);
+
         scopedSettings.addSettingsUpdateConsumer(MergePolicyConfig.INDEX_COMPOUND_FORMAT_SETTING, mergePolicyConfig::setNoCFSRatio);
         scopedSettings.addSettingsUpdateConsumer(
             MergePolicyConfig.INDEX_MERGE_POLICY_DELETES_PCT_ALLOWED_SETTING,
@@ -919,6 +945,10 @@ public final class IndexSettings {
             INDEX_REMOTE_TRANSLOG_BUFFER_INTERVAL_SETTING,
             this::setRemoteTranslogUploadBufferInterval
         );
+        scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_ENABLED_SETTING,
+            this::setUseBloomFilterForDocIdSetting);
+        scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING,
+            this::setBloomFilterForDocIdFalsePositiveProbability);
     }
 
     private void setSearchSegmentOrderReversed(boolean reversed) {
@@ -1620,5 +1650,31 @@ public final class IndexSettings {
 
     public void setDefaultSearchPipeline(String defaultSearchPipeline) {
         this.defaultSearchPipeline = defaultSearchPipeline;
+    }
+
+    public boolean isUseBloomFilterForDocIds() {
+        return useBloomFilterForDocIds;
+    }
+
+    public void setUseBloomFilterForDocIdSetting(boolean useBloomFilterForDocIds) {
+        if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
+            this.useBloomFilterForDocIds = useBloomFilterForDocIds;
+        } else {
+            throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
+                " is not enabled.");
+        }
+    }
+
+    public double getBloomFilterForDocIdFalsePositiveProbability() {
+        return bloomFilterForDocIdFalsePositiveProbability;
+    }
+
+    public void setBloomFilterForDocIdFalsePositiveProbability(double bloomFilterForDocIdFalsePositiveProbability) {
+        if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
+            this.bloomFilterForDocIdFalsePositiveProbability = bloomFilterForDocIdFalsePositiveProbability;
+        } else {
+            throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
+                " is not enabled.");
+        }
     }
 }
