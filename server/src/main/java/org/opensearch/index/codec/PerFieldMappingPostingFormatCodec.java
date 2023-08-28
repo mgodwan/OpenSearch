@@ -73,7 +73,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
         super(compressionMode);
         this.mapperService = mapperService;
         this.logger = logger;
-        this.bloomedPostingFormatSupplier = new MemoizedSupplier<PostingsFormat>(() -> new BloomFilteringPostingsFormat(super.postingsFormat(), new DefaultBloomFilterFactory()));
+        this.bloomedPostingFormatSupplier = new MemoizedSupplier<PostingsFormat>(() -> new BloomFilteringPostingsFormat(super.getPostingsFormatForField("_id"), new DefaultBloomFilterFactory()));
     }
 
     @Override
@@ -83,7 +83,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             logger.warn("no index mapper found for field: [{}] returning default postings format", field);
         } else if (fieldType instanceof CompletionFieldMapper.CompletionFieldType) {
             return CompletionFieldMapper.CompletionFieldType.postingsFormat();
-        } else if (field == IdFieldMapper.NAME) {
+        } else if (IdFieldMapper.NAME.equals(field)) {
             return bloomedPostingFormatSupplier.get();
         }
         return super.getPostingsFormatForField(field);
