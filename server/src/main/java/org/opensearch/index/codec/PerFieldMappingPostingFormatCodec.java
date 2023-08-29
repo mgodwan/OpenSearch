@@ -36,9 +36,12 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
+import org.apache.lucene.codecs.bloom.BloomFilterFactory;
+import org.apache.lucene.codecs.bloom.FuzzySet;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
-import org.opensearch.common.MemoizedSupplier;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.SegmentWriteState;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.mapper.CompletionFieldMapper;
 import org.opensearch.index.mapper.IdFieldMapper;
@@ -46,6 +49,8 @@ import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
 import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
 import org.apache.lucene.codecs.bloom.DefaultBloomFilterFactory;
+
+import java.util.function.Function;
 
 /**
  * {@link PerFieldMappingPostingFormatCodec This postings format} is the default
@@ -62,7 +67,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new Lucene90DocValuesFormat();
 
-    private MemoizedSupplier<PostingsFormat> bloomedPostingFormatSupplier;
+    private Function<BloomFilterFactory, BloomFilteringPostingsFormat> bloomedPostingFormatSupplierForIdField;
 
     static {
         assert Codec.forName(Lucene.LATEST_CODEC).getClass().isAssignableFrom(PerFieldMappingPostingFormatCodec.class)
@@ -73,7 +78,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
         super(compressionMode);
         this.mapperService = mapperService;
         this.logger = logger;
-        this.bloomedPostingFormatSupplier = new MemoizedSupplier<PostingsFormat>(() -> new BloomFilteringPostingsFormat(super.getPostingsFormatForField("_id"), new DefaultBloomFilterFactory()));
+        this.bloomedPostingFormatSupplierForIdField = (factory) -> new BloomFilteringPostingsFormat(super.getPostingsFormatForField(IdFieldMapper.NAME), factory);
     }
 
     @Override
@@ -83,14 +88,51 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             logger.warn("no index mapper found for field: [{}] returning default postings format", field);
         } else if (fieldType instanceof CompletionFieldMapper.CompletionFieldType) {
             return CompletionFieldMapper.CompletionFieldType.postingsFormat();
-        } else if (IdFieldMapper.NAME.equals(field)) {
-            return bloomedPostingFormatSupplier.get();
+        } else if (IdFieldMapper.NAME.equals(field) && mapperService.getIndexSettings().isUseBloomFilterForDocIds()) {
+            return bloomedPostingFormatSupplierForIdField.apply(new OpenSearchBloomFilterFactory(new DefaultBloomFilterFactory(),
+                mapperService.getIndexSettings().getBloomFilterForDocIdFalsePositiveProbability()));
         }
         return super.getPostingsFormatForField(field);
+    }
+
+    // Extend bloom filter factory
+    private static class OpenSearchBloomFilterFactory extends BloomFilterFactory {
+
+        private BloomFilterFactory bloomFilterFactory;
+        private float falsePositiveProbability;
+
+        public OpenSearchBloomFilterFactory(BloomFilterFactory bloomFilterFactory, float falsePositiveProbability) {
+            this.bloomFilterFactory = bloomFilterFactory;
+            this.falsePositiveProbability = falsePositiveProbability;
+        }
+
+        @Override
+        public FuzzySet getSetForField(SegmentWriteState state, FieldInfo info) {
+            return FuzzySet.createOptimalSet(state.segmentInfo.maxDoc(), falsePositiveProbability);
+        }
+
+        @Override
+        public boolean isSaturated(FuzzySet bloomFilter, FieldInfo fieldInfo) {
+            return bloomFilterFactory.isSaturated(bloomFilter, fieldInfo);
+        }
     }
 
     @Override
     public DocValuesFormat getDocValuesFormatForField(String field) {
         return dvFormat;
+    }
+
+    public static void main(String[] args) {
+        long maxNumUniqueValues = 1022688423;
+        for(double i = 0.1023d; i < 1.0d; i += 0.05) {
+            double targetMaxFpp = i;
+            long setSize =
+                (long)
+                    Math.ceil(
+                        (maxNumUniqueValues * Math.log(targetMaxFpp))
+                            / Math.log(1 / Math.pow(2, Math.log(2))));
+            System.out.println(i + "," + setSize);
+        }
+
     }
 }
