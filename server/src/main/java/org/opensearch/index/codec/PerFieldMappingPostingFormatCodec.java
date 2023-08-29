@@ -62,7 +62,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new Lucene90DocValuesFormat();
 
-    private MemoizedSupplier<PostingsFormat> bloomedPostingFormatSupplier;
+    private MemoizedSupplier<PostingsFormat> bloomedPostingFormatSupplierForIdField = new BloomFilteringPostingsFormat(super.getPostingsFormatForField(IdFieldMapper.NAME), new DefaultBloomFilterFactory());
 
     static {
         assert Codec.forName(Lucene.LATEST_CODEC).getClass().isAssignableFrom(PerFieldMappingPostingFormatCodec.class)
@@ -73,7 +73,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
         super(compressionMode);
         this.mapperService = mapperService;
         this.logger = logger;
-        this.bloomedPostingFormatSupplier = new MemoizedSupplier<PostingsFormat>(() -> new BloomFilteringPostingsFormat(super.getPostingsFormatForField("_id"), new DefaultBloomFilterFactory()));
+        this.bloomedPostingFormatSupplierForIdField = new MemoizedSupplier<PostingsFormat>(() -> );
     }
 
     @Override
@@ -83,8 +83,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             logger.warn("no index mapper found for field: [{}] returning default postings format", field);
         } else if (fieldType instanceof CompletionFieldMapper.CompletionFieldType) {
             return CompletionFieldMapper.CompletionFieldType.postingsFormat();
-        } else if (IdFieldMapper.NAME.equals(field)) {
-            return bloomedPostingFormatSupplier.get();
+        } else if (IdFieldMapper.NAME.equals(field) && mapperService.getIndexSettings().) {
+            return bloomedPostingFormatSupplierForIdField.get();
         }
         return super.getPostingsFormatForField(field);
     }

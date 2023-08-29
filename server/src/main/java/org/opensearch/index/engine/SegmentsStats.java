@@ -86,7 +86,8 @@ public class SegmentsStats implements Writeable, ToXContentFragment {
         Map.entry("tvx", "Term Vector Index"),
         Map.entry("tvd", "Term Vector Documents"),
         Map.entry("tvf", "Term Vector Fields"),
-        Map.entry("liv", "Live Documents")
+        Map.entry("liv", "Live Documents"),
+        Map.entry("blm", "Bloom Filter")
     );
 
     public SegmentsStats() {

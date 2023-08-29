@@ -604,6 +604,22 @@ public final class IndexSettings {
         Property.IndexScope
     );
 
+    public static final Setting<Boolean> BLOOM_FILTER_FOR_DOC_ID_ENABLED_SETTING = Setting.boolSetting(
+        "index.bloom_filter_for_doc_id.enabled",
+        false,
+        Property.IndexScope,
+        Property.Dynamic
+    );
+
+    public static final Setting<Float> BLOOM_FILTER_FOR_DOC_ID_FALSE_POSITIVE_PROBABILITY_SETTING = Setting.floatSetting(
+        "index.bloom_filter_for_doc_id.false_positive_probability",
+        0.1023f,
+        0.0f,
+        0.4096f,
+        Property.IndexScope,
+        Property.Dynamic
+    );
+
     private final Index index;
     private final Version version;
     private final Logger logger;
@@ -645,6 +661,10 @@ public final class IndexSettings {
     private volatile long retentionLeaseMillis;
 
     private volatile String defaultSearchPipeline;
+
+    private volatile boolean useBloomFilterForDocIds;
+
+    private volatile float bloomFilterForDocIdFalsePositiveProbability;
 
     /**
      * The maximum age of a retention lease before it is considered expired.
@@ -841,6 +861,8 @@ public final class IndexSettings {
         mergeOnFlushEnabled = scopedSettings.get(INDEX_MERGE_ON_FLUSH_ENABLED);
         setMergeOnFlushPolicy(scopedSettings.get(INDEX_MERGE_ON_FLUSH_POLICY));
         defaultSearchPipeline = scopedSettings.get(DEFAULT_SEARCH_PIPELINE);
+        useBloomFilterForDocIds = scopedSettings.get(BLOOM_FILTER_FOR_DOC_ID_ENABLED_SETTING);
+        bloomFilterForDocIdFalsePositiveProbability = scopedSettings.get(BLOOM_FILTER_FOR_DOC_ID_FALSE_POSITIVE_PROBABILITY_SETTING);
 
         scopedSettings.addSettingsUpdateConsumer(MergePolicyConfig.INDEX_COMPOUND_FORMAT_SETTING, mergePolicyConfig::setNoCFSRatio);
         scopedSettings.addSettingsUpdateConsumer(
@@ -919,6 +941,10 @@ public final class IndexSettings {
             INDEX_REMOTE_TRANSLOG_BUFFER_INTERVAL_SETTING,
             this::setRemoteTranslogUploadBufferInterval
         );
+        scopedSettings.addSettingsUpdateConsumer(BLOOM_FILTER_FOR_DOC_ID_ENABLED_SETTING,
+            this::setUseBloomFilterForDocIdSetting);
+        scopedSettings.addSettingsUpdateConsumer(BLOOM_FILTER_FOR_DOC_ID_FALSE_POSITIVE_PROBABILITY_SETTING,
+            this::setBloomFilterForDocIdFalsePositiveProbability);
     }
 
     private void setSearchSegmentOrderReversed(boolean reversed) {
@@ -1620,5 +1646,31 @@ public final class IndexSettings {
 
     public void setDefaultSearchPipeline(String defaultSearchPipeline) {
         this.defaultSearchPipeline = defaultSearchPipeline;
+    }
+
+    public boolean isUseBloomFilterForDocIds() {
+        return useBloomFilterForDocIds;
+    }
+
+    public void setUseBloomFilterForDocIdSetting(boolean useBloomFilterForDocIds) {
+        if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
+            this.useBloomFilterForDocIds = useBloomFilterForDocIds;
+        } else {
+            throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
+                " is not enabled.");
+        }
+    }
+
+    public float getBloomFilterForDocIdFalsePositiveProbability() {
+        return bloomFilterForDocIdFalsePositiveProbability;
+    }
+
+    public void setBloomFilterForDocIdFalsePositiveProbability(float bloomFilterForDocIdFalsePositiveProbability) {
+        if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
+            this.bloomFilterForDocIdFalsePositiveProbability = bloomFilterForDocIdFalsePositiveProbability;
+        } else {
+            throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
+                " is not enabled.");
+        }
     }
 }
