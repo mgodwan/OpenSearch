@@ -153,7 +153,8 @@ final class InternalIndexingStats implements IndexingOperationListener {
                 deleteCurrent.count(),
                 noopUpdates.count(),
                 isThrottled,
-                TimeUnit.MILLISECONDS.toMillis(currentThrottleMillis)
+                TimeUnit.MILLISECONDS.toMillis(currentThrottleMillis),
+                new IndexingStats.Stats.DocStatusStats()
             );
         }
     }

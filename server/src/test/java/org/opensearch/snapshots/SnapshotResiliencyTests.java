@@ -1977,6 +1977,7 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                         indexNameExpressionResolver,
                         new AutoCreateIndex(settings, clusterSettings, indexNameExpressionResolver, new SystemIndices(emptyMap())),
                         new IndexingPressureService(settings, clusterService),
+                        mock(IndicesService.class),
                         new SystemIndices(emptyMap())
                     )
                 );
