@@ -2187,7 +2187,8 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                         mock(ThreadPool.class)
                     ),
                     mock(RemoteStorePressureService.class),
-                    new SystemIndices(emptyMap())
+                    new SystemIndices(emptyMap()),
+                    NoopTracer.INSTANCE
                 );
                 actions.put(
                     BulkAction.INSTANCE,
@@ -2211,7 +2212,8 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                         new AutoCreateIndex(settings, clusterSettings, indexNameExpressionResolver, new SystemIndices(emptyMap())),
                         new IndexingPressureService(settings, clusterService),
                         mock(IndicesService.class),
-                        new SystemIndices(emptyMap())
+                        new SystemIndices(emptyMap()),
+                        NoopTracer.INSTANCE
                     )
                 );
                 final RestoreService restoreService = new RestoreService(
