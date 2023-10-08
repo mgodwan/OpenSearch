@@ -2151,6 +2151,7 @@ public class IndexRecoveryIT extends OpenSearchIntegTestCase {
         internalCluster().startNode();
         List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
         String indexName = "test-index";
+        client().admin().cluster().prepareUpdateSettings().setTransientSettings(Map.of("logger.org.opensearch", "TRACE")).get();
         createIndex(
             indexName,
             Settings.builder()
@@ -2171,6 +2172,7 @@ public class IndexRecoveryIT extends OpenSearchIntegTestCase {
         AtomicBoolean stopped = new AtomicBoolean();
         transportService.addSendBehavior((connection, requestId, action, request, options) -> {
             if (action.equals("indices:data/write/bulk[s][r]") && randomInt(100) < 5) {
+                logger.info("Tripped request: " + request);
                 throw new NodeClosedException(nodeWithOldPrimary);
             }
             // prevent the primary from marking the replica as stale so the replica can get promoted.

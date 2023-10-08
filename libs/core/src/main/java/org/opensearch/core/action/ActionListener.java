@@ -41,6 +41,8 @@ import org.opensearch.common.annotation.PublicApi;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -61,6 +63,9 @@ public interface ActionListener<Response> {
      * A failure caused by an exception at some phase of the task.
      */
     void onFailure(Exception e);
+
+    @SuppressWarnings("rawtypes")
+    Map<String, ActionListener> globeListeners = new ConcurrentHashMap<>();
 
     /**
      * Creates a listener that listens for a response (or failure) and executes the
@@ -282,12 +287,30 @@ public interface ActionListener<Response> {
         };
     }
 
-    /**
-     * Wraps a given listener and returns a new listener which executes the provided {@code runBefore}
-     * callback before the listener is notified via either {@code #onResponse} or {@code #onFailure}.
-     * If the callback throws an exception then it will be passed to the listener's {@code #onFailure} and its {@code #onResponse} will
-     * not be executed.
-     */
+    static <Response> ActionListener<Response> runAlong(ActionListener<Response> delegate, Runnable runAlong1, Runnable runAlong2) {
+        return new ActionListener<Response>() {
+            @Override
+            public void onResponse(Response response) {
+                runAlong1.run();
+                delegate.onResponse(response);
+                runAlong2.run();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                runAlong1.run();
+                delegate.onFailure(e);
+                runAlong2.run();
+            }
+        };
+    }
+
+        /**
+         * Wraps a given listener and returns a new listener which executes the provided {@code runBefore}
+         * callback before the listener is notified via either {@code #onResponse} or {@code #onFailure}.
+         * If the callback throws an exception then it will be passed to the listener's {@code #onFailure} and its {@code #onResponse} will
+         * not be executed.
+         */
     static <Response> ActionListener<Response> runBefore(ActionListener<Response> delegate, CheckedRunnable<?> runBefore) {
         return new ActionListener<Response>() {
             @Override

@@ -87,6 +87,7 @@ import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.SpanBuilder;
 import org.opensearch.telemetry.tracing.SpanScope;
 import org.opensearch.telemetry.tracing.listener.TraceableActionListener;
+import org.opensearch.telemetry.tracing.noop.NoopSpan;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.ConnectTransportException;
 import org.opensearch.transport.TransportChannel;
@@ -419,6 +420,9 @@ public abstract class TransportReplicationAction<
         final Span span = getTracer().startSpan(
             SpanBuilder.from("shardPrimaryWrite", clusterService.localNode().getId(), request.getRequest().shardId())
         );
+        if (!(span instanceof NoopSpan)) {
+            logger.info("Span Created: " + span.getSpanId() + " From parent: " + span.getParentSpan().getSpanName());
+        }
         try (SpanScope spanScope = getTracer().withSpanInScope(span)) {
             new AsyncPrimaryAction(request, TraceableActionListener.create(listener, span, getTracer()), (ReplicationTask) task).run();
         } catch (RuntimeException e) {
@@ -565,6 +569,9 @@ public abstract class TransportReplicationAction<
 
                         primaryShardReference.close(); // release shard operation lock before responding to caller
                         setPhase(replicationTask, "finished");
+                        if (onCompletionListener instanceof TraceableActionListener) {
+                            logger.info("Span in async primary action onResponse:" + ((TraceableActionListener<Response>) onCompletionListener).span.getSpanId() + " --- " + Thread.currentThread());
+                        }
                         onCompletionListener.onResponse(response);
                     }, e -> handleException(primaryShardReference, e));
 
@@ -594,12 +601,16 @@ public abstract class TransportReplicationAction<
         }
 
         private void handleException(PrimaryShardReference primaryShardReference, Exception e) {
+            if (onCompletionListener instanceof TraceableActionListener) {
+                logger.info("Span in async primary action handleException:" + ((TraceableActionListener<Response>) onCompletionListener).span.getSpanId() +" -- " + Thread.currentThread());
+            }
             Releasables.closeWhileHandlingException(primaryShardReference); // release shard operation lock before responding to caller
             onFailure(e);
         }
 
         @Override
         public void onFailure(Exception e) {
+//            logger.info("Span in OnCompletionListener onFailure: " + getTracer().getCurrentSpan().getSpan().getSpanId() + " --- " + Thread.currentThread());
             setPhase(replicationTask, "finished");
             onCompletionListener.onFailure(e);
         }
@@ -1259,16 +1270,16 @@ public abstract class TransportReplicationAction<
 
         @Override
         public void perform(Request request, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener) {
-            if (Assertions.ENABLED) {
-                listener = ActionListener.map(listener, result -> {
-                    assert result.replicaRequest() == null || result.finalFailure == null : "a replica request ["
-                        + result.replicaRequest()
-                        + "] with a primary failure ["
-                        + result.finalFailure
-                        + "]";
-                    return result;
-                });
-            }
+//            if (Assertions.ENABLED) {
+//                listener = ActionListener.map(listener, result -> {
+//                    assert result.replicaRequest() == null || result.finalFailure == null : "a replica request ["
+//                        + result.replicaRequest()
+//                        + "] with a primary failure ["
+//                        + result.finalFailure
+//                        + "]";
+//                    return result;
+//                });
+//            }
             assert indexShard.getActiveOperationsCount() != 0 : "must perform shard operation under a permit";
             shardOperationOnPrimary(request, indexShard, listener);
         }

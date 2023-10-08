@@ -8,6 +8,8 @@
 
 package org.opensearch.telemetry.tracing.listener;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.telemetry.tracing.Span;
@@ -15,6 +17,7 @@ import org.opensearch.telemetry.tracing.SpanScope;
 import org.opensearch.telemetry.tracing.Tracer;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tracer wrapped {@link ActionListener}
@@ -22,9 +25,12 @@ import java.util.Objects;
  */
 public class TraceableActionListener<Response> implements ActionListener<Response> {
 
+    private static final Logger logger = LogManager.getLogger(TraceableActionListener.class);
+
     private final ActionListener<Response> delegate;
-    private final Span span;
+    public final Span span;
     private final Tracer tracer;
+    public AtomicBoolean notified = new AtomicBoolean();
 
     /**
      * Constructor.
@@ -56,6 +62,7 @@ public class TraceableActionListener<Response> implements ActionListener<Respons
 
     @Override
     public void onResponse(Response response) {
+        logger.info("Closing span in onResponse: " + span.getSpanId() + " --- " + Thread.currentThread());
         try (SpanScope scope = tracer.withSpanInScope(span)) {
             delegate.onResponse(response);
         } finally {
@@ -66,6 +73,7 @@ public class TraceableActionListener<Response> implements ActionListener<Respons
 
     @Override
     public void onFailure(Exception e) {
+        logger.info("Closing span in onFailure: " + span.getSpanId() + " --- " + Thread.currentThread());
         try (SpanScope scope = tracer.withSpanInScope(span)) {
             delegate.onFailure(e);
         } finally {

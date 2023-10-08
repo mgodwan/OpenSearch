@@ -8,6 +8,9 @@
 
 package org.opensearch.test.telemetry.tracing;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.test.telemetry.tracing.validators.AllSpansAreEndedProperly;
 import org.opensearch.test.telemetry.tracing.validators.AllSpansHaveUniqueId;
@@ -66,6 +69,8 @@ public class StrictCheckSpanProcessor implements SpanProcessor {
         return spanData;
     }
 
+    private static final Logger logger = LogManager.getLogger(StrictCheckSpanProcessor.class);
+
     /**
      * Ensures the strict check succeeds for all the spans.
      */
@@ -76,12 +81,18 @@ public class StrictCheckSpanProcessor implements SpanProcessor {
                 Arrays.asList(new AllSpansAreEndedProperly(), new AllSpansHaveUniqueId())
             );
             try {
+                for (MockSpanData spanData1: spanData) {
+                    if (!spanData1.isHasEnded()) {
+                        @SuppressWarnings("rawtypes")
+                        ActionListener listener = ActionListener.globeListeners.get(spanData1.getSpanID());
+//                        listener.onFailure(new RuntimeException());
+                    }
+                }
                 validators.validate(spanData, 1);
             } catch (Error e) {
-                spanMap.clear();
+                //spanMap.clear();
                 throw e;
             }
         }
-
     }
 }

@@ -93,4 +93,7 @@ public interface Span {
      */
     String getSpanId();
 
+    default void verify() {
+
+    }
 }

@@ -271,7 +271,7 @@ public class ClusterStateObserver {
             ObservingContext context = observingContext.getAndSet(null);
 
             if (context != null) {
-                logger.trace("observer: cluster service closed. notifying listener.");
+                logger.trace("observer: cluster service closed. notifying listener." + Thread.currentThread());
                 clusterApplierService.removeTimeoutListener(this);
                 context.listener.onClusterServiceClose();
             }

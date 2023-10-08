@@ -28,7 +28,7 @@ public final class SpanContext {
         this.span = span;
     }
 
-    Span getSpan() {
+    public Span getSpan() {
         return span;
     }
 }

@@ -99,6 +99,7 @@ import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.SystemIndices;
 import org.opensearch.node.NodeClosedException;
 import org.opensearch.tasks.Task;
+import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.threadpool.ThreadPool.Names;
@@ -107,14 +108,17 @@ import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportRequestOptions;
 import org.opensearch.transport.TransportService;
 
+import javax.swing.*;
 import java.io.IOException;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
+
+import static org.opensearch.core.action.ActionListener.globeListeners;
 
 /**
  * Performs shard-level bulk (index, delete or update) operations
@@ -417,6 +421,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         ActionListener<PrimaryResult<BulkShardRequest, BulkShardResponse>> listener
     ) {
         ClusterStateObserver observer = new ClusterStateObserver(clusterService, request.timeout(), logger, threadPool.getThreadContext());
+        logger.info("Span in dispatchedShardOperationOnPrimary op: " + TransportShardBulkAction.this.getTracer().getCurrentSpan().getSpan().getSpanId());
         performOnPrimary(request, primary, updateHelper, threadPool::absoluteTimeInMillis, (update, shardId, mappingListener) -> {
             assert update != null;
             assert shardId != null;
@@ -436,7 +441,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             public void onTimeout(TimeValue timeout) {
                 mappingUpdateListener.onFailure(new MapperException("timed out while waiting for a dynamic mapping update"));
             }
-        }), listener, threadPool, executor(primary));
+        }), listener, threadPool, executor(primary), TransportShardBulkAction.this.getTracer().getCurrentSpan().getSpan(), TransportShardBulkAction.this.getTracer());
     }
 
     @Override
@@ -461,24 +466,68 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         Consumer<ActionListener<Void>> waitForMappingUpdate,
         ActionListener<PrimaryResult<BulkShardRequest, BulkShardResponse>> listener,
         ThreadPool threadPool,
-        String executorName
+        String executorName) {
+        performOnPrimary(request,
+            primary,
+            updateHelper,
+            nowInMillisSupplier,
+            mappingUpdater,
+            waitForMappingUpdate,
+            listener,
+            threadPool,
+            executorName,
+            null, null);
+    }
+
+    public static final Map<String, ActionListener> listeners = new ConcurrentHashMap<>();
+
+    public static void performOnPrimary(
+        BulkShardRequest request,
+        IndexShard primary,
+        UpdateHelper updateHelper,
+        LongSupplier nowInMillisSupplier,
+        MappingUpdatePerformer mappingUpdater,
+        Consumer<ActionListener<Void>> waitForMappingUpdate,
+        ActionListener<PrimaryResult<BulkShardRequest, BulkShardResponse>> listeneer,
+        ThreadPool threadPool,
+        String executorName,
+        Span span,
+        Tracer tracer
     ) {
+        logger.info("Span in performOnPrimary " + span.getSpanId() + " at doc id" + request.items()[0].request().id());
+        ActionListener<PrimaryResult<BulkShardRequest, BulkShardResponse>> listener = ActionListener.runAfter(listeneer,
+            () -> {
+            StringBuilder sb = new StringBuilder();
+            span.verify();
+            logger.info("Listener invoked " + span.getSpanId() + " --- " + Thread.currentThread() + " --- interrupted " + Thread.currentThread().isInterrupted() + "--- " +
+                Arrays.stream(Thread.getAllStackTraces().get(Thread.currentThread())).map(s -> sb.append(s.toString())).reduce((a, b) -> a).get().toString());
+            });
+        listener = ActionListener.runAlong(ActionListener.runBefore(listener, () -> {
+            logger.info(span.getSpanId() + " listener -->" + listeneer);
+            listeners.put(span.getSpanId(), listeneer);
+            logger.info("Before Listener invoked " + span.getSpanId() + " --- " + Thread.currentThread() + " --- ");
+        }), () -> logger.info(span.getSpanId() + " Before notifyOnce"), () -> logger.info(span.getSpanId() + " After notifyOnce"));
+        globeListeners.put(span.getSpanId(), listener);
         new ActionRunnable<PrimaryResult<BulkShardRequest, BulkShardResponse>>(listener) {
 
             private final Executor executor = threadPool.executor(executorName);
 
             private final BulkPrimaryExecutionContext context = new BulkPrimaryExecutionContext(request, primary);
-
             @Override
             protected void doRun() throws Exception {
                 while (context.hasMoreOperationsToExecute()) {
+                    logger.info("Span in executeBulkItemRequest:" + span.getSpanId() + " ---> " + context.getCurrent().id());
                     if (executeBulkItemRequest(
                         context,
                         updateHelper,
                         nowInMillisSupplier,
                         mappingUpdater,
                         waitForMappingUpdate,
-                        ActionListener.wrap(v -> executor.execute(this), this::onRejection)
+                        ActionListener.wrap(v -> {
+                            executor.execute(this);
+                            logger.info("Executor invoked: " + span.getSpanId());
+                            logger.info("Executor invoked: " + span.getSpanId());
+                        }, this::onRejection), span
                     ) == false) {
                         // We are waiting for a mapping update on another thread, that will invoke this action again once its done
                         // so we just break out here.
@@ -492,6 +541,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
             @Override
             public void onRejection(Exception e) {
+                logger.info("Span in onRejection: " + span.getSpanId());
                 // We must finish the outstanding request. Finishing the outstanding request can include
                 // refreshing and fsyncing. Therefore, we must force execution on the WRITE thread.
                 executor.execute(new ActionRunnable<PrimaryResult<BulkShardRequest, BulkShardResponse>>(listener) {
@@ -554,6 +604,16 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         return super.checkPrimaryLimits(request, rerouteWasLocal, localRerouteInitiatedByNodeClient);
     }
 
+    static boolean executeBulkItemRequest(
+        BulkPrimaryExecutionContext context,
+        UpdateHelper updateHelper,
+        LongSupplier nowInMillisSupplier,
+        MappingUpdatePerformer mappingUpdater,
+        Consumer<ActionListener<Void>> waitForMappingUpdate,
+        ActionListener<Void> itemDoneListener) throws Exception {
+        return executeBulkItemRequest(context, updateHelper, nowInMillisSupplier, mappingUpdater, waitForMappingUpdate, itemDoneListener, null);
+    }
+
     /**
      * Executes bulk item requests and handles request execution exceptions.
      * @return {@code true} if request completed on this thread and the listener was invoked, {@code false} if the request triggered
@@ -565,10 +625,11 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         LongSupplier nowInMillisSupplier,
         MappingUpdatePerformer mappingUpdater,
         Consumer<ActionListener<Void>> waitForMappingUpdate,
-        ActionListener<Void> itemDoneListener
+        ActionListener<Void> itemDoneListeneer,
+        Span span
     ) throws Exception {
+        ActionListener<Void> itemDoneListener = ActionListener.runBefore(itemDoneListeneer, () -> logger.info("Item Done Listener: "  + span.getSpanId()));
         final DocWriteRequest.OpType opType = context.getCurrent().opType();
-
         final UpdateHelper.Result updateResult;
         if (opType == DocWriteRequest.OpType.UPDATE) {
             final UpdateRequest updateRequest = (UpdateRequest) context.getCurrent();
@@ -636,7 +697,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             );
         }
         if (result.getResultType() == Engine.Result.Type.MAPPING_UPDATE_REQUIRED) {
-
+            logger.info("Span in MAPPING_UPDATE_REQUIRED " + span.getSpanId());
             try {
                 primary.mapperService()
                     .merge(
@@ -653,23 +714,33 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             mappingUpdater.updateMappings(result.getRequiredMappingUpdate(), primary.shardId(), new ActionListener<Void>() {
                 @Override
                 public void onResponse(Void v) {
+                    logger.info("Span in MAPPING_UPDATE_REQUIRED onResponse " + span.getSpanId());
+
                     context.markAsRequiringMappingUpdate();
                     waitForMappingUpdate.accept(ActionListener.runAfter(new ActionListener<Void>() {
                         @Override
                         public void onResponse(Void v) {
+                            logger.info("Span in waitForMappingUpdate onResponse " + span.getSpanId());
+
                             assert context.requiresWaitingForMappingUpdate();
                             context.resetForExecutionForRetry();
                         }
 
                         @Override
                         public void onFailure(Exception e) {
+                            logger.info("Span in waitForMappingUpdate onFailure " + span.getSpanId());
+
                             context.failOnMappingUpdate(e);
                         }
-                    }, () -> itemDoneListener.onResponse(null)));
+                    }, () -> {
+                        itemDoneListener.onResponse(null);
+                    }));
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    logger.info("Span in MAPPING_UPDATE_REQUIRED onFailure " + span.getSpanId());
+
                     onComplete(exceptionToResult(e, primary, isDelete, version), context, updateResult);
                     // Requesting mapping update failed, so we don't have to wait for a cluster state update
                     assert context.isInitial();

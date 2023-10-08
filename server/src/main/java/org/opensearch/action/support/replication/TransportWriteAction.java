@@ -35,6 +35,7 @@ package org.opensearch.action.support.replication;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.action.ActionRunnable;
+import org.opensearch.action.bulk.TransportShardBulkAction;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.TransportActions;
 import org.opensearch.action.support.WriteRequest;
@@ -217,6 +218,7 @@ public abstract class TransportWriteAction<
         ActionListener<PrimaryResult<ReplicaRequest, Response>> listener
     ) {
         final String executor = executorFunction.apply(primary);
+        logger.info("Span in shardOperationOnPrimary op: " + TransportWriteAction.this.getTracer().getCurrentSpan().getSpan().getSpanId());
         threadPool.executor(executor).execute(new ActionRunnable<PrimaryResult<ReplicaRequest, Response>>(listener) {
             @Override
             protected void doRun() {

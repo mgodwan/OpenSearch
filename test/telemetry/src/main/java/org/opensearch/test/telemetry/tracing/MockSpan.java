@@ -8,6 +8,8 @@
 
 package org.opensearch.test.telemetry.tracing;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.telemetry.tracing.AbstractSpan;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.SpanCreationContext;
@@ -28,7 +30,7 @@ public class MockSpan extends AbstractSpan {
     private final Map<String, Object> metadata;
     private final String traceId;
     private final String spanId;
-    private boolean hasEnded;
+    private volatile boolean hasEnded;
     private final Long startTime;
     private Long endTime;
     private final SpanKind spanKind;
@@ -90,10 +92,12 @@ public class MockSpan extends AbstractSpan {
 
     @Override
     public void endSpan() {
+        logger.info("Span waiting for lock to be ended " + spanId + "  by " + Thread.currentThread());
         synchronized (lock) {
             if (hasEnded) {
                 return;
             }
+            logger.info("Span " + spanId + " ended by " + Thread.currentThread());
             endTime = System.nanoTime();
             hasEnded = true;
         }
@@ -182,6 +186,25 @@ public class MockSpan extends AbstractSpan {
             return Long.toHexString(result);
         }
 
+    }
+
+    private static final Logger logger = LogManager.getLogger(MockSpan.class);
+
+    @Override
+    public void verify() {
+//        long timeIn = System.currentTimeMillis();
+//        while (true) {
+//            if (System.currentTimeMillis() - timeIn > 1 || hasEnded) {
+//                break;
+//            }
+//        }
+        synchronized (lock) {
+            if (!hasEnded) {
+                logger.info(spanId + " has not ended: " + Thread.currentThread());
+            } else {
+                logger.info(spanId + " has ended" + Thread.currentThread());
+            }
+        }
     }
 
     /**
