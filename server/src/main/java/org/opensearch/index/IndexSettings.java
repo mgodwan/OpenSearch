@@ -608,7 +608,7 @@ public final class IndexSettings {
 
     public static final Setting<Boolean> DOC_ID_FUZZY_SET_ENABLED_SETTING = Setting.boolSetting(
         "index.doc_id_fuzzy_set.enabled",
-        false,
+        true,
         Property.IndexScope,
         Property.Dynamic
     );

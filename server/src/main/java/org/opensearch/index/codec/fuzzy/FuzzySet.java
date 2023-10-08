@@ -73,7 +73,8 @@ public interface FuzzySet extends Accountable {
     }
 
     enum SetType {
-        BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new);
+        BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new),
+        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new);
 
         private String setName;
         private CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer;

@@ -40,6 +40,8 @@ public class FuzzySetFactory {
         switch (params.getSetType()) {
             case BLOOM_FILTER_V1:
                 return new BloomFilter(maxDocs, params.getFalsePositiveProbability());
+            case CUCKOO_FILTER_V1:
+                return new CuckooFilter(maxDocs, params.getFalsePositiveProbability());
             default:
                 throw new IllegalArgumentException("No Implementation for set type: " + params.getSetType());
         }

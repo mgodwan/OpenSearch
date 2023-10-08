@@ -98,7 +98,7 @@ public class CuckooFilter implements Writeable {
      *            false positives at expense of larger size
      * @param rng A random number generator, used with the cuckoo hashing process
      */
-    CuckooFilter(long capacity, double fpp, Random rng) {
+    public CuckooFilter(long capacity, double fpp, Random rng) {
         this.rng = rng;
         this.entriesPerBucket = entriesPerBucket(fpp);
         double loadFactor = getLoadFactor(entriesPerBucket);
@@ -141,7 +141,7 @@ public class CuckooFilter implements Writeable {
         }
     }
 
-    CuckooFilter(StreamInput in, Random rng) throws IOException {
+    public CuckooFilter(StreamInput in, Random rng) throws IOException {
         this.numBuckets = in.readVInt();
         this.bitsPerEntry = in.readVInt();
         this.entriesPerBucket = in.readVInt();
@@ -257,7 +257,7 @@ public class CuckooFilter implements Writeable {
      * Returns true if the set might contain the provided value, false otherwise.  False values are
      * 100% accurate, while true values may be a false-positive.
      */
-    boolean mightContain(long hash) {
+    public boolean mightContain(long hash) {
         int bucket = hashToIndex((int) hash, numBuckets);
         int fingerprint = fingerprint((int) (hash >>> 32), bitsPerEntry, fingerprintMask);
         int alternateIndex = alternateIndex(bucket, fingerprint, numBuckets);
@@ -297,7 +297,7 @@ public class CuckooFilter implements Writeable {
      * Add's the hash to the bucket or alternate bucket.  Returns true if the insertion was
      * successful, false if the filter is saturated.
      */
-    boolean add(long hash) {
+    public boolean add(long hash) {
         // Each bucket needs 32 bits, so we truncate for the first bucket and shift/truncate for second
         int bucket = hashToIndex((int) hash, numBuckets);
         int fingerprint = fingerprint((int) (hash >>> 32), bitsPerEntry, fingerprintMask);
