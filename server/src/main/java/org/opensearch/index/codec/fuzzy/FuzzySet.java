@@ -13,11 +13,10 @@ import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.core.common.io.stream.Writeable;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * Fuzzy Filter interface
@@ -73,15 +72,20 @@ public interface FuzzySet extends Accountable {
     }
 
     enum SetType {
-        BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new),
-        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new);
+        BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new, List.of("bloom_filter")),
+        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new, List.of("cuckoo_filter"));
 
-        private String setName;
-        private CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer;
+        private final String setName;
+        private final CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer;
+        private final List<String> aliases;
 
-        SetType(String setName,  CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer) {
+        SetType(String setName,  CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer, List<String> aliases) {
+            if (aliases.size() < 1) {
+                throw new IllegalArgumentException("Alias list is empty. Could not create Set Type: " + setName);
+            }
             this.setName = setName;
             this.deserializer = deserializer;
+            this.aliases = aliases;
         }
 
         public String getSetName() {
@@ -92,6 +96,10 @@ public interface FuzzySet extends Accountable {
             return deserializer;
         }
 
+        public List<String> getAliases() {
+            return aliases;
+        }
+
         public static SetType from(String name) {
             for (SetType type: SetType.values()) {
                 if (type.setName.equals(name)) {
@@ -99,6 +107,21 @@ public interface FuzzySet extends Accountable {
                 }
             }
             throw new IllegalArgumentException("There is no implementation for fuzzy set: " + name);
+        }
+
+        public static SetType fromAlias(String alias) {
+            SetType toReturn = null;
+            for (SetType type: SetType.values()) {
+                if (type.aliases.contains(alias)) {
+                    if (toReturn == null) {
+                        toReturn = type;
+                    } else {
+                        throw new IllegalArgumentException("Set Type Alias matched with multiple fuzzy set types: "
+                            + List.of(toReturn, type));
+                    }
+                }
+            }
+            throw new IllegalArgumentException("There is no implementation for fuzzy set for alias: " + alias);
         }
     }
 }

@@ -81,7 +81,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             logger.warn("no index mapper found for field: [{}] returning default postings format", field);
         } else if (fieldType instanceof CompletionFieldMapper.CompletionFieldType) {
             return CompletionFieldMapper.CompletionFieldType.postingsFormat();
-        } else if (IdFieldMapper.NAME.equals(field) && mapperService.getIndexSettings().isUseBloomFilterForDocIds()) {
+        } else if (IdFieldMapper.NAME.equals(field) && mapperService.getIndexSettings().useFuzzySetForDocIds()) {
             // Create a default Fuzzy Set Factory for bloom filter.
             return getFuzzyFilterPostingsFormat(field);
         }
@@ -96,7 +96,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
     private PostingsFormat getFuzzyFilterPostingsFormat(String field) {
         if (fuzzyFilterPostingsFormat == null) {
             fuzzyFilterPostingsFormat = new FuzzyFilterPostingsFormat(super.getPostingsFormatForField(field), new FuzzySetFactory(Map.of(
-                IdFieldMapper.NAME, new FuzzySetParameters(mapperService.getIndexSettings().getBloomFilterForDocIdFalsePositiveProbability(), FuzzySet.SetType.CUCKOO_FILTER_V1) // This can be replaced with a setting/mapping type
+                IdFieldMapper.NAME, new FuzzySetParameters(mapperService.getIndexSettings().getFuzzySetForDocIdFalsePositiveProbability(),
+                    FuzzySet.SetType.fromAlias(mapperService.getIndexSettings().getFuzzySetForDocIdFalsePositiveProbability())) // This can be replaced with a setting/mapping type
             )));
         }
         return fuzzyFilterPostingsFormat;

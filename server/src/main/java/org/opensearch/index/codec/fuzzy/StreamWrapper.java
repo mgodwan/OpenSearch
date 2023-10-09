@@ -10,8 +10,8 @@ package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
-import org.opensearch.core.common.io.stream.StreamInput;
-import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
 
 import java.io.EOFException;
 import java.io.IOException;

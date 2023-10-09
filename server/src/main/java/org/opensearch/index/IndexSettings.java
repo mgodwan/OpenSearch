@@ -48,6 +48,7 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.core.common.Strings;
 
+import org.opensearch.index.codec.fuzzy.FuzzySet;
 import org.opensearch.index.codec.fuzzy.FuzzySetParameters;
 import org.opensearch.index.translog.Translog;
 import org.opensearch.indices.replication.common.ReplicationType;
@@ -623,6 +624,13 @@ public final class IndexSettings {
         Property.Dynamic
     );
 
+    public static final Setting<String> DOC_ID_FUZZY_SET_TYPE_SETTING = Setting.simpleString(
+        "index.doc_id.fuzzy_set_type",
+        FuzzySet.SetType.BLOOM_FILTER_V1.getAliases().get(0),
+        Property.IndexScope,
+        Property.Dynamic
+    );
+
     private final Index index;
     private final Version version;
     private final Logger logger;
@@ -946,9 +954,9 @@ public final class IndexSettings {
             this::setRemoteTranslogUploadBufferInterval
         );
         scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_ENABLED_SETTING,
-            this::setUseBloomFilterForDocIdSetting);
+            this::setUseFuzzySetForDocIdSetting);
         scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING,
-            this::setBloomFilterForDocIdFalsePositiveProbability);
+            this::setFuzzySetForDocIdFalsePositiveProbability);
     }
 
     private void setSearchSegmentOrderReversed(boolean reversed) {
@@ -1652,11 +1660,11 @@ public final class IndexSettings {
         this.defaultSearchPipeline = defaultSearchPipeline;
     }
 
-    public boolean isUseBloomFilterForDocIds() {
+    public boolean useFuzzySetForDocIds() {
         return useBloomFilterForDocIds;
     }
 
-    public void setUseBloomFilterForDocIdSetting(boolean useBloomFilterForDocIds) {
+    public void setUseFuzzySetForDocIdSetting(boolean useBloomFilterForDocIds) {
         if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
             this.useBloomFilterForDocIds = useBloomFilterForDocIds;
         } else {
@@ -1665,11 +1673,11 @@ public final class IndexSettings {
         }
     }
 
-    public double getBloomFilterForDocIdFalsePositiveProbability() {
+    public double getFuzzySetForDocIdFalsePositiveProbability() {
         return bloomFilterForDocIdFalsePositiveProbability;
     }
 
-    public void setBloomFilterForDocIdFalsePositiveProbability(double bloomFilterForDocIdFalsePositiveProbability) {
+    public void setFuzzySetForDocIdFalsePositiveProbability(double bloomFilterForDocIdFalsePositiveProbability) {
         if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
             this.bloomFilterForDocIdFalsePositiveProbability = bloomFilterForDocIdFalsePositiveProbability;
         } else {

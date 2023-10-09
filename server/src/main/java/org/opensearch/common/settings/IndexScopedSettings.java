@@ -201,6 +201,7 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 IndexSettings.DEFAULT_SEARCH_PIPELINE,
                 IndexSettings.DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING,
                 IndexSettings.DOC_ID_FUZZY_SET_ENABLED_SETTING,
+                IndexSettings.DOC_ID_FUZZY_SET_TYPE_SETTING,
 
                 // Settings for Searchable Snapshots
                 IndexSettings.SEARCHABLE_SNAPSHOT_REPOSITORY,
