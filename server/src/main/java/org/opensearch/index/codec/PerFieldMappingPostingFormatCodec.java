@@ -97,7 +97,7 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
         if (fuzzyFilterPostingsFormat == null) {
             fuzzyFilterPostingsFormat = new FuzzyFilterPostingsFormat(super.getPostingsFormatForField(field), new FuzzySetFactory(Map.of(
                 IdFieldMapper.NAME, new FuzzySetParameters(mapperService.getIndexSettings().getFuzzySetForDocIdFalsePositiveProbability(),
-                    FuzzySet.SetType.fromAlias(mapperService.getIndexSettings().getFuzzySetForDocIdFalsePositiveProbability())) // This can be replaced with a setting/mapping type
+                    FuzzySet.SetType.fromAlias(mapperService.getIndexSettings().getFuzzySetType())) // This can be replaced with a setting/mapping type
             )));
         }
         return fuzzyFilterPostingsFormat;

@@ -13,8 +13,10 @@ import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.common.CheckedSupplier;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Optional;
 
 /**
@@ -58,13 +60,7 @@ public class BloomFilter implements FuzzySet {
         this.hashCount = hashCount;
     }
 
-    private BloomFilter(FixedBitSet filter, int setSize, int hashCount) {
-        this.filter = filter;
-        this.setSize = setSize;
-        this.hashCount = hashCount;
-    }
-
-    public BloomFilter(int maxDocs, double maxFpp) {
+    public BloomFilter(int maxDocs, double maxFpp, CheckedSupplier<Iterator<BytesRef>, IOException> fieldIteratorProvider) throws IOException {
         int setSize =
             (int)
                 Math.ceil(
@@ -76,6 +72,8 @@ public class BloomFilter implements FuzzySet {
         this.filter = new FixedBitSet(setSize + 1);
         this.setSize = setSize;
         this.hashCount = optimalK;
+
+        addAll(fieldIteratorProvider);
     }
 
     static int getNearestSetSize(int maxNumberOfBits) {
@@ -151,5 +149,15 @@ public class BloomFilter implements FuzzySet {
         // Bloom sizes are always base 2 and so can be ANDed for a fast modulo
         int pos = aHash & setSize;
         return filter.get(pos);
+    }
+
+    public static void main(String[] args) {
+        double[] d = new double[]{0.0511, 0.1023, 0.2047};
+        for (double fpp: d) {
+            int setSize =
+                (int)
+                    Math.ceil((120000000 * Math.log(fpp)) / Math.log(1 / Math.pow(2, Math.log(2))));
+            System.out.println(fpp + " -> " + getNearestSetSize(2 * setSize));
+        }
     }
 }

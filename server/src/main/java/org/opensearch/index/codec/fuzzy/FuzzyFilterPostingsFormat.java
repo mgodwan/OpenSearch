@@ -350,31 +350,71 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                     continue;
                 }
                 FieldInfo fieldInfo = state.fieldInfos.fieldInfo(field);
-                TermsEnum termsEnum = terms.iterator();
+//                TermsEnum termsEnum = terms.iterator();
 
                 FuzzySet fuzzySet = null;
 
                 PostingsEnum postingsEnum = null;
-                while (true) {
-                    BytesRef term = termsEnum.next();
-                    if (term == null) {
+//                while (true) {
+//                    BytesRef term = termsEnum.next();
+//                    if (term == null) {
+//                        break;
+//                    }
+//                    if (fuzzySet == null) {
+//                        fuzzySet = fuzzySetFactory.createFuzzySet(state.segmentInfo.maxDoc(), fieldInfo.name);
+//                        if (fuzzySet == null) {
+//                            break;
+//                        }
+//                        assert fuzzySets.containsKey(fieldInfo) == false;
+//                        fuzzySets.put(fieldInfo, fuzzySet);
+//                    }
+//                    // Make sure there's at least one doc for this term:
+//                    postingsEnum = termsEnum.postings(postingsEnum, 0);
+//                    if (postingsEnum.nextDoc() != PostingsEnum.NO_MORE_DOCS) {
+//                        fuzzySet.add(term);
+//                    }
+//                }
+
+                if (fuzzySet == null) {
+                    fuzzySet = fuzzySetFactory.createFuzzySet(state.segmentInfo.maxDoc(), fieldInfo.name, () -> iterator(terms));
+                    if (fuzzySet == null) {
                         break;
                     }
-                    if (fuzzySet == null) {
-                        fuzzySet = fuzzySetFactory.createFuzzySet(state.segmentInfo.maxDoc(), fieldInfo.name);
-                        if (fuzzySet == null) {
-                            break;
-                        }
-                        assert fuzzySets.containsKey(fieldInfo) == false;
-                        fuzzySets.put(fieldInfo, fuzzySet);
-                    }
-                    // Make sure there's at least one doc for this term:
-                    postingsEnum = termsEnum.postings(postingsEnum, 0);
-                    if (postingsEnum.nextDoc() != PostingsEnum.NO_MORE_DOCS) {
-                        fuzzySet.add(term);
-                    }
+                    assert fuzzySets.containsKey(fieldInfo) == false;
+                    fuzzySets.put(fieldInfo, fuzzySet);
                 }
             }
+        }
+
+        private Iterator<BytesRef> iterator(Terms terms) throws IOException {
+            TermsEnum termIterator = terms.iterator();
+            return new Iterator<>() {
+
+                private BytesRef currentTerm;
+                private PostingsEnum postingsEnum;
+                @Override
+                public boolean hasNext() {
+                    try {
+                        do {
+                            currentTerm = termIterator.next();
+                            if (currentTerm == null) {
+                                return false;
+                            }
+                            postingsEnum = termIterator.postings(postingsEnum, 0);
+                            if (postingsEnum.nextDoc() != PostingsEnum.NO_MORE_DOCS) {
+                                return true;
+                            }
+                        } while (true);
+                    } catch (IOException ex) {
+                        throw new IllegalStateException("Cannot read terms: " + termIterator.attributes());
+                    }
+                }
+
+                @Override
+                public BytesRef next() {
+                    return currentTerm;
+                }
+            };
         }
 
         private boolean closed;

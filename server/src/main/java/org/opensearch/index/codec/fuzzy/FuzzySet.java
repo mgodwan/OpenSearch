@@ -13,10 +13,13 @@ import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedFunction;
+import org.opensearch.common.CheckedSupplier;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Fuzzy Filter interface
@@ -43,11 +46,12 @@ public interface FuzzySet extends Accountable {
     /**
      * Add all items to the underlying set.
      * Implementations can choose to perform this using an optimized strategy based on the type of set.
-     * @param values All values which should be added to the set.
+     * @param valuesIteratorProvider Supplier for an iterator over All values which should be added to the set.
      */
-    default void addAll(Iterable<BytesRef> values) {
-        for (BytesRef val: values) {
-            add(val);
+    default void addAll(CheckedSupplier<Iterator<BytesRef>, IOException> valuesIteratorProvider) throws IOException {
+        Iterator<BytesRef> values = valuesIteratorProvider.get();
+        while (values.hasNext()) {
+            add(values.next());
         }
     }
 
@@ -73,7 +77,8 @@ public interface FuzzySet extends Accountable {
 
     enum SetType {
         BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new, List.of("bloom_filter")),
-        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new, List.of("cuckoo_filter"));
+        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new, List.of("cuckoo_filter")),
+        XOR_FILTER_V1("xor_filter_v1", XORFilter::new, List.of("xor_filter"));
 
         private final String setName;
         private final CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer;
@@ -121,7 +126,10 @@ public interface FuzzySet extends Accountable {
                     }
                 }
             }
-            throw new IllegalArgumentException("There is no implementation for fuzzy set for alias: " + alias);
+            if (toReturn == null) {
+                throw new IllegalArgumentException("There is no implementation for fuzzy set for alias: " + alias);
+            }
+            return toReturn;
         }
     }
 }

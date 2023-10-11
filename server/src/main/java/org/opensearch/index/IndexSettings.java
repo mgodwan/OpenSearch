@@ -625,7 +625,7 @@ public final class IndexSettings {
     );
 
     public static final Setting<String> DOC_ID_FUZZY_SET_TYPE_SETTING = Setting.simpleString(
-        "index.doc_id.fuzzy_set_type",
+        "index.doc_id_fuzzy_set.type",
         FuzzySet.SetType.BLOOM_FILTER_V1.getAliases().get(0),
         Property.IndexScope,
         Property.Dynamic
@@ -673,9 +673,11 @@ public final class IndexSettings {
 
     private volatile String defaultSearchPipeline;
 
-    private volatile boolean useBloomFilterForDocIds;
+    private volatile boolean useFuzzySetForDocIds;
 
-    private volatile double bloomFilterForDocIdFalsePositiveProbability;
+    private volatile double fuzzySetForDocIdFalsePositiveProbability;
+
+    private volatile String fuzzySetType;
 
     /**
      * The maximum age of a retention lease before it is considered expired.
@@ -873,8 +875,9 @@ public final class IndexSettings {
         setMergeOnFlushPolicy(scopedSettings.get(INDEX_MERGE_ON_FLUSH_POLICY));
         defaultSearchPipeline = scopedSettings.get(DEFAULT_SEARCH_PIPELINE);
 
-        useBloomFilterForDocIds = scopedSettings.get(DOC_ID_FUZZY_SET_ENABLED_SETTING);
-        bloomFilterForDocIdFalsePositiveProbability = scopedSettings.get(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING);
+        useFuzzySetForDocIds = scopedSettings.get(DOC_ID_FUZZY_SET_ENABLED_SETTING);
+        fuzzySetForDocIdFalsePositiveProbability = scopedSettings.get(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING);
+        fuzzySetType = scopedSettings.get(DOC_ID_FUZZY_SET_TYPE_SETTING);
 
         scopedSettings.addSettingsUpdateConsumer(MergePolicyConfig.INDEX_COMPOUND_FORMAT_SETTING, mergePolicyConfig::setNoCFSRatio);
         scopedSettings.addSettingsUpdateConsumer(
@@ -957,6 +960,8 @@ public final class IndexSettings {
             this::setUseFuzzySetForDocIdSetting);
         scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING,
             this::setFuzzySetForDocIdFalsePositiveProbability);
+        scopedSettings.addSettingsUpdateConsumer(DOC_ID_FUZZY_SET_TYPE_SETTING,
+            this::setFuzzySetType);
     }
 
     private void setSearchSegmentOrderReversed(boolean reversed) {
@@ -1661,12 +1666,12 @@ public final class IndexSettings {
     }
 
     public boolean useFuzzySetForDocIds() {
-        return useBloomFilterForDocIds;
+        return useFuzzySetForDocIds;
     }
 
     public void setUseFuzzySetForDocIdSetting(boolean useBloomFilterForDocIds) {
         if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
-            this.useBloomFilterForDocIds = useBloomFilterForDocIds;
+            this.useFuzzySetForDocIds = useBloomFilterForDocIds;
         } else {
             throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
                 " is not enabled.");
@@ -1674,12 +1679,26 @@ public final class IndexSettings {
     }
 
     public double getFuzzySetForDocIdFalsePositiveProbability() {
-        return bloomFilterForDocIdFalsePositiveProbability;
+        return fuzzySetForDocIdFalsePositiveProbability;
     }
 
     public void setFuzzySetForDocIdFalsePositiveProbability(double bloomFilterForDocIdFalsePositiveProbability) {
         if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
-            this.bloomFilterForDocIdFalsePositiveProbability = bloomFilterForDocIdFalsePositiveProbability;
+            this.fuzzySetForDocIdFalsePositiveProbability = bloomFilterForDocIdFalsePositiveProbability;
+        } else {
+            throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
+                " is not enabled.");
+        }
+    }
+
+    public String getFuzzySetType() {
+        return fuzzySetType;
+    }
+
+    public void setFuzzySetType(String fuzzySetType) {
+        if (FeatureFlags.isEnabled(FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS)) {
+            FuzzySet.SetType.fromAlias(fuzzySetType);
+            this.fuzzySetType = fuzzySetType;
         } else {
             throw new IllegalArgumentException("Setting cannot be updated as feature flag: " + FeatureFlags.BLOOM_FILTER_FOR_DOC_IDS +
                 " is not enabled.");

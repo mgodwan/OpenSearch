@@ -9,8 +9,11 @@
 package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.DataInput;
+import org.apache.lucene.util.BytesRef;
+import org.opensearch.common.CheckedSupplier;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,16 +35,18 @@ public class FuzzySetFactory {
 //        setTypeForField.compute(fieldName, (k, v) -> new FuzzySetParameters(maxFalsePositiveProbability, v.getSetType()));
 //    }
 
-    public FuzzySet createFuzzySet(int maxDocs, String fieldName) {
+    public FuzzySet createFuzzySet(int maxDocs, String fieldName, CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider) throws IOException {
         FuzzySetParameters params = setTypeForField.get(fieldName);
         if (params == null) {
             throw new IllegalArgumentException("No fuzzy set defined for field: " + fieldName);
         }
         switch (params.getSetType()) {
             case BLOOM_FILTER_V1:
-                return new BloomFilter(maxDocs, params.getFalsePositiveProbability());
+                return new BloomFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
             case CUCKOO_FILTER_V1:
-                return new CuckooFilter(maxDocs, params.getFalsePositiveProbability());
+                return new CuckooFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
+            case XOR_FILTER_V1:
+                return new XORFilter(iteratorProvider);
             default:
                 throw new IllegalArgumentException("No Implementation for set type: " + params.getSetType());
         }
