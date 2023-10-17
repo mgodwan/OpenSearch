@@ -10,6 +10,7 @@ package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
+import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedFunction;
@@ -37,24 +38,6 @@ public interface FuzzySet extends Accountable {
      */
     Result contains(BytesRef value);
 
-    /**
-     * Add an item to this fuzzy set.
-     * @param value The value to be added
-     */
-    void add(BytesRef value);
-
-    /**
-     * Add all items to the underlying set.
-     * Implementations can choose to perform this using an optimized strategy based on the type of set.
-     * @param valuesIteratorProvider Supplier for an iterator over All values which should be added to the set.
-     */
-    default void addAll(CheckedSupplier<Iterator<BytesRef>, IOException> valuesIteratorProvider) throws IOException {
-        Iterator<BytesRef> values = valuesIteratorProvider.get();
-        while (values.hasNext()) {
-            add(values.next());
-        }
-    }
-
     boolean isSaturated();
 
     Optional<FuzzySet> maybeDownsize();
@@ -77,14 +60,13 @@ public interface FuzzySet extends Accountable {
 
     enum SetType {
         BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new, List.of("bloom_filter")),
-        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new, List.of("cuckoo_filter")),
         XOR_FILTER_V1("xor_filter_v1", XORFilter::new, List.of("xor_filter"));
 
         private final String setName;
-        private final CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer;
+        private final CheckedFunction<IndexInput, ? extends FuzzySet, IOException> deserializer;
         private final List<String> aliases;
 
-        SetType(String setName,  CheckedFunction<DataInput, ? extends FuzzySet, IOException> deserializer, List<String> aliases) {
+        SetType(String setName,  CheckedFunction<IndexInput, ? extends FuzzySet, IOException> deserializer, List<String> aliases) {
             if (aliases.size() < 1) {
                 throw new IllegalArgumentException("Alias list is empty. Could not create Set Type: " + setName);
             }
@@ -97,7 +79,7 @@ public interface FuzzySet extends Accountable {
             return setName;
         }
 
-        public CheckedFunction<DataInput, ? extends FuzzySet, IOException> getDeserializer() {
+        public CheckedFunction<IndexInput, ? extends FuzzySet, IOException> getDeserializer() {
             return deserializer;
         }
 

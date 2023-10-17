@@ -15,8 +15,10 @@ import org.apache.lucene.store.ByteArrayDataOutput;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.CheckedSupplier;
 import org.opensearch.common.hash.MurmurHash3;
+import org.opensearch.core.Assertions;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -25,11 +27,10 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class XORFilter implements FuzzySet {
+public class XORFilter extends AbstractFuzzySet {
 
     private static final Logger logger = LogManager.getLogger(XORFilter.class);
 
-    private static final int BITS_PER_FINGERPRINT = 8;
     private static final int HASHES = 3;
     private static final int OFFSET = 32;
     private static final int FACTOR_TIMES_100 = 123;
@@ -41,14 +42,26 @@ public class XORFilter implements FuzzySet {
     private long seed;
     private byte[] fingerprints;
     private final int bitCount;
+    private final int mask;
+    private final int bitsPerFingerprint;
     private final AtomicBoolean frozen = new AtomicBoolean();
 
-    public XORFilter(CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider) throws IOException {
+    private static final int BASE_MEMORY_USAGE = 96;
+
+    public XORFilter(CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider, int bitsPerFingerprintSetting) throws IOException {
         this.size = count(iteratorProvider.get());
+        this.bitsPerFingerprint = bitsPerFingerprintSetting;
         arrayLength = getArrayLength(size);
-        bitCount = arrayLength * BITS_PER_FINGERPRINT;
+        bitCount = arrayLength * bitsPerFingerprint;
+        mask = (1 << bitsPerFingerprint) - 1;
         blockLength = arrayLength / HASHES;
         addAll(iteratorProvider);
+        if (Assertions.ENABLED) {
+            assertAllElementsExist(iteratorProvider);
+            if (bitsPerFingerprintSetting == 8) {
+                assert mask == 0xff;
+            }
+        }
     }
 
     private static int count(Iterator<BytesRef> iterator) {
@@ -60,10 +73,12 @@ public class XORFilter implements FuzzySet {
         return cnt;
     }
 
-    public XORFilter(DataInput in) throws IOException {
+    XORFilter(DataInput in) throws IOException {
+        this.bitsPerFingerprint = in.readInt();
+        this.mask = (1 << bitsPerFingerprint) - 1;
         this.size = in.readInt();
         arrayLength = getArrayLength(this.size);
-        bitCount = arrayLength * BITS_PER_FINGERPRINT;
+        bitCount = arrayLength * bitsPerFingerprint;
         blockLength = arrayLength / HASHES;
         seed = in.readLong();
         fingerprints = new byte[arrayLength];
@@ -77,8 +92,7 @@ public class XORFilter implements FuzzySet {
 
     @Override
     public Result contains(BytesRef value) {
-        MurmurHash3.Hash128 hashed = MurmurHash3.hash128(value.bytes, value.offset, value.length, 0, scratchHash);
-        long hash = Hash.hash64(hashed.h1, seed);
+        long hash = Hash.hash64(generateKey(value), seed);
         int f = fingerprint(hash);
         int r0 = (int) hash;
         int r1 = (int) Long.rotateLeft(hash, 21);
@@ -89,21 +103,20 @@ public class XORFilter implements FuzzySet {
         int h2 = Hash.reduce(r2, blockLength) + 2 * blockLength;
 
         f ^= fingerprints[h0] ^ fingerprints[h1] ^ fingerprints[h2];
-        return (f & 0xff) == 0 ? Result.MAYBE : Result.NO;
+        return (f & mask) == 0 ? Result.MAYBE : Result.NO;
     }
 
     @Override
-    public void add(BytesRef value) {
+    protected void add(BytesRef value) {
         throw new UnsupportedOperationException("Cannot add a single element to xor filter!");
     }
 
     @Override
-    public void addAll(CheckedSupplier<Iterator<BytesRef>, IOException> valuesProvider) throws IOException {
+    protected void addAll(CheckedSupplier<Iterator<BytesRef>, IOException> valuesProvider) throws IOException {
         if (!frozen.compareAndSet(false, true)) {
             throw new IllegalStateException("Filter is frozen and cannot be updated");
         }
 
-        int m = arrayLength;
         long[] reverseOrder = new long[size];
         byte[] reverseH = new byte[size];
         int reverseOrderPos;
@@ -117,16 +130,13 @@ public class XORFilter implements FuzzySet {
 
             seed = Hash.randomSeed();
             reverseOrderPos = 0;
-            byte[] t2count = new byte[m];
-            long[] t2 = new long[m];
+            byte[] t2count = new byte[arrayLength];
+            long[] t2 = new long[arrayLength];
+
             Iterator<BytesRef> iterator = valuesProvider.get();
-
             while (iterator.hasNext()) {
-                if (isFirstIteration) cnt += 1;
-
-                BytesRef value = iterator.next();
-                MurmurHash3.Hash128 hashed = MurmurHash3.hash128(value.bytes, value.offset, value.length, 0, scratchHash);
-                long k = hashed.h1;
+                if (isFirstIteration) cnt ++;
+                long k = generateKey(iterator.next());
                 for (int hi = 0; hi < HASHES; hi++) {
                     int h = getHash(k, seed, hi);
                     t2[h] ^= k;
@@ -137,11 +147,10 @@ public class XORFilter implements FuzzySet {
                     t2count[h]++;
                 }
             }
-            isFirstIteration = false;
 
             int[][] alone = new int[HASHES][blockLength];
             int[] alonePos = new int[HASHES];
-            for (int nextAlone = 0; nextAlone < HASHES; nextAlone++) {
+            for (int nextAlone = 0; nextAlone < HASHES; nextAlone ++) {
                 for (int i = 0; i < blockLength; i++) {
                     if (t2count[nextAlone * blockLength + i] == 1) {
                         alone[nextAlone][alonePos[nextAlone]++] = nextAlone * blockLength + i;
@@ -187,7 +196,7 @@ public class XORFilter implements FuzzySet {
         } while (reverseOrderPos != size); // This was size in actual but changed it to use actual count of docs in iterator.
 
         this.seed = seed;
-        byte[] fp = new byte[m];
+        byte[] fp = new byte[arrayLength * (bitsPerFingerprint / 8)];
         for (int i = reverseOrderPos - 1; i >= 0; i--) {
             long k = reverseOrder[i];
             int found = reverseH[i];
@@ -204,7 +213,7 @@ public class XORFilter implements FuzzySet {
             }
             fp[change] = (byte) xor;
         }
-        fingerprints = new byte[m];
+        fingerprints = new byte[arrayLength];
         System.arraycopy(fp, 0, fingerprints, 0, fp.length);
     }
 
@@ -220,6 +229,7 @@ public class XORFilter implements FuzzySet {
 
     @Override
     public void writeTo(DataOutput out) throws IOException {
+        out.writeInt(bitsPerFingerprint);
         out.writeInt(size);
         out.writeLong(seed);
         out.writeBytes(fingerprints, fingerprints.length);
@@ -227,7 +237,7 @@ public class XORFilter implements FuzzySet {
 
     @Override
     public long ramBytesUsed() {
-        return 0;
+        return BASE_MEMORY_USAGE + RamUsageEstimator.sizeOf(fingerprints);
     }
 
     private int getHash(long key, long seed, int index) {
@@ -238,14 +248,14 @@ public class XORFilter implements FuzzySet {
     }
 
     private int fingerprint(long hash) {
-        return (int) (hash & ((1 << BITS_PER_FINGERPRINT) - 1));
+        return (int) (hash & ((1 << bitsPerFingerprint) - 1));
     }
 
     private static int getArrayLength(int size) {
         return (int) (OFFSET + (long) FACTOR_TIMES_100 * size / 100);
     }
 
-    private static class Hash {
+    public static class Hash {
 
         private static Random random = new Random();
 
@@ -280,7 +290,7 @@ public class XORFilter implements FuzzySet {
     }
 
     public static void main(String[] args) throws Exception {
-        XORFilter filter = new XORFilter(() -> List.of(new BytesRef("item1"), new BytesRef("item2"), new BytesRef("item3")).iterator());
+        XORFilter filter = new XORFilter(() -> List.of(new BytesRef("item1"), new BytesRef("item2"), new BytesRef("item3")).iterator(), 8);
         System.out.println(filter.contains(new BytesRef("item1")));
         System.out.println(filter.contains(new BytesRef("item2")));
         System.out.println(filter.contains(new BytesRef("item3")));

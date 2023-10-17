@@ -36,7 +36,7 @@ import java.util.*;
 public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 
     public static final String FUZZY_SET_CODEC_NAME = "FuzzySetCodec";
-    public static final int VERSION_START = 3;
+    public static final int VERSION_START = 0;
     public static final int VERSION_CURRENT = VERSION_START;
 
     /** Extension of Fuzzy Filters file */
@@ -103,6 +103,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 int numFilters = filterIn.readInt();
                 for (int i = 0; i < numFilters; i++) {
                     int fieldNum = filterIn.readInt();
+                    filterIn.getFilePointer();
                     FuzzySet set = FuzzySetFactory.deserializeFuzzySet(filterIn);
                     FieldInfo fieldInfo = state.fieldInfos.fieldInfo(fieldNum);
                     fuzzySetsByFieldName.put(fieldInfo.name, set);
@@ -418,7 +419,6 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         }
 
         private boolean closed;
-
         @Override
         public void close() throws IOException {
             if (closed) {

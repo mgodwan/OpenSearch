@@ -9,6 +9,7 @@
 package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.DataInput;
+import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedSupplier;
 
@@ -43,16 +44,14 @@ public class FuzzySetFactory {
         switch (params.getSetType()) {
             case BLOOM_FILTER_V1:
                 return new BloomFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
-            case CUCKOO_FILTER_V1:
-                return new CuckooFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
             case XOR_FILTER_V1:
-                return new XORFilter(iteratorProvider);
+                return new XORFilter(iteratorProvider, 8);
             default:
                 throw new IllegalArgumentException("No Implementation for set type: " + params.getSetType());
         }
     }
 
-    public static FuzzySet deserializeFuzzySet(DataInput in) throws IOException {
+    public static FuzzySet deserializeFuzzySet(IndexInput in) throws IOException {
         FuzzySet.SetType setType = FuzzySet.SetType.from(in.readString());
         return setType.getDeserializer().apply(in);
     }

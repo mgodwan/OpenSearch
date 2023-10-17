@@ -83,7 +83,7 @@ public class CuckooFilter implements Writeable {
     private static final int MAX_EVICTIONS = 500;
     static final int EMPTY = 0;
 
-    private final XPackedInts.Mutable data;
+    private final PackedInts.Mutable data;
     private final int numBuckets;
     private final int bitsPerEntry;
     private final int fingerprintMask;
@@ -110,7 +110,7 @@ public class CuckooFilter implements Writeable {
                 "Attempted to create [" + numBuckets * entriesPerBucket + "] entries which is > Integer.MAX_VALUE"
             );
         }
-        this.data = XPackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
+        this.data = PackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
 
         // puts the bits at the right side of the mask, e.g. `0000000000001111` for bitsPerEntry = 4
         this.fingerprintMask = (0x80000000 >> (bitsPerEntry - 1)) >>> (Integer.SIZE - bitsPerEntry);
@@ -135,7 +135,7 @@ public class CuckooFilter implements Writeable {
             );
         }
         // TODO this is probably super slow, but just used for testing atm
-        this.data = XPackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
+        this.data = PackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
         for (int i = 0; i < other.data.size(); i++) {
             data.set(i, other.data.get(i));
         }
@@ -151,7 +151,7 @@ public class CuckooFilter implements Writeable {
 
         this.fingerprintMask = (0x80000000 >> (bitsPerEntry - 1)) >>> (Integer.SIZE - bitsPerEntry);
 
-        data = (XPackedInts.Mutable) XPackedInts.getReader(new DataInput() {
+        data = (PackedInts.Mutable) PackedInts.getReaderIteratorNoHeader(new DataInput() {
             @Override
             public byte readByte() throws IOException {
                 return in.readByte();
@@ -166,7 +166,7 @@ public class CuckooFilter implements Writeable {
             public void skipBytes(long numBytes) throws IOException {
                 in.skip(numBytes);
             }
-        });
+        }, PackedInts.Format.PACKED, 0, numBuckets * entriesPerBucket, 0, 0);
     }
 
     @Override
@@ -177,7 +177,7 @@ public class CuckooFilter implements Writeable {
         out.writeVInt(count);
         out.writeVInt(evictedFingerprint);
 
-        data.save(new DataOutput() {
+        PackedInts.Writer writer = PackedInts.getWriterNoHeader(new DataOutput() {
             @Override
             public void writeByte(byte b) throws IOException {
                 out.writeByte(b);
@@ -187,7 +187,18 @@ public class CuckooFilter implements Writeable {
             public void writeBytes(byte[] b, int offset, int length) throws IOException {
                 out.writeBytes(b, offset, length);
             }
-        });
+        }, PackedInts.Format.PACKED, data.size(), data.getBitsPerValue(), (int) data.ramBytesUsed());
+//        data.save(new DataOutput() {
+//            @Override
+//            public void writeByte(byte b) throws IOException {
+//                out.writeByte(b);
+//            }
+//
+//            @Override
+//            public void writeBytes(byte[] b, int offset, int length) throws IOException {
+//                out.writeBytes(b, offset, length);
+//            }
+//        });
     }
 
     /**

@@ -31,6 +31,8 @@ package org.apache.lucene.util.packed;
 
 import java.io.IOException;
 import java.util.Arrays;
+
+import org.apache.lucene.backward_codecs.store.EndiannessReverserUtil;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.util.RamUsageEstimator;
 
@@ -90,6 +92,7 @@ class XPacked64 extends XPackedInts.MutableImpl {
      */
     public XPacked64(int packedIntsVersion, DataInput in, int valueCount, int bitsPerValue) throws IOException {
         super(valueCount, bitsPerValue);
+        in = EndiannessReverserUtil.wrapDataInput(in);
         final PackedInts.Format format = PackedInts.Format.PACKED;
         final long byteCount = format.byteCount(packedIntsVersion, valueCount, bitsPerValue); // to know how much to read
         final int longCount = format.longCount(PackedInts.VERSION_CURRENT, valueCount, bitsPerValue); // to size the array
