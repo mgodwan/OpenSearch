@@ -64,7 +64,7 @@ public class XORFilter extends AbstractFuzzySet {
         }
     }
 
-    private static int count(Iterator<BytesRef> iterator) {
+    public static int count(Iterator<BytesRef> iterator) {
         int cnt = 0;
         while (iterator.hasNext()) {
             cnt ++;
@@ -287,24 +287,5 @@ public class XORFilter extends AbstractFuzzySet {
             // http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
             return (int) (((hash & 0xffffffffL) * n) >>> 32);
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        XORFilter filter = new XORFilter(() -> List.of(new BytesRef("item1"), new BytesRef("item2"), new BytesRef("item3")).iterator(), 8);
-        System.out.println(filter.contains(new BytesRef("item1")));
-        System.out.println(filter.contains(new BytesRef("item2")));
-        System.out.println(filter.contains(new BytesRef("item3")));
-        System.out.println(filter.contains(new BytesRef("item5")));
-
-        byte[] b = new byte[1000000];
-        DataOutput output = new ByteArrayDataOutput(b);
-
-        filter.writeTo(output);
-
-        XORFilter filter1 = new XORFilter(new ByteArrayDataInput(b));
-        System.out.println(filter1.contains(new BytesRef("item1")));
-        System.out.println(filter1.contains(new BytesRef("item2")));
-        System.out.println(filter1.contains(new BytesRef("item3")));
-        System.out.println(filter1.contains(new BytesRef("item5")));
     }
 }

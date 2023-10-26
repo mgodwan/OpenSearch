@@ -22,9 +22,11 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 import org.opensearch.common.UUIDs;
+import org.opensearch.index.codec.fuzzy.BloomFilter;
 import org.opensearch.index.codec.fuzzy.FuzzySet;
 import org.opensearch.index.codec.fuzzy.FuzzySetFactory;
 import org.opensearch.index.codec.fuzzy.FuzzySetParameters;
+import org.opensearch.index.codec.fuzzy.bitset.LongBitSet;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,19 +38,23 @@ import java.util.stream.IntStream;
 
 @Fork(1)
 @Warmup(iterations = 1)
-@Measurement(iterations = 1, time = 30, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 3, time = 30, timeUnit = TimeUnit.SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
 public class FilterLookupBenchmark {
+
     @Param({"bloom_filter"})
     private String setTypeAlias;
 
-    @Param({"50000000"})
+    @Param({"50000000", "1000000"})
     private int numItems;
 
     @Param({"1000000"})
     private int searchKeyCount;
+
+    @Param ({"true", "false"})
+    private boolean offheapEnabled;
 
     private FuzzySet fuzzySet;
     private List<BytesRef> items;
@@ -63,6 +69,8 @@ public class FilterLookupBenchmark {
         FuzzySetParameters parameters = new FuzzySetParameters(0.0511, setType);
         fuzzySet = new FuzzySetFactory(Map.of(fieldName, parameters))
             .createFuzzySet(numItems, fieldName, () -> items.iterator());
+        LongBitSet.offHeapEnabled = offheapEnabled;
+        fuzzySet =
     }
 
     @Benchmark

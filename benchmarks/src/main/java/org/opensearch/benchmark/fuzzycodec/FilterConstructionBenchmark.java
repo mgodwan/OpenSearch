@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Fork(1)
-@Warmup(iterations = 2)
+@Warmup(iterations = 1)
 @Measurement(iterations = 3, time = 60, timeUnit = TimeUnit.SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -33,7 +33,7 @@ public class FilterConstructionBenchmark {
     @Param({ "1000000", "10000000", "50000000" })
     private int numIds;
 
-    @Param({"xor_filter", "bloom_filter"})
+    @Param({"bloom_filter", "xor_filter", "cuckoo_filter"})
     private String setTypeAlias;
 
     private FuzzySetFactory fuzzySetFactory;

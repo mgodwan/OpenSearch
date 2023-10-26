@@ -16,6 +16,7 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.CheckedSupplier;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
 /**
  * Fuzzy Filter interface
  */
-public interface FuzzySet extends Accountable {
+public interface FuzzySet extends Accountable, Closeable {
 
     /**
      * Name used for a codec to be aware of what fuzzy set has been used.
@@ -60,7 +61,9 @@ public interface FuzzySet extends Accountable {
 
     enum SetType {
         BLOOM_FILTER_V1("bloom_filter_v1", BloomFilter::new, List.of("bloom_filter")),
-        XOR_FILTER_V1("xor_filter_v1", XORFilter::new, List.of("xor_filter"));
+        XOR_FILTER_V1("xor_filter_v1", XORFilter::new, List.of("xor_filter")),
+        CUCKOO_FILTER_V1("cuckoo_filter_v1", CuckooFilter::new, List.of("cuckoo_filter_v1")),
+        CUCKOO_FILTER_V2("cuckoo_filter_v2", Cuckoo8::new, List.of("cuckoo_filter"));
 
         private final String setName;
         private final CheckedFunction<IndexInput, ? extends FuzzySet, IOException> deserializer;

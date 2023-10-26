@@ -46,6 +46,10 @@ public class FuzzySetFactory {
                 return new BloomFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
             case XOR_FILTER_V1:
                 return new XORFilter(iteratorProvider, 8);
+            case CUCKOO_FILTER_V1:
+                return new CuckooFilter(maxDocs, params.getFalsePositiveProbability(), iteratorProvider);
+            case CUCKOO_FILTER_V2:
+                return Cuckoo8.construct(iteratorProvider, 8);
             default:
                 throw new IllegalArgumentException("No Implementation for set type: " + params.getSetType());
         }

@@ -42,7 +42,7 @@ public class IndexInputLongArray implements LongArray {
 
     @Override
     public long get(long index) {
-        return wrapException(() -> input.readLong(index));
+        return wrapException(() -> input.readLong(index << 3));
     }
 
     @Override

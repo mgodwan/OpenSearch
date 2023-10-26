@@ -42,9 +42,14 @@ public abstract class AbstractFuzzySet implements FuzzySet {
 
     protected void assertAllElementsExist(CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider) throws IOException {
         Iterator<BytesRef> iter = iteratorProvider.get();
+        int cnt = 0;
         while (iter.hasNext()) {
             BytesRef item = iter.next();
-            assert contains(item) != Result.MAYBE : "Expected Filter to return positive response for elements added to it";
+            assert contains(item) == Result.MAYBE : "Expected Filter to return positive response for elements added to it. Elements matched: " + cnt;
+            cnt ++;
         }
+    }
+    @Override
+    public void close() throws IOException {
     }
 }

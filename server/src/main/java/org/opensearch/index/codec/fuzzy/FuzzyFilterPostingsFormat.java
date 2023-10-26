@@ -23,13 +23,14 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.automaton.CompiledAutomaton;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
 
@@ -77,16 +78,18 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
     static class FuzzySetFieldsProducer extends FieldsProducer {
         private FieldsProducer delegateFieldsProducer;
         HashMap<String, FuzzySet> fuzzySetsByFieldName = new HashMap<>();
+        private List<Closeable> streamToClose = new ArrayList<>();
+
 
         public FuzzySetFieldsProducer(SegmentReadState state) throws IOException {
-
             String fuzzySetFileName =
                 IndexFileNames.segmentFileName(
                     state.segmentInfo.name, state.segmentSuffix, FUZZY_FILTER_DATA_EXTENSION);
-            ChecksumIndexInput filterIn = null;
+            IndexInput filterIn = null;
             boolean success = false;
             try {
-                filterIn = state.directory.openChecksumInput(fuzzySetFileName, IOContext.READONCE);
+                filterIn = state.directory.openInput(fuzzySetFileName, IOContext.READONCE);
+                streamToClose.add(filterIn);
                 CodecUtil.checkIndexHeader(
                     filterIn,
                     FUZZY_SET_CODEC_NAME,
@@ -98,18 +101,17 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 // hashFunction = HashFunction.forName(filterIn.readString());
                 // Load the delegate postings format
                 PostingsFormat delegatePostingsFormat = PostingsFormat.forName(filterIn.readString());
-
                 this.delegateFieldsProducer = delegatePostingsFormat.fieldsProducer(state);
                 int numFilters = filterIn.readInt();
                 for (int i = 0; i < numFilters; i++) {
                     int fieldNum = filterIn.readInt();
-                    filterIn.getFilePointer();
                     FuzzySet set = FuzzySetFactory.deserializeFuzzySet(filterIn);
+                    streamToClose.add(set);
                     FieldInfo fieldInfo = state.fieldInfos.fieldInfo(fieldNum);
                     fuzzySetsByFieldName.put(fieldInfo.name, set);
                 }
-                CodecUtil.checkFooter(filterIn);
-                IOUtils.close(filterIn);
+                //CodecUtil.checkFooter(filterIn);
+                CodecUtil.retrieveChecksum(filterIn);
                 success = true;
             } finally {
                 if (!success) {
@@ -125,6 +127,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 
         @Override
         public void close() throws IOException {
+            IOUtils.closeWhileHandlingException(streamToClose);
             delegateFieldsProducer.close();
         }
 
@@ -328,6 +331,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         private FieldsConsumer delegateFieldsConsumer;
         private Map<FieldInfo, FuzzySet> fuzzySets = new HashMap<>();
         private SegmentWriteState state;
+        private List<Closeable> closeables = new ArrayList<>();
 
         public FuzzySetFieldsConsumer(FieldsConsumer fieldsConsumer, SegmentWriteState state) {
             this.delegateFieldsConsumer = fieldsConsumer;
@@ -382,6 +386,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                         break;
                     }
                     assert fuzzySets.containsKey(fieldInfo) == false;
+                    closeables.add(fuzzySet);
                     fuzzySets.put(fieldInfo, fuzzySet);
                 }
             }
@@ -459,6 +464,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 }
                 CodecUtil.writeFooter(fuzzyFilterFileOutput);
             }
+            IOUtils.closeWhileHandlingException(closeables);
             // We are done with large bitsets so no need to keep them hanging around
             fuzzySets.clear();
         }

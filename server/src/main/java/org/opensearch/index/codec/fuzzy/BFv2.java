@@ -8,13 +8,12 @@
 
 package org.opensearch.index.codec.fuzzy;
 
-import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.CheckedSupplier;
+import org.opensearch.core.Assertions;
 import org.opensearch.index.codec.fuzzy.bitset.LongBitSet;
 
 import java.io.IOException;
@@ -27,7 +26,7 @@ import java.util.Optional;
  * Since the Lucene implementation is marked experimental,
  * this aims to ensure we can provide a bwc implementation during upgrades.
  */
-public class BloomFilter extends AbstractFuzzySet {
+public class BFv2 extends AbstractFuzzySet {
 
     // The sizes of BitSet used are all numbers that, when expressed in binary form,
     // are all ones. This is to enable fast downsizing from one bitset to another
@@ -36,51 +35,51 @@ public class BloomFilter extends AbstractFuzzySet {
     // a large bitset and then mapped to a smaller set can be looked up using a single
     // AND operation of the query term's hash rather than needing to perform a 2-step
     // translation of the query term that mirrors the stored content's reprojections.
-    static final int[] usableBitSetSizes;
+    static final long[] usableBitSetSizes;
 
     static {
-        usableBitSetSizes = new int[26];
+        usableBitSetSizes = new long[40];
         for (int i = 0; i < usableBitSetSizes.length; i++) {
-            usableBitSetSizes[i] = (1 << (i + 6)) - 1;
+            usableBitSetSizes[i] = (1L << (i + 6)) - 1L;
         }
     }
 
-    private final LongBitSet filter;
-    private final int setSize;
+    private final LongBitSet bitSet;
+    private final long setSize;
     private final int hashCount;
 
-    BloomFilter(IndexInput in) throws IOException {
+    BFv2(IndexInput in) throws IOException {
         hashCount = in.readVInt();
-        setSize = in.readInt();
-        this.filter = new LongBitSet(in);
+        setSize = in.readVLong();
+        this.bitSet = new LongBitSet(in);
     }
-
 
     @Override
     public void writeTo(DataOutput out) throws IOException {
         out.writeVInt(hashCount);
-        out.writeInt(setSize);
-        filter.writeTo(out);
+        out.writeVLong(bitSet.cardinality());
+        bitSet.writeTo(out);
     }
 
-    public BloomFilter(int maxDocs, double maxFpp, CheckedSupplier<Iterator<BytesRef>, IOException> fieldIteratorProvider) throws IOException {
-        int setSize =
+    public BFv2(int maxDocs, double maxFpp, CheckedSupplier<Iterator<BytesRef>, IOException> fieldIteratorProvider) throws IOException {
+        long setSize =
             (int)
                 Math.ceil(
-                    (maxDocs * Math.log(maxFpp))
-                        / Math.log(1 / Math.pow(2, Math.log(2))));
+                    (maxDocs * Math.log(maxFpp)) / Math.log(1 / Math.pow(2, Math.log(2)))
+                );
         setSize = getNearestSetSize(2 * setSize);
         int optimalK = (int) Math.round(((double) setSize / maxDocs) * Math.log(2));
-
-        this.filter = new LongBitSet(setSize + 1);
+        this.bitSet = new LongBitSet(setSize + 1);
         this.setSize = setSize;
         this.hashCount = optimalK;
-
         addAll(fieldIteratorProvider);
+        if (Assertions.ENABLED) {
+            assertAllElementsExist(fieldIteratorProvider);
+        }
     }
 
-    static int getNearestSetSize(int maxNumberOfBits) {
-        int result = usableBitSetSizes[0];
+    private static long getNearestSetSize(long maxNumberOfBits) {
+        long result = usableBitSetSizes[0];
         for (int i = 0; i < usableBitSetSizes.length; i++) {
             if (usableBitSetSizes[i] <= maxNumberOfBits) {
                 result = usableBitSetSizes[i];
@@ -108,20 +107,21 @@ public class BloomFilter extends AbstractFuzzySet {
         return Result.MAYBE;
     }
 
+    @Override
     protected void add(BytesRef value) {
         long hash = generateKey(value);
         int msb = (int) (hash >>> Integer.SIZE);
         int lsb = (int) hash;
         for (int i = 0; i < hashCount; i++) {
             // Bitmasking using bloomSize is effectively a modulo operation since set sizes are always power of 2
-            int bloomPos = (lsb + i * msb) & setSize;
-            filter.set(bloomPos);
+            long bloomPos = (lsb + i * msb) & setSize;
+            bitSet.set(bloomPos);
         }
     }
 
     @Override
     public boolean isSaturated() {
-        long numBitsSet = filter.cardinality();
+        long numBitsSet = bitSet.cardinality();
         return (float) numBitsSet / (float) setSize > 0.9f;
     }
 
@@ -130,24 +130,19 @@ public class BloomFilter extends AbstractFuzzySet {
         return Optional.empty();
     }
 
-    @Override
-    public long ramBytesUsed() {
-        return RamUsageEstimator.sizeOf(filter.ramBytesUsed());
-    }
-
     private boolean mayContainValue(int aHash) {
         // Bloom sizes are always base 2 and so can be ANDed for a fast modulo
-        int pos = aHash & setSize;
-        return filter.isSet(pos);
+        long pos = ((long)aHash) & setSize;
+        return bitSet.isSet(pos);
     }
 
-    public static void main(String[] args) {
-        double[] d = new double[]{0.0511, 0.1023, 0.2047};
-        for (double fpp: d) {
-            int setSize =
-                (int)
-                    Math.ceil((120000000 * Math.log(fpp)) / Math.log(1 / Math.pow(2, Math.log(2))));
-            System.out.println(fpp + " -> " + getNearestSetSize(2 * setSize));
-        }
+    @Override
+    public long ramBytesUsed() {
+        return RamUsageEstimator.sizeOf(bitSet.ramBytesUsed());
+    }
+
+    @Override
+    public void close() throws IOException {
+        bitSet.close();
     }
 }

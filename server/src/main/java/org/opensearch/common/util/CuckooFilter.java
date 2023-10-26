@@ -80,7 +80,7 @@ import java.util.Random;
 public class CuckooFilter implements Writeable {
 
     private static final double LN_2 = Math.log(2);
-    private static final int MAX_EVICTIONS = 500;
+    private static final int MAX_EVICTIONS = 1000;
     static final int EMPTY = 0;
 
     private final PackedInts.Mutable data;
@@ -135,7 +135,7 @@ public class CuckooFilter implements Writeable {
             );
         }
         // TODO this is probably super slow, but just used for testing atm
-        this.data = PackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
+        this.data = null;//XPackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
         for (int i = 0; i < other.data.size(); i++) {
             data.set(i, other.data.get(i));
         }
@@ -151,7 +151,7 @@ public class CuckooFilter implements Writeable {
 
         this.fingerprintMask = (0x80000000 >> (bitsPerEntry - 1)) >>> (Integer.SIZE - bitsPerEntry);
 
-        data = (PackedInts.Mutable) PackedInts.getReaderIteratorNoHeader(new DataInput() {
+        data = pull(new DataInput() {
             @Override
             public byte readByte() throws IOException {
                 return in.readByte();
@@ -166,7 +166,7 @@ public class CuckooFilter implements Writeable {
             public void skipBytes(long numBytes) throws IOException {
                 in.skip(numBytes);
             }
-        }, PackedInts.Format.PACKED, 0, numBuckets * entriesPerBucket, 0, 0);
+        });
     }
 
     @Override
@@ -177,7 +177,7 @@ public class CuckooFilter implements Writeable {
         out.writeVInt(count);
         out.writeVInt(evictedFingerprint);
 
-        PackedInts.Writer writer = PackedInts.getWriterNoHeader(new DataOutput() {
+        save(data, new DataOutput() {
             @Override
             public void writeByte(byte b) throws IOException {
                 out.writeByte(b);
@@ -187,18 +187,7 @@ public class CuckooFilter implements Writeable {
             public void writeBytes(byte[] b, int offset, int length) throws IOException {
                 out.writeBytes(b, offset, length);
             }
-        }, PackedInts.Format.PACKED, data.size(), data.getBitsPerValue(), (int) data.ramBytesUsed());
-//        data.save(new DataOutput() {
-//            @Override
-//            public void writeByte(byte b) throws IOException {
-//                out.writeByte(b);
-//            }
-//
-//            @Override
-//            public void writeBytes(byte[] b, int offset, int length) throws IOException {
-//                out.writeBytes(b, offset, length);
-//            }
-//        });
+        });
     }
 
     /**
@@ -551,5 +540,29 @@ public class CuckooFilter implements Writeable {
             && Objects.equals(this.entriesPerBucket, that.entriesPerBucket)
             && Objects.equals(this.count, that.count)
             && Objects.equals(this.evictedFingerprint, that.evictedFingerprint);
+    }
+
+
+    private static void save(PackedInts.Mutable data, DataOutput out) throws IOException {
+        PackedInts.Writer writer = PackedInts.getWriterNoHeader(out, PackedInts.Format.PACKED, data.size(), data.getBitsPerValue(), 1024);
+        out.writeVInt(data.getBitsPerValue());
+        out.writeVInt(data.size());
+        out.writeVInt(PackedInts.Format.PACKED.id);
+        for (int i = 0; i < data.size(); ++i) {
+            writer.add(data.get(i));
+        }
+        writer.finish();
+    }
+
+    private static PackedInts.Mutable pull(DataInput in) throws IOException {
+        int bpv = in.readVInt();
+        int size = in.readVInt();
+        PackedInts.Format format = PackedInts.Format.byId(in.readVInt());
+        PackedInts.ReaderIterator reader = PackedInts.getReaderIteratorNoHeader(in, format, PackedInts.VERSION_CURRENT, size, bpv, 1024);
+        PackedInts.Mutable data = PackedInts.getMutable(size, bpv, format);
+        for (int i = 0; i < size; i ++) {
+            data.set(i, reader.next());
+        }
+        return data;
     }
 }

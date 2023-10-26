@@ -62,6 +62,8 @@ import org.opensearch.index.analysis.IndexAnalyzers;
 import org.opensearch.index.cache.query.DisabledQueryCache;
 import org.opensearch.index.cache.query.IndexQueryCache;
 import org.opensearch.index.cache.query.QueryCache;
+import org.opensearch.index.codec.fuzzy.FuzzyFilterPostingsFormat;
+import org.opensearch.index.codec.fuzzy.FuzzySet;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.EngineFactory;
@@ -159,7 +161,7 @@ public final class IndexModule {
      */
     public static final Setting<List<String>> INDEX_STORE_HYBRID_MMAP_EXTENSIONS = Setting.listSetting(
         "index.store.hybrid.mmap.extensions",
-        List.of("nvd", "dvd", "tim", "tip", "dim", "kdd", "kdi", "cfs", "doc"),
+        List.of("nvd", "dvd", "tim", "tip", "dim", "kdd", "kdi", "cfs", "doc", FuzzyFilterPostingsFormat.FUZZY_FILTER_DATA_EXTENSION),
         Function.identity(),
         Property.IndexScope,
         Property.NodeScope
