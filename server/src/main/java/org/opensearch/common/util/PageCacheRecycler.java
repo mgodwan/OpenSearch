@@ -68,6 +68,7 @@ public class PageCacheRecycler {
         "10%",
         Property.NodeScope
     );
+
     public static final Setting<Double> WEIGHT_BYTES_SETTING = Setting.doubleSetting(
         "cache.recycler.page.weight.bytes",
         1d,

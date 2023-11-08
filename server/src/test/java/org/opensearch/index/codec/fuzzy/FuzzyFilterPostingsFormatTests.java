@@ -19,7 +19,7 @@ public class FuzzyFilterPostingsFormatTests extends BasePostingsFormatTestCase {
     private TreeMap<String, FuzzySetParameters> params = new TreeMap<>() {
         @Override
         public FuzzySetParameters get(Object k) {
-            return new FuzzySetParameters(() -> 0.2047);
+            return new FuzzySetParameters(() -> FuzzySetParameters.DEFAULT_FALSE_POSITIVE_PROBABILITY);
         }
     };
 

@@ -127,6 +127,7 @@ final class StoreRecovery {
     }
 
     void recoverFromRemoteStore(final IndexShard indexShard, ActionListener<Boolean> listener) {
+
         if (canRecover(indexShard)) {
             RecoverySource.Type recoveryType = indexShard.recoveryState().getRecoverySource().getType();
             assert recoveryType == RecoverySource.Type.REMOTE_STORE : "expected remote store recovery type but was: " + recoveryType;

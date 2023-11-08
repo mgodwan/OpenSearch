@@ -10,6 +10,7 @@ package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.Accountable;
 import org.opensearch.common.util.BigArrays;
 import org.opensearch.common.util.LongArray;
@@ -21,12 +22,13 @@ import java.io.IOException;
 /**
  * A bitset backed by a long-indexed array.
  */
-public class LongArrayBackedBitSet implements Accountable, Closeable {
+class LongArrayBackedBitSet implements Accountable, Closeable {
 
     private long underlyingArrayLength = 0L;
     private LongArray longArray;
 
     LongArrayBackedBitSet(long capacity) {
+        // Since the bitset is backed by a long array, we only need 1 element for every 64 bits in the underlying array.
         underlyingArrayLength = ((capacity - 1L) >> 6) + 1;
         this.longArray = BigArrays.NON_RECYCLING_INSTANCE.withCircuitBreaking().newLongArray(underlyingArrayLength);
     }
@@ -56,8 +58,6 @@ public class LongArrayBackedBitSet implements Accountable, Closeable {
     public boolean isSet(long index) {
         long i = index >> 6; // div 64
         long val = longArray.get(i);
-        // signed shift will keep a negative index and force an
-        // array-index-out-of-bounds-exception, removing the need for an explicit check.
         long bitmask = 1L << index;
         return (val & bitmask) != 0;
     }

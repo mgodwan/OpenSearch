@@ -9,8 +9,8 @@
 package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.store.RandomAccessInput;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.CheckedSupplier;
 import org.opensearch.common.util.LongArray;
 
 import java.io.IOException;
@@ -18,12 +18,12 @@ import java.io.IOException;
 /**
  * A Long array backed by RandomAccessInput.
  */
-public class IndexInputLongArray implements LongArray {
+class IndexInputLongArray implements LongArray {
 
-    public RandomAccessInput input;
-    private long size;
+    private final RandomAccessInput input;
+    private final long size;
 
-    public IndexInputLongArray(long size, RandomAccessInput input) {
+    IndexInputLongArray(long size, RandomAccessInput input) {
         this.size = size;
         this.input = input;
     }
@@ -38,7 +38,11 @@ public class IndexInputLongArray implements LongArray {
 
     @Override
     public long get(long index) {
-        return wrapException(() -> input.readLong(index << 3));
+        try {
+            return input.readLong(index << 3);
+        } catch (IOException ex) {
+            throw new OpenSearchException(ex);
+        }
     }
 
     @Override
@@ -58,14 +62,6 @@ public class IndexInputLongArray implements LongArray {
 
     @Override
     public long ramBytesUsed() {
-        return 128;
-    }
-
-    private <T> T wrapException(CheckedSupplier<T, IOException> supplier) {
-        try {
-            return supplier.get();
-        } catch (IOException ex) {
-            throw new OpenSearchException(ex);
-        }
+        return RamUsageEstimator.shallowSizeOfInstance(IndexInputLongArray.class);
     }
 }
