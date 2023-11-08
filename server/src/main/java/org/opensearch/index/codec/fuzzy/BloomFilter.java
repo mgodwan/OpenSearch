@@ -78,7 +78,7 @@ public class BloomFilter extends AbstractFuzzySet {
         bitset.writeTo(out);
     }
 
-    static int getNearestSetSize(int maxNumberOfBits) {
+    private static int getNearestSetSize(int maxNumberOfBits) {
         int result = usableBitSetSizes[0];
         for (int i = 0; i < usableBitSetSizes.length; i++) {
             if (usableBitSetSizes[i] <= maxNumberOfBits) {
@@ -94,8 +94,7 @@ public class BloomFilter extends AbstractFuzzySet {
     }
 
     @Override
-    public Result contains(BytesRef value) {
-        long hash = generateKey(value);
+    public Result containsHash(long hash) {
         int msb = (int) (hash >>> Integer.SIZE);
         int lsb = (int) hash;
         for (int i = 0; i < hashCount; i++) {

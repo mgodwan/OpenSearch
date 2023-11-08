@@ -10,6 +10,7 @@ package org.opensearch.index.codec.fuzzy;
 
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.CheckedSupplier;
+import org.opensearch.common.hash.T1ha1;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -37,8 +38,14 @@ public abstract class AbstractFuzzySet implements FuzzySet {
         }
     }
 
+    public Result contains(BytesRef val) {
+        return containsHash(generateKey(val));
+    }
+
+    protected abstract Result containsHash(long hash);
+
     protected long generateKey(BytesRef value) {
-        return MurmurHash64.INSTANCE.hash(value);
+        return T1ha1.hash(value.bytes, value.offset, value.length, 0L);
     }
 
     protected void assertAllElementsExist(CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider) throws IOException {

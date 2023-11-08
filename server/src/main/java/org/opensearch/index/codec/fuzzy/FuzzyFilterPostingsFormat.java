@@ -25,7 +25,6 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
@@ -98,7 +97,8 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
             IndexInput filterIn = null;
             boolean success = false;
             try {
-                filterIn = state.directory.openInput(fuzzySetFileName, IOContext.READONCE);
+                filterIn = state.directory.openInput(fuzzySetFileName, state.context);
+
                 CodecUtil.checkIndexHeader(
                     filterIn,
                     FUZZY_SET_CODEC_NAME,
@@ -107,8 +107,6 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                     state.segmentInfo.getId(),
                     state.segmentSuffix
                 );
-                // // Load the hash function used in the Fuzzy filter
-                // hashFunction = HashFunction.forName(filterIn.readString());
                 // Load the delegate postings format
                 PostingsFormat delegatePostingsFormat = PostingsFormat.forName(filterIn.readString());
                 this.delegateFieldsProducer = delegatePostingsFormat.fieldsProducer(state);
@@ -232,6 +230,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         }
 
         static final class FilterAppliedTermsEnum extends BaseTermsEnum {
+
             private Terms delegateTerms;
             private TermsEnum delegateTermsEnum;
             private final FuzzySet filter;
@@ -250,7 +249,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 if (delegateTermsEnum == null) {
                     /* pull the iterator only if we really need it -
                      * this can be a relativly heavy operation depending on the
-                     * delegate postings format and they underlying directory
+                     * delegate postings format and the underlying directory
                      * (clone IndexInput) */
                     delegateTermsEnum = delegateTerms.iterator();
                 }
@@ -439,6 +438,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                     state.segmentInfo.getId(),
                     state.segmentSuffix
                 );
+
                 // remember the name of the postings format we will delegate to
                 fuzzyFilterFileOutput.writeString(delegatePostingsFormat.getName());
 
@@ -447,7 +447,6 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 for (Map.Entry<FieldInfo, FuzzySet> entry : nonSaturatedSets) {
                     FieldInfo fieldInfo = entry.getKey();
                     FuzzySet fuzzySet = entry.getValue();
-                    fuzzyFilterFileOutput.writeInt(fieldInfo.number);
                     saveAppropriatelySizedFuzzySet(fuzzyFilterFileOutput, fuzzySet, fieldInfo);
                 }
                 CodecUtil.writeFooter(fuzzyFilterFileOutput);
@@ -458,6 +457,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         }
 
         private void saveAppropriatelySizedFuzzySet(IndexOutput fileOutput, FuzzySet fuzzySet, FieldInfo fieldInfo) throws IOException {
+            fileOutput.writeInt(fieldInfo.number);
             fileOutput.writeString(fuzzySet.setType().getSetName());
             fuzzySet.writeTo(fileOutput);
         }
