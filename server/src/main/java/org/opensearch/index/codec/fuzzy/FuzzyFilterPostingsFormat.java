@@ -41,6 +41,7 @@ import java.util.Map;
 
 /**
  * Based on Lucene's BloomFilterPostingsFormat.
+ * Add instruction on how upgrade can be handled.
  */
 public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 

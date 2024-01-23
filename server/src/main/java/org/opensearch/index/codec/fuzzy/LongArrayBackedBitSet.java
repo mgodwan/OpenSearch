@@ -35,7 +35,7 @@ class LongArrayBackedBitSet implements Accountable, Closeable {
     LongArrayBackedBitSet(IndexInput in) throws IOException {
         underlyingArrayLength = in.readLong();
         long streamLength = underlyingArrayLength << 3;
-        this.longArray = new IndexInputLongArray(underlyingArrayLength, in.randomAccessSlice(in.getFilePointer(), streamLength));
+        this.longArray = new IndexInputImmutableLongArray(underlyingArrayLength, in.randomAccessSlice(in.getFilePointer(), streamLength));
         in.skipBytes(streamLength);
     }
 

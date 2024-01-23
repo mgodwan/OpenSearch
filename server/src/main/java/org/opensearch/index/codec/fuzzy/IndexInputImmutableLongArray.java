@@ -18,12 +18,12 @@ import java.io.IOException;
 /**
  * A Long array backed by RandomAccessInput.
  */
-class IndexInputLongArray implements LongArray {
+class IndexInputImmutableLongArray implements LongArray {
 
     private final RandomAccessInput input;
     private final long size;
 
-    IndexInputLongArray(long size, RandomAccessInput input) {
+    IndexInputImmutableLongArray(long size, RandomAccessInput input) {
         this.size = size;
         this.input = input;
     }
@@ -62,6 +62,6 @@ class IndexInputLongArray implements LongArray {
 
     @Override
     public long ramBytesUsed() {
-        return RamUsageEstimator.shallowSizeOfInstance(IndexInputLongArray.class);
+        return RamUsageEstimator.shallowSizeOfInstance(IndexInputImmutableLongArray.class);
     }
 }
