@@ -16,7 +16,7 @@ import org.opensearch.common.util.LongArray;
 import java.io.IOException;
 
 /**
- * A Long array backed by RandomAccessInput.
+ * A Long array backed by RandomAccessInput. This supports read-only operations.
  */
 class IndexInputImmutableLongArray implements LongArray {
 

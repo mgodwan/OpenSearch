@@ -63,8 +63,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene99Codec {
     private final Logger logger;
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new Lucene90DocValuesFormat();
-    private FuzzySetFactory fuzzySetFactory;
-    private FuzzyFilterPostingsFormat docIdPostingsFormat;
+    private final FuzzySetFactory fuzzySetFactory;
+    private PostingsFormat docIdPostingsFormat;
 
     static {
         assert Codec.forName(Lucene.LATEST_CODEC).getClass().isAssignableFrom(PerFieldMappingPostingFormatCodec.class)

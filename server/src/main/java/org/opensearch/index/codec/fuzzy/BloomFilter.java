@@ -6,6 +6,12 @@
  * compatible open source license.
  */
 
+/*
+ * Based on code from the Apache Lucene project (https://github.com/apache/lucene) under the Apache License, version 2.0.
+ * Copyright (C) ...
+ * Modifications (C) OpenSearch Contributors. All Rights Reserved.
+ */
+
 package org.opensearch.index.codec.fuzzy;
 
 import org.apache.logging.log4j.LogManager;

@@ -6,6 +6,12 @@
  * compatible open source license.
  */
 
+/*
+ * Based on code from the Apache Lucene project (https://github.com/apache/lucene) under the Apache License, version 2.0.
+ * Copyright (C) ...
+ * Modifications (C) OpenSearch Contributors. All Rights Reserved.
+ */
+
 package org.opensearch.index.codec.fuzzy;
 
 import org.apache.logging.log4j.LogManager;
@@ -41,13 +47,20 @@ import java.util.Map;
 
 /**
  * Based on Lucene's BloomFilterPostingsFormat.
- * Add instruction on how upgrade can be handled.
+ * Discussion with Lucene community based on which the decision to have this in OpenSearch code was taken
+ * is captured here: https://github.com/apache/lucene/issues/12986
+ *
+ * The class deals with persisting the bloom filter
+ * and reading the field through a bloom filter (to reduce disk seeks in case of absence of requested values)
+ * The class should be handled during lucene upgrades. There are bwc tests present to verify
  */
+
+
 public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 
     private static final Logger logger = LogManager.getLogger(FuzzyFilterPostingsFormat.class);
 
-    public static final String FUZZY_SET_CODEC_NAME = "FuzzySetCodec";
+    public static final String FUZZY_SET_CODEC_NAME = "FuzzySetCodec99";
     public static final int VERSION_START = 0;
     public static final int VERSION_CURRENT = VERSION_START;
 
