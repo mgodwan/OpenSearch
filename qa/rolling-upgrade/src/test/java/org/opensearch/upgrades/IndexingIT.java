@@ -40,10 +40,12 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.io.Streams;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.indices.replication.common.ReplicationType;
+import org.opensearch.test.FeatureFlagSetter;
 import org.opensearch.test.rest.yaml.ObjectPath;
 
 import java.io.IOException;
