@@ -46,6 +46,8 @@ public class StarTreeBuilderUtils {
     /** Tree node representation */
     public static class TreeNode {
         public int _dimensionId = INVALID_ID;
+
+        // TODO : should we use long ?
         public long _dimensionValue = INVALID_ID;
         public int _startDocId = INVALID_ID;
         public int _endDocId = INVALID_ID;

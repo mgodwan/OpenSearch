@@ -56,7 +56,12 @@ import org.apache.lucene.util.packed.DirectMonotonicWriter;
 import org.apache.lucene.util.packed.DirectWriter;
 
 
-/** writer for {@link Lucene90DocValuesFormat} */
+/**
+ * writer for {@link Lucene90DocValuesFormat}
+ *
+ * TODO : anyway to reuse original lucene doc values consumer ?
+ *
+ * */
 public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
 
     IndexOutput data, meta;

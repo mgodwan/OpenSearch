@@ -32,7 +32,6 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.store.IndexOutput;
 import org.opensearch.index.codec.freshstartree.builder.BaseSingleTreeBuilder;
 import org.opensearch.index.codec.freshstartree.builder.OffHeapBufferedSingleTreeBuilder;
-import org.opensearch.index.codec.freshstartree.builder.OffHeapSingleTreeBuilder;
 
 
 /** Custom star tree doc values writer */

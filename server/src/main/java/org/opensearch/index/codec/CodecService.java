@@ -69,6 +69,10 @@ public class CodecService {
         final MapBuilder<String, Codec> codecs = MapBuilder.<String, Codec>newMapBuilder();
         assert null != indexSettings;
         if (mapperService == null) {
+            /**
+             * Todo : currently we don't have a single field with which we handle aggregation ( binary field etc )
+             * So no better way to test the changes then to change the default codec - this should be changed.
+             */
             codecs.put(DEFAULT_CODEC, new StarTreeCodec());
             codecs.put(LZ4, new StarTreeCodec());
             codecs.put(BEST_COMPRESSION_CODEC, new Lucene95Codec(Mode.BEST_COMPRESSION));
