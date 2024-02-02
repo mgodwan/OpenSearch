@@ -129,7 +129,7 @@ import java.util.Map;
  * @opensearch.internal
  */
 public class Lucene {
-    public static final String LATEST_CODEC = "Lucene95";
+    public static final String LATEST_CODEC = "StarTreeCodec"; // TODO : this is a hack
 
     public static final String SOFT_DELETES_FIELD = "__soft_deletes";
 

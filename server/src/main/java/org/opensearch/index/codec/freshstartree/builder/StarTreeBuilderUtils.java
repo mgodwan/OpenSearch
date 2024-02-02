@@ -29,9 +29,6 @@ import org.apache.lucene.store.IndexOutput;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.opensearch.index.codec.freshstartree.node.OffHeapStarTreeNode.SERIALIZABLE_SIZE_IN_BYTES;
 
-// import static
-// org.opensearch.index.codec.freshstartree.node.OffHeapStarTreeNode.SERIALIZABLE_SIZE_IN_BYTES;
-
 /** Util class for building star tree */
 public class StarTreeBuilderUtils {
 

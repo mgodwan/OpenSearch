@@ -51,6 +51,8 @@ import org.apache.lucene.util.packed.DirectReader;
 /**
  * Created a copy to initialize producer without field info stored in state which is the case for
  * aggregated doc values fields
+ *
+ * We don't create aggregated doc value fields in traditional add/update doc workflow where fieldInfo gets populated
  */
 public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     private final Map<String, NumericEntry> numerics;
@@ -160,7 +162,6 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     private void readFields(IndexInput meta, FieldInfo[] infos)
         throws IOException {
         for (int fieldNumber = meta.readInt(); fieldNumber != -1; fieldNumber = meta.readInt()) {
-            // System.out.println("Field number : " + fieldNumber);
             FieldInfo info = infos[fieldNumber];
             if (info == null) {
                 throw new CorruptIndexException("Invalid field number: " + fieldNumber, meta);

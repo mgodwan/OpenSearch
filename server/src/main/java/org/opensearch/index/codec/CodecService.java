@@ -70,8 +70,11 @@ public class CodecService {
         assert null != indexSettings;
         if (mapperService == null) {
             /**
-             * Todo : currently we don't have a single field with which we handle aggregation ( binary field etc )
-             * So no better way to test the changes then to change the default codec - this should be changed.
+             * Todo : currently we don't have a single field to use per field codec to handle aggregation
+             * So no better way to test the changes then to change the default codec - This should be changed.
+             *
+             * There are issues with this as restarting the process and reloading the indices results in errors
+             * Lucene95Codec is read when reloading the indices ( Solved now by using StarTreeCodec as the latest codec )
              */
             codecs.put(DEFAULT_CODEC, new StarTreeCodec());
             codecs.put(LZ4, new StarTreeCodec());

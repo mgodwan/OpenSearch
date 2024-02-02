@@ -97,7 +97,6 @@ if (!isEclipse) {
   }
 }
 
-
 dependencies {
 
   api project(':libs:opensearch-common')

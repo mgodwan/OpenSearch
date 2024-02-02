@@ -180,7 +180,6 @@ public abstract class BaseSingleTreeBuilder {
         long nodeDimensionValue = getDimensionValue(startDocId, dimensionId);
         for (int i = startDocId + 1; i < endDocId; i++) {
             long dimensionValue = getDimensionValue(i, dimensionId);
-            // System.out.println("Dim value : " + dimensionValue );
             if (dimensionValue != nodeDimensionValue) {
                 StarTreeBuilderUtils.TreeNode child = getNewNode();
                 child._dimensionId = dimensionId;
@@ -227,11 +226,6 @@ public abstract class BaseSingleTreeBuilder {
         long startTime = System.currentTimeMillis();
         Iterator<Record> recordIterator = sortAndAggregateSegmentRecords(numSegmentRecords);
         logger.info("Sorting and aggregating star-tree in ms : {}", (System.currentTimeMillis() - startTime));
-        //    System.out.println(
-        //        "== =============Finished sorting and aggregating star-tree in ms : " +
-        // (System.currentTimeMillis()
-        //            - startTime));
-
         build(recordIterator, false);
     }
 
@@ -443,7 +437,7 @@ public abstract class BaseSingleTreeBuilder {
                 assert aggregatedRecord != null;
                 for (int i = node._dimensionId + 1; i < _numDimensions; i++) {
                     aggregatedRecord._dimensions[i] =
-                        STAR_IN_DOC_VALUES_INDEX; // StarTreeV2Constants.STAR_IN_FORWARD_INDEX;
+                        STAR_IN_DOC_VALUES_INDEX;
                 }
                 node._aggregatedDocId = _numDocs;
                 appendToStarTree(aggregatedRecord);
@@ -469,7 +463,7 @@ public abstract class BaseSingleTreeBuilder {
                 assert aggregatedRecord != null;
                 for (int i = node._dimensionId + 1; i < _numDimensions; i++) {
                     aggregatedRecord._dimensions[i] =
-                        STAR_IN_DOC_VALUES_INDEX; // StarTreeV2Constants.STAR_IN_FORWARD_INDEX;
+                        STAR_IN_DOC_VALUES_INDEX;
                 }
                 node._aggregatedDocId = _numDocs;
                 appendToStarTree(aggregatedRecord);
@@ -591,7 +585,6 @@ public abstract class BaseSingleTreeBuilder {
             success = true;
         } catch (Exception e) {
             throw new RuntimeException(e);
-            //      System.out.println(e.getMessage());
         } finally {
             if (success) {
                 IOUtils.close(indexOutput);

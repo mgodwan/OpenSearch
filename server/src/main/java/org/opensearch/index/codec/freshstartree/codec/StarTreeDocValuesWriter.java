@@ -34,7 +34,8 @@ import org.opensearch.index.codec.freshstartree.builder.BaseSingleTreeBuilder;
 import org.opensearch.index.codec.freshstartree.builder.OffHeapBufferedSingleTreeBuilder;
 
 
-/** Custom star tree doc values writer */
+/** Custom star tree doc values writer
+ * */
 public class StarTreeDocValuesWriter extends DocValuesConsumer {
 
     private DocValuesConsumer delegate;
@@ -48,7 +49,6 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
 
     BaseSingleTreeBuilder builder;
     IndexOutput data;
-    IndexOutput meta;
 
     DocValuesConsumer docValuesConsumer;
     public static final String DATA_CODEC = "Lucene90DocValuesData";
@@ -103,8 +103,6 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
             dimensionReaders.put("day_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put("month_dim", valuesProducer.getSortedNumeric(field));
             //dimensionReaders.put("year_dim", valuesProducer.getSortedNumeric(field));
-            //dimensionsSplitOrder.add("minute");
-
         } else {
             //logger.info("Adding field : " + field.name);
             dimensionReaders.put(field.name + "_dim", valuesProducer.getSortedNumeric(field));
@@ -139,18 +137,10 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
             aggrList.add(starTree);
         }
         long startTime = System.currentTimeMillis();
-        // BaseSingleTreeBuilder.Record[] recordsArr = mergeRecords(aggrList);
         builder = new OffHeapBufferedSingleTreeBuilder(data, dimensionsSplitOrder, dimensionReaders, state.segmentInfo.maxDoc(),
             docValuesConsumer, state);
         builder.build(aggrList);
         logger.info("Finished merging star-tree in ms : {}" , (System.currentTimeMillis() - startTime));
-        //    long startTime = System.currentTimeMillis();
-        // System.out.println(recordsArr);
-        // TODO : remove this
-        // todo: do this off heap
-        // builder.build(builder.sortAndAggregateSegmentRecords(recordsArr), true);
-        // System.out.println("Finished merging star-tree in ms : " + (System.currentTimeMillis() -
-        // startTime));
     }
 
     @Override

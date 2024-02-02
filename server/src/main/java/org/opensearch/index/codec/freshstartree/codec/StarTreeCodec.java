@@ -16,6 +16,7 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
+import java.util.Objects;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.CompoundFormat;
 import org.apache.lucene.codecs.DocValuesFormat;
@@ -28,26 +29,30 @@ import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.SegmentInfoFormat;
 import org.apache.lucene.codecs.StoredFieldsFormat;
 import org.apache.lucene.codecs.TermVectorsFormat;
+import org.apache.lucene.codecs.lucene90.Lucene90StoredFieldsFormat;
 
 
 /** Codec for performing aggregation during indexing */
 public class StarTreeCodec extends Codec {
-    private Codec lucene99Codec;
-    public static final String LUCENE_99 = "Lucene95"; // Lucene Codec to be used
+    private Codec lucene95Codec;
+    public static final String LUCENE_95 = "Lucene95"; // Lucene Codec to be used
 
     public static final String STAR_TREE_CODEC_NAME = "StarTreeCodec";
 
     private final DocValuesFormat dvFormat = new StarTreeDocValuesFormat();
 
+    private final StoredFieldsFormat storedFieldsFormat;
+
     public StarTreeCodec() {
         super(STAR_TREE_CODEC_NAME);
+        storedFieldsFormat =  new Lucene90StoredFieldsFormat(Lucene90StoredFieldsFormat.Mode.BEST_SPEED);
     }
 
     public Codec getDelegate() {
-        if (lucene99Codec == null) {
-            lucene99Codec = Codec.forName(LUCENE_99);
+        if (lucene95Codec == null) {
+            lucene95Codec = Codec.forName(LUCENE_95);
         }
-        return lucene99Codec;
+        return lucene95Codec;
     }
 
     @Override
@@ -103,5 +108,19 @@ public class StarTreeCodec extends Codec {
     @Override
     public KnnVectorsFormat knnVectorsFormat() {
         return getDelegate().knnVectorsFormat();
+    }
+
+    /**
+     * TODO : change this - this is a hack
+     */
+    public PostingsFormat getPostingsFormatForField(String field) {
+        return getDelegate().postingsFormat();
+    }
+
+    /**
+     * TODO : change this - this is a hack
+     */
+    public DocValuesFormat getDocValuesFormatForField(String field) {
+        return docValuesFormat();
     }
 }

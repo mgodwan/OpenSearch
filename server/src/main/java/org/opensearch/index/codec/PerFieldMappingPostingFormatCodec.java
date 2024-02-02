@@ -39,6 +39,7 @@ import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.opensearch.common.lucene.Lucene;
+import org.opensearch.index.codec.freshstartree.codec.StarTreeCodec;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeDocValuesFormat;
 import org.opensearch.index.mapper.CompletionFieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
@@ -54,7 +55,7 @@ import org.opensearch.index.mapper.MapperService;
  *
  * @opensearch.internal
  */
-public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
+public class PerFieldMappingPostingFormatCodec extends StarTreeCodec { // TODO : this is a hack , can't extend startreecodec
     private final Logger logger;
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new StarTreeDocValuesFormat();
@@ -64,8 +65,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene95Codec {
             : "PerFieldMappingPostingFormatCodec must subclass the latest " + "lucene codec: " + Lucene.LATEST_CODEC;
     }
 
-    public PerFieldMappingPostingFormatCodec(Mode compressionMode, MapperService mapperService, Logger logger) {
-        super(compressionMode);
+    public PerFieldMappingPostingFormatCodec(Lucene95Codec.Mode compressionMode, MapperService mapperService, Logger logger) {
+        super();
         this.mapperService = mapperService;
         this.logger = logger;
     }

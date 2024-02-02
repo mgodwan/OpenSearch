@@ -88,8 +88,6 @@ public class StarTreeFilter {
         List<DocIdSetIterator> andIterators = new ArrayList<>();
         andIterators.add(starTreeResult._matchedDocIds.build().iterator());
 
-        // System.out.println("Remaining predicate columns : " +
-        // starTreeResult._remainingPredicateColumns.toString());
         for (String remainingPredicateColumn : starTreeResult._remainingPredicateColumns) {
             // TODO : set to max value of doc values
             DocIdSetBuilder builder = new DocIdSetBuilder(Integer.MAX_VALUE);
@@ -99,7 +97,6 @@ public class StarTreeFilter {
                 for (Predicate<Long> compositePredicateEvaluator : compositePredicateEvaluators) {
                     // TODO : this might be expensive as its done against all doc values docs
                     if (compositePredicateEvaluator.test(ndv.longValue())) {
-                        // System.out.println("Adding doc id : " + docID + " for status " + ndv.longValue());
                         builder.grow(1).add(docID);
                         break;
                     }
@@ -159,9 +156,6 @@ public class StarTreeFilter {
 
             // If all predicate columns and group-by columns are matched, we can use aggregated document
             if (remainingPredicateColumns.isEmpty() && remainingGroupByColumns.isEmpty()) {
-                // System.out.println("Adding doc id for : " + dimensionNames.get(dimensionId) + " = " +
-                // starTreeNode
-                // .getAggregatedDocId());
                 adder = docsWithField.grow(1);
                 adder.add(starTreeNode.getAggregatedDocId());
                 continue;
@@ -175,8 +169,6 @@ public class StarTreeFilter {
             if (starTreeNode.isLeaf()) {
                 for (long i = starTreeNode.getStartDocId(); i < starTreeNode.getEndDocId(); i++) {
                     adder = docsWithField.grow(1);
-                    // System.out.println("Adding doc id for : " + dimensionNames.get(dimensionId) + " = " +
-                    // i);
                     adder.add((int) i);
                 }
                 continue;

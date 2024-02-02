@@ -55,8 +55,6 @@ public class OffHeapStarTree implements StarTree {
         }
         _dimensionNames.addAll(Arrays.asList(dimensionNames));
         data.readInt(); // num nodes
-        // System.out.println("Number of nodes : " + numNodes);
-        // System.out.println(data.length());
         RandomAccessInput in = data.randomAccessSlice(data.getFilePointer(), data.length() - data.getFilePointer());
         _root = new OffHeapStarTreeNode(in, 0);
     }
@@ -109,7 +107,6 @@ public class OffHeapStarTree implements StarTree {
             .toString();
 
         stringBuilder.append(formattedOutput);
-        // System.out.println(stringBuilder.toString());
 
         if (!node.isLeaf()) {
             Iterator<OffHeapStarTreeNode> childrenIterator = node.getChildrenIterator();

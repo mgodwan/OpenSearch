@@ -77,7 +77,6 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
                     i++;
                 }
                 BaseSingleTreeBuilder.Record record = new BaseSingleTreeBuilder.Record(dims, metrics);
-                // System.out.println("Adding  : " + record.toString());
                 records.add(record);
             }
         }
@@ -90,7 +89,6 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
     @Override
     void appendRecord(Record record)
         throws IOException {
-        //    System.out.println("Appending record : " + record.toString());
         _records.add(record);
     }
 
@@ -103,8 +101,6 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
     @Override
     long getDimensionValue(int docId, int dimensionId)
         throws IOException {
-        // System.out.println("doc id : " + docId + " dim id : " + dimensionId + " size : " +
-        // _records.size());
         return _records.get(docId)._dimensions[dimensionId];
     }
 
@@ -114,9 +110,6 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
         Record[] records = new Record[numDocs];
         for (int i = 0; i < numDocs; i++) {
             records[i] = getNextSegmentRecord();
-            // System.out.println("Step 3 : " + records[i]._dimensions[0] + "  |  " +
-            // records[i]._dimensions[1] + "  |  " +
-            // records[i]._metrics[0]);
         }
         return sortAndAggregateSegmentRecords(records);
     }

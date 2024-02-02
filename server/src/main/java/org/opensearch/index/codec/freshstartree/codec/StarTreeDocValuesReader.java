@@ -74,10 +74,8 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
     public StarTreeAggregatedValues getAggregatedDocValues()
         throws IOException {
         //    starTree.printTree(new HashMap<>());
-        //    System.out.println(starTree);
         List<String> dimensionsSplitOrder = starTree.getDimensionNames();
         for (int i = 0; i < dimensionsSplitOrder.size(); i++) {
-            System.out.println("Reading dimension : " + dimensionsSplitOrder);
             dimensionValues.put(dimensionsSplitOrder.get(i),
                 valuesProducer.getNumeric(dimensionsSplitOrder.get(i) + "_dim"));
         }

@@ -59,7 +59,8 @@ import org.apache.lucene.util.packed.DirectWriter;
 /**
  * writer for {@link Lucene90DocValuesFormat}
  *
- * TODO : anyway to reuse original lucene doc values consumer ?
+ * TODO : This is added because Lucene90DocValuesConsumer is not public
+ * Alternate is to make it public
  *
  * */
 public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
