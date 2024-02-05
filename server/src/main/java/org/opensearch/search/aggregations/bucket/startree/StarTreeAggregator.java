@@ -164,10 +164,11 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
     @Override
     protected LeafBucketCollector getLeafCollector(LeafReaderContext ctx, LeafBucketCollector sub)
         throws IOException {
-        StarTreeAggregatedValues aggrVals = (StarTreeAggregatedValues) ctx.reader().getAggregatedDocValues();
-        return new LeafBucketCollectorBase(sub, aggrVals) {
+        StarTreeAggregatedValues values = (StarTreeAggregatedValues) ctx.reader().getAggregatedDocValues();
+        return new LeafBucketCollectorBase(sub, values) {
             @Override
             public void collect(int doc, long bucket) throws IOException {
+                StarTreeAggregatedValues aggrVals = (StarTreeAggregatedValues) ctx.reader().getAggregatedDocValues();
                 NumericDocValues dv = aggrVals.metricValues.get("status_sum");
                 NumericDocValues hourValueDim = aggrVals.dimensionValues.get("hour");
                 NumericDocValues dayValueDim = aggrVals.dimensionValues.get("day");
