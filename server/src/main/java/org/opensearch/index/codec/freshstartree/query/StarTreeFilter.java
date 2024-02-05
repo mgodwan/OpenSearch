@@ -27,7 +27,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
+import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.search.ConjunctionUtils;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.DocIdSetBuilder;
@@ -92,11 +94,11 @@ public class StarTreeFilter {
             // TODO : set to max value of doc values
             DocIdSetBuilder builder = new DocIdSetBuilder(Integer.MAX_VALUE);
             List<Predicate<Long>> compositePredicateEvaluators = _predicateEvaluators.get(remainingPredicateColumn);
-            NumericDocValues ndv = this.dimValueMap.get(remainingPredicateColumn);
+            SortedNumericDocValues ndv = DocValues.singleton(this.dimValueMap.get(remainingPredicateColumn));
             for (int docID = ndv.nextDoc(); docID != NO_MORE_DOCS; docID = ndv.nextDoc()) {
                 for (Predicate<Long> compositePredicateEvaluator : compositePredicateEvaluators) {
                     // TODO : this might be expensive as its done against all doc values docs
-                    if (compositePredicateEvaluator.test(ndv.longValue())) {
+                    if (compositePredicateEvaluator.test(ndv.nextValue())) {
                         builder.grow(1).add(docID);
                         break;
                     }

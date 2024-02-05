@@ -203,8 +203,7 @@ public class QueryPhase {
         List<Predicate<Integer>> predicates = new ArrayList<>();
         predicates.add(status -> status == 200);
         predicateMap.put("status", predicates);
-        Query q = new StarTreeQuery(new HashMap<>(), groupByCols);
-        queryResult.searchTimedOut(false);
+         queryResult.searchTimedOut(false);
         try {
             queryResult.from(searchContext.from());
             queryResult.size(searchContext.size());
@@ -294,8 +293,7 @@ public class QueryPhase {
                 boolean shouldRescore = queryPhaseSearcher.searchWith(
                     searchContext,
                     searcher,
-                    q,
-                    //query,
+                    query,
                     collectors,
                     hasFilterCollector,
                     timeoutSet

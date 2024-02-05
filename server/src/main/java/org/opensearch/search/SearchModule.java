@@ -47,6 +47,7 @@ import org.opensearch.core.common.io.stream.NamedWriteableRegistry.Entry;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.index.codec.freshstartree.query.StarTreeQueryBuilder;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.BoostingQueryBuilder;
 import org.opensearch.index.query.CommonTermsQueryBuilder;
@@ -155,6 +156,9 @@ import org.opensearch.search.aggregations.bucket.sampler.DiversifiedAggregationB
 import org.opensearch.search.aggregations.bucket.sampler.InternalSampler;
 import org.opensearch.search.aggregations.bucket.sampler.SamplerAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.sampler.UnmappedSampler;
+import org.opensearch.search.aggregations.bucket.startree.InternalStarTree;
+import org.opensearch.search.aggregations.bucket.startree.StarTreeAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.startree.StarTreeAggregator;
 import org.opensearch.search.aggregations.bucket.terms.DoubleTerms;
 import org.opensearch.search.aggregations.bucket.terms.InternalMultiTerms;
 import org.opensearch.search.aggregations.bucket.terms.LongRareTerms;
@@ -494,6 +498,11 @@ public class SearchModule {
             builder
         );
         registerAggregation(
+            new AggregationSpec(StarTreeAggregationBuilder.NAME, StarTreeAggregationBuilder::new, StarTreeAggregationBuilder::parse)
+                .addResultReader(InternalStarTree::new),
+            builder
+        );
+        registerAggregation(
             new AggregationSpec(MissingAggregationBuilder.NAME, MissingAggregationBuilder::new, MissingAggregationBuilder.PARSER)
                 .addResultReader(InternalMissing::new)
                 .setAggregatorRegistrar(MissingAggregationBuilder::registerAggregators),
@@ -675,6 +684,7 @@ public class SearchModule {
                 .setAggregatorRegistrar(MultiTermsAggregationFactory::registerAggregators),
             builder
         );
+
         registerFromPlugin(plugins, SearchPlugin::getAggregations, (agg) -> this.registerAggregation(agg, builder));
 
         // after aggs have been registered, see if there are any new VSTypes that need to be linked to core fields
@@ -1201,6 +1211,9 @@ public class SearchModule {
         if (ShapesAvailability.JTS_AVAILABLE && ShapesAvailability.SPATIAL4J_AVAILABLE) {
             registerQuery(new QuerySpec<>(GeoShapeQueryBuilder.NAME, GeoShapeQueryBuilder::new, GeoShapeQueryBuilder::fromXContent));
         }
+
+        registerQuery(new QuerySpec<>(StarTreeQueryBuilder.NAME, StarTreeQueryBuilder::new, StarTreeQueryBuilder::fromXContent));
+
 
         registerFromPlugin(plugins, SearchPlugin::getQueries, this::registerQuery);
     }
