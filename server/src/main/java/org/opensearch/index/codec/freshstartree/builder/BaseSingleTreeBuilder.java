@@ -36,6 +36,10 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.packed.PackedInts;
 import org.apache.lucene.util.packed.PackedLongValues;
+import org.opensearch.common.Rounding;
+import org.opensearch.common.time.DateUtils;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.core.common.Strings;
 import org.opensearch.index.codec.freshstartree.aggregator.AggregationFunctionColumnPair;
 import org.opensearch.index.codec.freshstartree.aggregator.AggregationFunctionType;
 import org.opensearch.index.codec.freshstartree.aggregator.ValueAggregator;
@@ -54,6 +58,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
+
 
 /** Base class for star tree builder */
 public abstract class BaseSingleTreeBuilder {
@@ -563,7 +569,39 @@ public abstract class BaseSingleTreeBuilder {
         return new Record(dimensions, metrics);
     }
 
+    private long getTimeStampVal2(final String fieldName, final long val) {
+
+        if (Strings.isNullOrEmpty(fieldName) == false && DateHistogramAggregationBuilder.DATE_FIELD_UNITS.containsKey(fieldName)) {
+            Rounding.DateTimeUnit intervalUnit = DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(fieldName);
+            return intervalUnit.getField().getBaseUnit().getDuration().getSeconds() * 1000;
+        } else {
+            return TimeValue.parseTimeValue(fieldName, "DateHistogramInterval#estimateMillis").getMillis();
+        }
+
+//        switch (fieldName) {
+//            case "minute":
+//                return val / MINUTE;
+//            case "hour":
+//                return val / HOUR;
+//            case "day":
+//                return val / DAY;
+//            case "month":
+//                return val / (DAY * 30); // TODO
+//            case "year":
+//                return val / YEAR;
+//            default:
+//                return val;
+//        }
+    }
+
     private long getTimeStampVal(final String fieldName, final long val) {
+//        if (Strings.isNullOrEmpty(fieldName) == false && DateHistogramAggregationBuilder.DATE_FIELD_UNITS.containsKey(fieldName)) {
+//            Rounding.DateTimeUnit intervalUnit = DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(fieldName);
+//            DateUtils.round
+//            return intervalUnit.getField().getBaseUnit().getDuration().getSeconds() * 1000;
+//        } else {
+//            return TimeValue.parseTimeValue(fieldName, "DateHistogramInterval#estimateMillis").getMillis();
+//        }
 
         switch (fieldName) {
             case "minute":
@@ -573,9 +611,9 @@ public abstract class BaseSingleTreeBuilder {
             case "day":
                 return val / DAY * DAY;
             case "month":
-                return val / (DAY * 30) * (DAY * 30); // TODO
+                return DateUtils.roundMonthOfYear(val); // TODO
             case "year":
-                return val / YEAR * YEAR;
+                return DateUtils.roundYear(val);
             default:
                 return val;
         }

@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
+import org.opensearch.index.document.SortedUnsignedLongDocValuesRangeQuery;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 

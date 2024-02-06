@@ -8,6 +8,9 @@
 
 package org.opensearch.search.aggregations.bucket.startree;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -16,6 +19,7 @@ import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.InternalAggregations;
 import org.opensearch.search.aggregations.InternalMultiBucketAggregation;
+import org.opensearch.search.aggregations.bucket.adjacency.InternalAdjacencyMatrix;
 import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.search.aggregations.support.ValueType;
 import org.opensearch.search.aggregations.support.ValuesSourceType;
@@ -32,13 +36,13 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
     static final InternalStarTree.Factory FACTORY = new InternalStarTree.Factory();
 
     public static class Bucket extends InternalMultiBucketAggregation.InternalBucket {
-        private final long docCount;
-        private final InternalAggregations aggregations;
+        public long sum;
+        public InternalAggregations aggregations;
         private final String key;
 
-        public Bucket(String key, long docCount, InternalAggregations aggregations) {
+        public Bucket(String key, long sum, InternalAggregations aggregations) {
             this.key = key;
-            this.docCount = docCount;
+            this.sum = sum;
             this.aggregations = aggregations;
         }
 
@@ -54,11 +58,11 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
 
         @Override
         public long getDocCount() {
-            return docCount;
+            return sum;
         }
 
         @Override
-        public Aggregations getAggregations() {
+        public InternalAggregations getAggregations() {
             return aggregations;
         }
 
@@ -70,7 +74,8 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             builder.field(Aggregation.CommonFields.KEY.getPreferredName(), key);
-            builder.field(Aggregation.CommonFields.DOC_COUNT.getPreferredName(), docCount);
+            // TODO : this is hack
+            builder.field("SUM", sum);
             aggregations.toXContentInternal(builder, params);
             builder.endObject();
             return builder;
@@ -79,7 +84,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             out.writeString(key);
-            out.writeVLong(docCount);
+            out.writeVLong(sum);
             aggregations.writeTo(out);
         }
 
@@ -92,14 +97,14 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
                 return false;
             }
             InternalStarTree.Bucket that = (InternalStarTree.Bucket) other;
-            return Objects.equals(docCount, that.docCount)
+            return Objects.equals(sum, that.sum)
                 && Objects.equals(aggregations, that.aggregations)
                 && Objects.equals(key, that.key);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(getClass(), docCount, aggregations, key);
+            return Objects.hash(getClass(), sum, aggregations, key);
         }
     }
 
@@ -187,38 +192,53 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
 
     @Override
     public InternalAggregation reduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
-        reduceContext.consumeBucketsAndMaybeBreak(ranges.size());
-        List<B>[] rangeList = new List[ranges.size()];
-        for (int i = 0; i < rangeList.length; ++i) {
-            rangeList[i] = new ArrayList<>();
-        }
+        Map<String, List<B>> bucketsMap = new HashMap<>();
+
         for (InternalAggregation aggregation : aggregations) {
-            InternalStarTree<B, R> ranges = (InternalStarTree<B, R>) aggregation;
+            InternalStarTree<B, R> filters = (InternalStarTree<B, R>) aggregation;
             int i = 0;
-            for (B range : ranges.ranges) {
-                rangeList[i++].add(range);
+            for (B bucket : filters.ranges) {
+                String key = bucket.getKey();
+                List<B> sameRangeList = bucketsMap.get(key);
+                if (sameRangeList == null) {
+                    sameRangeList = new ArrayList<>(aggregations.size());
+                    bucketsMap.put(key, sameRangeList);
+                }
+                sameRangeList.add(bucket);
             }
         }
 
-        final List<B> ranges = new ArrayList<>();
-        for (int i = 0; i < this.ranges.size(); ++i) {
-            ranges.add((B) reduceBucket(rangeList[i], reduceContext));
+        ArrayList<B> reducedBuckets = new ArrayList<>(bucketsMap.size());
+
+        for(List<B> sameRangeList : bucketsMap.values()) {
+            B reducedBucket = reduceBucket(sameRangeList, reduceContext);
+            if (reducedBucket.getDocCount() >= 1) {
+                reducedBuckets.add(reducedBucket);
+            }
         }
-        return getFactory().create(name, ranges, getMetadata());
+        reduceContext.consumeBucketsAndMaybeBreak(reducedBuckets.size());
+        Collections.sort(reducedBuckets, Comparator.comparing(InternalStarTree.Bucket::getKey));
+
+        return getFactory().create(name, reducedBuckets, getMetadata());
     }
 
     @Override
     protected B reduceBucket(List<B> buckets, ReduceContext context) {
         assert buckets.size() > 0;
-        long docCount = 0;
+
+
+        B reduced = null;
         List<InternalAggregations> aggregationsList = new ArrayList<>(buckets.size());
-        for (InternalStarTree.Bucket bucket : buckets) {
-            docCount += bucket.docCount;
-            aggregationsList.add(bucket.aggregations);
+        for (B bucket : buckets) {
+            if (reduced == null) {
+                reduced = (B) new Bucket(bucket.getKey(), bucket.getDocCount(), bucket.getAggregations());
+            } else {
+                reduced.sum += bucket.sum;
+            }
+            aggregationsList.add(bucket.getAggregations());
         }
-        final InternalAggregations aggs = InternalAggregations.reduce(aggregationsList, context);
-        InternalStarTree.Bucket prototype = buckets.get(0);
-        return getFactory().createBucket(prototype.key, docCount, aggs);
+        reduced.aggregations = InternalAggregations.reduce(aggregationsList, context);
+        return reduced;
     }
 
     @Override
