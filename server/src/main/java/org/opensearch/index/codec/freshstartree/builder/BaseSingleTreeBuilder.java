@@ -16,16 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.builder;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.CodecUtil;
@@ -51,10 +41,19 @@ import org.opensearch.index.codec.freshstartree.aggregator.AggregationFunctionTy
 import org.opensearch.index.codec.freshstartree.aggregator.ValueAggregator;
 import org.opensearch.index.codec.freshstartree.aggregator.ValueAggregatorFactory;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
-import org.opensearch.index.codec.freshstartree.codec.StarTreeDocValuesWriter;
 import org.opensearch.index.codec.freshstartree.node.StarTreeNode;
 import org.opensearch.index.codec.freshstartree.util.BufferedAggregatedDocValues;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Base class for star tree builder */
 public abstract class BaseSingleTreeBuilder {
@@ -82,20 +81,24 @@ public abstract class BaseSingleTreeBuilder {
     ValueAggregator[] _valueAggregators;
     DocValuesConsumer _docValuesConsumer;
 
-    BaseSingleTreeBuilder(IndexOutput output, List<String> dimensionsSplitOrder,
-        Map<String, SortedNumericDocValues> docValuesMap, int maxDoc, DocValuesConsumer docValuesConsumer,
-        SegmentWriteState state)
-        throws IOException {
+    BaseSingleTreeBuilder(
+        IndexOutput output,
+        List<String> dimensionsSplitOrder,
+        Map<String, SortedNumericDocValues> docValuesMap,
+        int maxDoc,
+        DocValuesConsumer docValuesConsumer,
+        SegmentWriteState state
+    ) throws IOException {
 
         String docFileName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, "stttree");
         indexOutput = state.directory.createOutput(docFileName, state.context);
         CodecUtil.writeIndexHeader(indexOutput, "STARTreeCodec", 0, state.segmentInfo.getId(), state.segmentSuffix);
         dimensionsSplitOrder = new ArrayList<>();
         dimensionsSplitOrder.add("minute");
-         dimensionsSplitOrder.add("hour");
+        dimensionsSplitOrder.add("hour");
         dimensionsSplitOrder.add("day");
         dimensionsSplitOrder.add("month");
-        //dimensionsSplitOrder.add("year");
+        // dimensionsSplitOrder.add("year");
         dimensionsSplitOrder.add("status");
         _numDimensions = dimensionsSplitOrder.size();
         _dimensionsSplitOrder = new String[_numDimensions];
@@ -108,13 +111,13 @@ public abstract class BaseSingleTreeBuilder {
         functionColumnPairList.add("SUM__status");
         List<AggregationFunctionColumnPair> aggregationSpecs = new ArrayList<>();
         aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__status"));
-        //aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__status"));
+        // aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__status"));
 
         _dimensionReaders = new SortedNumericDocValues[_numDimensions];
         Set<String> skipStarNodeCreationForDimensions = new HashSet<>();
         for (int i = 0; i < _numDimensions; i++) {
             String dimension = dimensionsSplitOrder.get(i);
-            //logger.info("Dimension split order : {}", dimension);
+            // logger.info("Dimension split order : {}", dimension);
             _dimensionsSplitOrder[i] = dimension;
             if (skipStarNodeCreationForDimensions.contains(dimension)) {
                 _skipStarNodeCreationForDimensions.add(i);
@@ -134,8 +137,7 @@ public abstract class BaseSingleTreeBuilder {
             // Ignore the column for COUNT aggregation function
             if (_valueAggregators[index].getAggregationType() != AggregationFunctionType.COUNT) {
                 String column = functionColumnPair.getColumn();
-                _metricReaders[index] =
-                    docValuesMap.get(column + "_" + functionColumnPair.getFunctionType().getName() + "_metric");
+                _metricReaders[index] = docValuesMap.get(column + "_" + functionColumnPair.getFunctionType().getName() + "_metric");
             }
 
             index++;
@@ -145,8 +147,7 @@ public abstract class BaseSingleTreeBuilder {
         _maxLeafRecords = 100; // builderConfig.getMaxLeafRecords();
     }
 
-    private void constructStarTree(StarTreeBuilderUtils.TreeNode node, int startDocId, int endDocId)
-        throws IOException {
+    private void constructStarTree(StarTreeBuilderUtils.TreeNode node, int startDocId, int endDocId) throws IOException {
 
         int childDimensionId = node._dimensionId + 1;
         if (childDimensionId == _numDimensions) {
@@ -155,8 +156,7 @@ public abstract class BaseSingleTreeBuilder {
 
         // Construct all non-star children nodes
         node._childDimensionId = childDimensionId;
-        Map<Long, StarTreeBuilderUtils.TreeNode> children =
-            constructNonStarNodes(startDocId, endDocId, childDimensionId);
+        Map<Long, StarTreeBuilderUtils.TreeNode> children = constructNonStarNodes(startDocId, endDocId, childDimensionId);
         node._children = children;
 
         // Construct star-node if required
@@ -172,8 +172,7 @@ public abstract class BaseSingleTreeBuilder {
         }
     }
 
-    private Map<Long, StarTreeBuilderUtils.TreeNode> constructNonStarNodes(int startDocId, int endDocId,
-        int dimensionId)
+    private Map<Long, StarTreeBuilderUtils.TreeNode> constructNonStarNodes(int startDocId, int endDocId, int dimensionId)
         throws IOException {
         Map<Long, StarTreeBuilderUtils.TreeNode> nodes = new HashMap<>();
         int nodeStartDocId = startDocId;
@@ -201,8 +200,7 @@ public abstract class BaseSingleTreeBuilder {
         return nodes;
     }
 
-    private StarTreeBuilderUtils.TreeNode constructStarNode(int startDocId, int endDocId, int dimensionId)
-        throws IOException {
+    private StarTreeBuilderUtils.TreeNode constructStarNode(int startDocId, int endDocId, int dimensionId) throws IOException {
         StarTreeBuilderUtils.TreeNode starNode = getNewNode();
         starNode._dimensionId = dimensionId;
         starNode._dimensionValue = StarTreeNode.ALL;
@@ -215,11 +213,9 @@ public abstract class BaseSingleTreeBuilder {
         return starNode;
     }
 
-    public abstract void build(List<StarTreeAggregatedValues> aggrList)
-        throws IOException;
+    public abstract void build(List<StarTreeAggregatedValues> aggrList) throws IOException;
 
-    public void build()
-        throws IOException {
+    public void build() throws IOException {
         // TODO: get total docs
         int numSegmentRecords = _totalDocs;
 
@@ -229,24 +225,25 @@ public abstract class BaseSingleTreeBuilder {
         build(recordIterator, false);
     }
 
-    public void build(Iterator<Record> recordIterator, boolean isMerge)
-        throws IOException {
+    public void build(Iterator<Record> recordIterator, boolean isMerge) throws IOException {
         int numSegmentRecords = _totalDocs;
 
         while (recordIterator.hasNext()) {
             appendToStarTree(recordIterator.next());
         }
         int numStarTreeRecords = _numDocs;
-        logger.info("Generated star tree records number : [{}] from segment records : [{}]", numStarTreeRecords,
-            numSegmentRecords);
+        logger.info("Generated star tree records number : [{}] from segment records : [{}]", numStarTreeRecords, numSegmentRecords);
         if (_numDocs == 0) {
             StarTreeBuilderUtils.serializeTree(indexOutput, _rootNode, _dimensionsSplitOrder, _numNodes);
             return;
         }
         constructStarTree(_rootNode, 0, _numDocs);
         int numRecordsUnderStarNode = _numDocs - numStarTreeRecords;
-        logger.info("Finished constructing star-tree, got [ {} ] tree nodes and [ {} ] records under star-node",
-            _numNodes, numRecordsUnderStarNode);
+        logger.info(
+            "Finished constructing star-tree, got [ {} ] tree nodes and [ {} ] records under star-node",
+            _numNodes,
+            numRecordsUnderStarNode
+        );
 
         createAggregatedDocs(_rootNode);
         int numAggregatedRecords = _numDocs - numStarTreeRecords - numRecordsUnderStarNode;
@@ -259,8 +256,7 @@ public abstract class BaseSingleTreeBuilder {
         StarTreeBuilderUtils.serializeTree(indexOutput, _rootNode, _dimensionsSplitOrder, _numNodes);
     }
 
-    private void createDocValuesIndices(DocValuesConsumer docValuesConsumer)
-        throws IOException {
+    private void createDocValuesIndices(DocValuesConsumer docValuesConsumer) throws IOException {
         PackedLongValues.Builder[] pendingDimArr = new PackedLongValues.Builder[_dimensionReaders.length];
         PackedLongValues.Builder[] pendingMetricArr = new PackedLongValues.Builder[_metricReaders.length];
 
@@ -270,17 +266,47 @@ public abstract class BaseSingleTreeBuilder {
 
         for (int i = 0; i < _dimensionReaders.length; i++) {
             pendingDimArr[fieldNum] = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
-            dimFieldInfoArr[fieldNum] = new FieldInfo(_dimensionsSplitOrder[i] + "_dim", fieldNum, false, false, true,
-                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS, DocValuesType.NUMERIC, -1,
-                Collections.emptyMap(), 0, 0, 0, 0, VectorEncoding.FLOAT32, VectorSimilarityFunction.EUCLIDEAN, false);
+            dimFieldInfoArr[fieldNum] = new FieldInfo(
+                _dimensionsSplitOrder[i] + "_dim",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
             fieldNum++;
         }
 
         for (int i = 0; i < _metricReaders.length; i++) {
             pendingMetricArr[i] = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
-            metricFieldInfoArr[i] = new FieldInfo(_metrics[i] + "_metric", fieldNum, false, false, true,
-                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS, DocValuesType.NUMERIC, -1,
-                Collections.emptyMap(), 0, 0, 0, 0, VectorEncoding.FLOAT32, VectorSimilarityFunction.EUCLIDEAN, false);
+            metricFieldInfoArr[i] = new FieldInfo(
+                _metrics[i] + "_metric",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
             fieldNum++;
         }
 
@@ -314,8 +340,7 @@ public abstract class BaseSingleTreeBuilder {
             final int finalI = i;
             DocValuesProducer a1 = new EmptyDocValuesProducer() {
                 @Override
-                public NumericDocValues getNumeric(FieldInfo field)
-                    throws IOException {
+                public NumericDocValues getNumeric(FieldInfo field) throws IOException {
 
                     return new BufferedAggregatedDocValues(pendingDimArr[finalI].build(), docsWithField.iterator());
                 }
@@ -327,8 +352,7 @@ public abstract class BaseSingleTreeBuilder {
             final int finalI = i;
             DocValuesProducer a1 = new EmptyDocValuesProducer() {
                 @Override
-                public NumericDocValues getNumeric(FieldInfo field)
-                    throws IOException {
+                public NumericDocValues getNumeric(FieldInfo field) throws IOException {
 
                     return new BufferedAggregatedDocValues(pendingMetricArr[finalI].build(), docsWithField.iterator());
                 }
@@ -342,19 +366,18 @@ public abstract class BaseSingleTreeBuilder {
         return new StarTreeBuilderUtils.TreeNode();
     }
 
-    private void appendToStarTree(Record record)
-        throws IOException {
+    private void appendToStarTree(Record record) throws IOException {
         // TODO : uncomment this for sanity
-//        boolean star = true;
-//        for(long dim : record._dimensions) {
-//            if(dim != StarTreeNode.ALL) {
-//                star = false;
-//                break;
-//            }
-//        }
-//        if(star) {
-//            System.out.println("======Overall sum =====" + (long) record._metrics[0]);
-//        }
+        // boolean star = true;
+        // for(long dim : record._dimensions) {
+        // if(dim != StarTreeNode.ALL) {
+        // star = false;
+        // break;
+        // }
+        // }
+        // if(star) {
+        // System.out.println("======Overall sum =====" + (long) record._metrics[0]);
+        // }
         appendRecord(record);
         _numDocs++;
     }
@@ -364,8 +387,7 @@ public abstract class BaseSingleTreeBuilder {
      *
      * @param record Record to be appended
      */
-    abstract void appendRecord(Record record)
-        throws IOException;
+    abstract void appendRecord(Record record) throws IOException;
 
     /**
      * Returns the record of the given document Id in the star-tree.
@@ -373,8 +395,7 @@ public abstract class BaseSingleTreeBuilder {
      * @param docId Document Id
      * @return Star-tree record
      */
-    abstract Record getStarTreeRecord(int docId)
-        throws IOException;
+    abstract Record getStarTreeRecord(int docId) throws IOException;
 
     /**
      * Returns the dimension value of the given document and dimension Id in the star-tree.
@@ -383,8 +404,7 @@ public abstract class BaseSingleTreeBuilder {
      * @param dimensionId Dimension Id
      * @return Dimension value
      */
-    abstract long getDimensionValue(int docId, int dimensionId)
-        throws IOException;
+    abstract long getDimensionValue(int docId, int dimensionId) throws IOException;
 
     /**
      * Sorts and aggregates the records in the segment, and returns a record iterator for all the
@@ -395,8 +415,7 @@ public abstract class BaseSingleTreeBuilder {
      * @param numDocs Number of documents in the segment
      * @return Iterator for the aggregated records
      */
-    abstract Iterator<Record> sortAndAggregateSegmentRecords(int numDocs)
-        throws IOException;
+    abstract Iterator<Record> sortAndAggregateSegmentRecords(int numDocs) throws IOException;
 
     /**
      * Generates aggregated records for star-node.
@@ -416,11 +435,9 @@ public abstract class BaseSingleTreeBuilder {
      * @param dimensionId Dimension Id of the star-node
      * @return Iterator for the aggregated records
      */
-    abstract Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId)
-        throws IOException;
+    abstract Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId) throws IOException;
 
-    private Record createAggregatedDocs(StarTreeBuilderUtils.TreeNode node)
-        throws IOException {
+    private Record createAggregatedDocs(StarTreeBuilderUtils.TreeNode node) throws IOException {
         Record aggregatedRecord = null;
         if (node._children == null) {
             // For leaf node
@@ -436,8 +453,7 @@ public abstract class BaseSingleTreeBuilder {
                 }
                 assert aggregatedRecord != null;
                 for (int i = node._dimensionId + 1; i < _numDimensions; i++) {
-                    aggregatedRecord._dimensions[i] =
-                        STAR_IN_DOC_VALUES_INDEX;
+                    aggregatedRecord._dimensions[i] = STAR_IN_DOC_VALUES_INDEX;
                 }
                 node._aggregatedDocId = _numDocs;
                 appendToStarTree(aggregatedRecord);
@@ -462,8 +478,7 @@ public abstract class BaseSingleTreeBuilder {
                 }
                 assert aggregatedRecord != null;
                 for (int i = node._dimensionId + 1; i < _numDimensions; i++) {
-                    aggregatedRecord._dimensions[i] =
-                        STAR_IN_DOC_VALUES_INDEX;
+                    aggregatedRecord._dimensions[i] = STAR_IN_DOC_VALUES_INDEX;
                 }
                 node._aggregatedDocId = _numDocs;
                 appendToStarTree(aggregatedRecord);
@@ -495,8 +510,10 @@ public abstract class BaseSingleTreeBuilder {
             return new Record(dimensions, metrics);
         } else {
             for (int i = 0; i < _numMetrics; i++) {
-                aggregatedRecord._metrics[i] = _valueAggregators[i].applyRawValue((Long) aggregatedRecord._metrics[i],
-                    (Long) segmentRecord._metrics[i]);
+                aggregatedRecord._metrics[i] = _valueAggregators[i].applyRawValue(
+                    (Long) aggregatedRecord._metrics[i],
+                    (Long) segmentRecord._metrics[i]
+                );
             }
             return aggregatedRecord;
         }
@@ -524,16 +541,16 @@ public abstract class BaseSingleTreeBuilder {
             return new Record(dimensions, metrics);
         } else {
             for (int i = 0; i < _numMetrics; i++) {
-                aggregatedRecord._metrics[i] =
-                    _valueAggregators[i].applyAggregatedValue((Long) starTreeRecord._metrics[i],
-                        (Long) aggregatedRecord._metrics[i]);
+                aggregatedRecord._metrics[i] = _valueAggregators[i].applyAggregatedValue(
+                    (Long) starTreeRecord._metrics[i],
+                    (Long) aggregatedRecord._metrics[i]
+                );
             }
             return aggregatedRecord;
         }
     }
 
-    Record getNextSegmentRecord()
-        throws IOException {
+    Record getNextSegmentRecord() throws IOException {
         long[] dimensions = getNextSegmentRecordDimensions();
         Object[] metrics = new Object[_numMetrics];
         for (int i = 0; i < _numMetrics; i++) {
@@ -550,22 +567,21 @@ public abstract class BaseSingleTreeBuilder {
 
         switch (fieldName) {
             case "minute":
-                return val / MINUTE;
+                return val / MINUTE * MINUTE;
             case "hour":
-                return val / HOUR;
+                return val / HOUR * HOUR;
             case "day":
-                return val / DAY;
+                return val / DAY * DAY;
             case "month":
-                return val/DAY * 30; // TODO
+                return val / (DAY * 30) * (DAY * 30); // TODO
             case "year":
-                return val / YEAR;
+                return val / YEAR * YEAR;
             default:
                 return val;
         }
     }
 
-    long[] getNextSegmentRecordDimensions()
-        throws IOException {
+    long[] getNextSegmentRecordDimensions() throws IOException {
         long[] dimensions = new long[_numDimensions];
         for (int i = 0; i < _numDimensions; i++) {
             _dimensionReaders[i].nextDoc();
@@ -574,8 +590,7 @@ public abstract class BaseSingleTreeBuilder {
         return dimensions;
     }
 
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
         boolean success = false;
         try {
             if (indexOutput != null) {

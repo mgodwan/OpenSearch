@@ -18,7 +18,8 @@ package org.opensearch.index.codec.freshstartree.aggregator;
 
 /** Aggregated function type */
 public enum AggregationFunctionType {
-    COUNT("count"), SUM("sum");
+    COUNT("count"),
+    SUM("sum");
     // AVG("avg");
 
     private String name;

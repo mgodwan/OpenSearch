@@ -1078,8 +1078,7 @@ public class Lucene {
             }
 
             @Override
-            public Object getAggregatedDocValues()
-                throws IOException {
+            public Object getAggregatedDocValues() throws IOException {
                 return null;
             }
 

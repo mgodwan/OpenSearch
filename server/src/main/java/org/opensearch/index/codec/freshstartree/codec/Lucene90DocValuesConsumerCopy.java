@@ -16,12 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
@@ -55,6 +49,12 @@ import org.apache.lucene.util.compress.LZ4;
 import org.apache.lucene.util.packed.DirectMonotonicWriter;
 import org.apache.lucene.util.packed.DirectWriter;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * writer for {@link Lucene90DocValuesFormat}
@@ -92,18 +92,20 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     static final int TERMS_DICT_REVERSE_INDEX_MASK = TERMS_DICT_REVERSE_INDEX_SIZE - 1;
 
     /** expert: Creates a new writer */
-    public Lucene90DocValuesConsumerCopy(SegmentWriteState state, String dataCodec, String dataExtension,
-        String metaCodec, String metaExtension)
-        throws IOException {
+    public Lucene90DocValuesConsumerCopy(
+        SegmentWriteState state,
+        String dataCodec,
+        String dataExtension,
+        String metaCodec,
+        String metaExtension
+    ) throws IOException {
         this.termsDictBuffer = new byte[1 << 14];
         boolean success = false;
         try {
-            String dataName =
-                IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, dataExtension);
+            String dataName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, dataExtension);
             data = state.directory.createOutput(dataName, state.context);
             CodecUtil.writeIndexHeader(data, dataCodec, 0, state.segmentInfo.getId(), state.segmentSuffix);
-            String metaName =
-                IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, metaExtension);
+            String metaName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, metaExtension);
             meta = state.directory.createOutput(metaName, state.context);
             CodecUtil.writeIndexHeader(meta, metaCodec, 0, state.segmentInfo.getId(), state.segmentSuffix);
             maxDoc = state.segmentInfo.maxDoc();
@@ -116,8 +118,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
         boolean success = false;
         try {
             if (meta != null) {
@@ -139,15 +140,13 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         meta.writeInt(field.number);
         meta.writeByte(NUMERIC);
 
         writeValues(field, new EmptyDocValuesProducer() {
             @Override
-            public SortedNumericDocValues getSortedNumeric(FieldInfo field)
-                throws IOException {
+            public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
                 return DocValues.singleton(valuesProducer.getNumeric(field));
             }
         }, false);
@@ -195,8 +194,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         }
     }
 
-    private long[] writeValues(FieldInfo field, DocValuesProducer valuesProducer, boolean ords)
-        throws IOException {
+    private long[] writeValues(FieldInfo field, DocValuesProducer valuesProducer, boolean ords) throws IOException {
         SortedNumericDocValues values = valuesProducer.getSortedNumeric(field);
         final long firstValue;
         if (values.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
@@ -271,8 +269,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             long offset = data.getFilePointer();
             meta.writeLong(offset); // docsWithFieldOffset
             values = valuesProducer.getSortedNumeric(field);
-            final short jumpTableEntryCount =
-                IndexedDISI.writeBitSet(values, data, IndexedDISI.DEFAULT_DENSE_RANK_POWER);
+            final short jumpTableEntryCount = IndexedDISI.writeBitSet(values, data, IndexedDISI.DEFAULT_DENSE_RANK_POWER);
             meta.writeLong(data.getFilePointer() - offset); // docsWithFieldLength
             meta.writeShort(jumpTableEntryCount);
             meta.writeByte(IndexedDISI.DEFAULT_DENSE_RANK_POWER);
@@ -286,9 +283,9 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             numBitsPerValue = 0;
             meta.writeInt(-1); // tablesize
         } else {
-            if (uniqueValues != null && uniqueValues.size() > 1
-                && DirectWriter.unsignedBitsRequired(uniqueValues.size() - 1) < DirectWriter.unsignedBitsRequired(
-                (max - min) / gcd)) {
+            if (uniqueValues != null
+                && uniqueValues.size() > 1
+                && DirectWriter.unsignedBitsRequired(uniqueValues.size() - 1) < DirectWriter.unsignedBitsRequired((max - min) / gcd)) {
                 numBitsPerValue = DirectWriter.unsignedBitsRequired(uniqueValues.size() - 1);
                 final Long[] sortedUniqueValues = uniqueValues.toArray(new Long[0]);
                 Arrays.sort(sortedUniqueValues);
@@ -311,8 +308,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     meta.writeInt(-2 - NUMERIC_BLOCK_SHIFT); // tablesize
                 } else {
                     numBitsPerValue = DirectWriter.unsignedBitsRequired((max - min) / gcd);
-                    if (gcd == 1 && min > 0
-                        && DirectWriter.unsignedBitsRequired(max) == DirectWriter.unsignedBitsRequired(max - min)) {
+                    if (gcd == 1 && min > 0 && DirectWriter.unsignedBitsRequired(max) == DirectWriter.unsignedBitsRequired(max - min)) {
                         min = 0;
                     }
                     meta.writeInt(-1); // tablesize
@@ -329,17 +325,21 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         if (doBlocks) {
             jumpTableOffset = writeValuesMultipleBlocks(valuesProducer.getSortedNumeric(field), gcd);
         } else if (numBitsPerValue != 0) {
-            writeValuesSingleBlock(valuesProducer.getSortedNumeric(field), numValues, numBitsPerValue, min, gcd,
-                encode);
+            writeValuesSingleBlock(valuesProducer.getSortedNumeric(field), numValues, numBitsPerValue, min, gcd, encode);
         }
         meta.writeLong(data.getFilePointer() - startOffset); // valuesLength
         meta.writeLong(jumpTableOffset);
-        return new long[]{numDocsWithValue, numValues};
+        return new long[] { numDocsWithValue, numValues };
     }
 
-    private void writeValuesSingleBlock(SortedNumericDocValues values, long numValues, int numBitsPerValue, long min,
-        long gcd, Map<Long, Integer> encode)
-        throws IOException {
+    private void writeValuesSingleBlock(
+        SortedNumericDocValues values,
+        long numValues,
+        int numBitsPerValue,
+        long min,
+        long gcd,
+        Map<Long, Integer> encode
+    ) throws IOException {
         DirectWriter writer = DirectWriter.getInstance(data, numValues, numBitsPerValue);
         for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
             for (int i = 0, count = values.docValueCount(); i < count; ++i) {
@@ -355,8 +355,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     // Returns the offset to the jump-table for vBPV
-    private long writeValuesMultipleBlocks(SortedNumericDocValues values, long gcd)
-        throws IOException {
+    private long writeValuesMultipleBlocks(SortedNumericDocValues values, long gcd) throws IOException {
         long[] offsets = new long[ArrayUtil.oversize(1, Long.BYTES)];
         int offsetsIndex = 0;
         final long[] buffer = new long[NUMERIC_BLOCK_SIZE];
@@ -388,8 +387,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         return offsetsOrigo;
     }
 
-    private void writeBlock(long[] values, int length, long gcd, ByteBuffersDataOutput buffer)
-        throws IOException {
+    private void writeBlock(long[] values, int length, long gcd, ByteBuffersDataOutput buffer) throws IOException {
         assert length > 0;
         long min = values[0];
         long max = values[0];
@@ -419,8 +417,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void addBinaryField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addBinaryField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         meta.writeInt(field.number);
         meta.writeByte(BINARY);
 
@@ -455,8 +452,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             long offset = data.getFilePointer();
             meta.writeLong(offset); // docsWithFieldOffset
             values = valuesProducer.getBinary(field);
-            final short jumpTableEntryCount =
-                IndexedDISI.writeBitSet(values, data, IndexedDISI.DEFAULT_DENSE_RANK_POWER);
+            final short jumpTableEntryCount = IndexedDISI.writeBitSet(values, data, IndexedDISI.DEFAULT_DENSE_RANK_POWER);
             meta.writeLong(data.getFilePointer() - offset); // docsWithFieldLength
             meta.writeShort(jumpTableEntryCount);
             meta.writeByte(IndexedDISI.DEFAULT_DENSE_RANK_POWER);
@@ -470,8 +466,12 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             meta.writeLong(start);
             meta.writeVInt(DIRECT_MONOTONIC_BLOCK_SHIFT);
 
-            final DirectMonotonicWriter writer =
-                DirectMonotonicWriter.getInstance(meta, data, numDocsWithField + 1, DIRECT_MONOTONIC_BLOCK_SHIFT);
+            final DirectMonotonicWriter writer = DirectMonotonicWriter.getInstance(
+                meta,
+                data,
+                numDocsWithField + 1,
+                DIRECT_MONOTONIC_BLOCK_SHIFT
+            );
             long addr = 0;
             writer.add(addr);
             values = valuesProducer.getBinary(field);
@@ -485,30 +485,25 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void addSortedField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         meta.writeInt(field.number);
         meta.writeByte(SORTED);
         doAddSortedField(field, valuesProducer);
     }
 
-    private void doAddSortedField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    private void doAddSortedField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         writeValues(field, new EmptyDocValuesProducer() {
             @Override
-            public SortedNumericDocValues getSortedNumeric(FieldInfo field)
-                throws IOException {
+            public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
                 SortedDocValues sorted = valuesProducer.getSorted(field);
                 NumericDocValues sortedOrds = new NumericDocValues() {
                     @Override
-                    public long longValue()
-                        throws IOException {
+                    public long longValue() throws IOException {
                         return sorted.ordValue();
                     }
 
                     @Override
-                    public boolean advanceExact(int target)
-                        throws IOException {
+                    public boolean advanceExact(int target) throws IOException {
                         return sorted.advanceExact(target);
                     }
 
@@ -518,14 +513,12 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     }
 
                     @Override
-                    public int nextDoc()
-                        throws IOException {
+                    public int nextDoc() throws IOException {
                         return sorted.nextDoc();
                     }
 
                     @Override
-                    public int advance(int target)
-                        throws IOException {
+                    public int advance(int target) throws IOException {
                         return sorted.advance(target);
                     }
 
@@ -540,8 +533,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         addTermsDict(DocValues.singleton(valuesProducer.getSorted(field)));
     }
 
-    private void addTermsDict(SortedSetDocValues values)
-        throws IOException {
+    private void addTermsDict(SortedSetDocValues values) throws IOException {
         final long size = values.getValueCount();
         meta.writeVLong(size);
 
@@ -552,8 +544,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         ByteBuffersDataOutput addressBuffer = new ByteBuffersDataOutput();
         ByteBuffersIndexOutput addressOutput = new ByteBuffersIndexOutput(addressBuffer, "temp", "temp");
         long numBlocks = (size + blockMask) >>> shift;
-        DirectMonotonicWriter writer =
-            DirectMonotonicWriter.getInstance(meta, addressOutput, numBlocks, DIRECT_MONOTONIC_BLOCK_SHIFT);
+        DirectMonotonicWriter writer = DirectMonotonicWriter.getInstance(meta, addressOutput, numBlocks, DIRECT_MONOTONIC_BLOCK_SHIFT);
 
         BytesRefBuilder previous = new BytesRefBuilder();
         long ord = 0;
@@ -622,8 +613,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         writeTermsIndex(values);
     }
 
-    private int compressAndGetTermsDictBlockLength(ByteArrayDataOutput bufferedOutput, int dictLength,
-        LZ4.FastCompressionHashTable ht)
+    private int compressAndGetTermsDictBlockLength(ByteArrayDataOutput bufferedOutput, int dictLength, LZ4.FastCompressionHashTable ht)
         throws IOException {
         int uncompressedLength = bufferedOutput.getPosition() - dictLength;
         data.writeVInt(uncompressedLength);
@@ -640,8 +630,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         return bufferedOutput;
     }
 
-    private void writeTermsIndex(SortedSetDocValues values)
-        throws IOException {
+    private void writeTermsIndex(SortedSetDocValues values) throws IOException {
         final long size = values.getValueCount();
         meta.writeInt(TERMS_DICT_REVERSE_INDEX_SHIFT);
         long start = data.getFilePointer();
@@ -684,15 +673,13 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void addSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         meta.writeInt(field.number);
         meta.writeByte(SORTED_NUMERIC);
         doAddSortedNumericField(field, valuesProducer, false);
     }
 
-    private void doAddSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer, boolean ords)
-        throws IOException {
+    private void doAddSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer, boolean ords) throws IOException {
         long[] stats = writeValues(field, valuesProducer, ords);
         int numDocsWithField = Math.toIntExact(stats[0]);
         long numValues = stats[1];
@@ -704,8 +691,12 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             meta.writeLong(start);
             meta.writeVInt(DIRECT_MONOTONIC_BLOCK_SHIFT);
 
-            final DirectMonotonicWriter addressesWriter =
-                DirectMonotonicWriter.getInstance(meta, data, numDocsWithField + 1L, DIRECT_MONOTONIC_BLOCK_SHIFT);
+            final DirectMonotonicWriter addressesWriter = DirectMonotonicWriter.getInstance(
+                meta,
+                data,
+                numDocsWithField + 1L,
+                DIRECT_MONOTONIC_BLOCK_SHIFT
+            );
             long addr = 0;
             addressesWriter.add(addr);
             SortedNumericDocValues values = valuesProducer.getSortedNumeric(field);
@@ -718,8 +709,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
         }
     }
 
-    private static boolean isSingleValued(SortedSetDocValues values)
-        throws IOException {
+    private static boolean isSingleValued(SortedSetDocValues values) throws IOException {
         if (DocValues.unwrapSingleton(values) != null) {
             return true;
         }
@@ -736,8 +726,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
     }
 
     @Override
-    public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         meta.writeInt(field.number);
         meta.writeByte(SORTED_SET);
 
@@ -745,8 +734,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
             meta.writeByte((byte) 0); // multiValued (0 = singleValued)
             doAddSortedField(field, new EmptyDocValuesProducer() {
                 @Override
-                public SortedDocValues getSorted(FieldInfo field)
-                    throws IOException {
+                public SortedDocValues getSorted(FieldInfo field) throws IOException {
                     return SortedSetSelector.wrap(valuesProducer.getSortedSet(field), SortedSetSelector.Type.MIN);
                 }
             });
@@ -756,8 +744,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
 
         doAddSortedNumericField(field, new EmptyDocValuesProducer() {
             @Override
-            public SortedNumericDocValues getSortedNumeric(FieldInfo field)
-                throws IOException {
+            public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
                 SortedSetDocValues values = valuesProducer.getSortedSet(field);
                 return new SortedNumericDocValues() {
 
@@ -765,8 +752,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     int i, docValueCount;
 
                     @Override
-                    public long nextValue()
-                        throws IOException {
+                    public long nextValue() throws IOException {
                         return ords[i++];
                     }
 
@@ -776,8 +762,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     }
 
                     @Override
-                    public boolean advanceExact(int target)
-                        throws IOException {
+                    public boolean advanceExact(int target) throws IOException {
                         throw new UnsupportedOperationException();
                     }
 
@@ -787,8 +772,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     }
 
                     @Override
-                    public int nextDoc()
-                        throws IOException {
+                    public int nextDoc() throws IOException {
                         int doc = values.nextDoc();
                         if (doc != NO_MORE_DOCS) {
                             docValueCount = values.docValueCount();
@@ -802,8 +786,7 @@ public final class Lucene90DocValuesConsumerCopy extends DocValuesConsumer {
                     }
 
                     @Override
-                    public int advance(int target)
-                        throws IOException {
+                    public int advance(int target) throws IOException {
                         throw new UnsupportedOperationException();
                     }
 

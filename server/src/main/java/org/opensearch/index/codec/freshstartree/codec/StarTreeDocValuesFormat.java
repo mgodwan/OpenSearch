@@ -16,7 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.io.IOException;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.DocValuesProducer;
@@ -24,6 +23,7 @@ import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
+import java.io.IOException;
 
 /** Custom doc values format for star tree codec */
 public class StarTreeDocValuesFormat extends DocValuesFormat {
@@ -47,14 +47,12 @@ public class StarTreeDocValuesFormat extends DocValuesFormat {
     }
 
     @Override
-    public DocValuesConsumer fieldsConsumer(SegmentWriteState state)
-        throws IOException {
+    public DocValuesConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
         return new StarTreeDocValuesWriter(delegate.fieldsConsumer(state), state);
     }
 
     @Override
-    public DocValuesProducer fieldsProducer(SegmentReadState state)
-        throws IOException {
+    public DocValuesProducer fieldsProducer(SegmentReadState state) throws IOException {
         return new StarTreeDocValuesReader(delegate.fieldsProducer(state), state);
     }
 }

@@ -8,16 +8,7 @@
 
 package org.opensearch.index.codec.freshstartree.query;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Predicate;
 import org.apache.lucene.search.Query;
-import org.opensearch.common.lucene.search.Queries;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -27,12 +18,18 @@ import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryShardContext;
+import org.opensearch.index.query.TermQueryBuilder;
 
-import static org.opensearch.core.xcontent.ObjectParser.fromList;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 
 public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuilder> {
     public static final String NAME = "startree";
@@ -42,7 +39,6 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     private final Set<String> groupBy = new HashSet<>();
     Map<String, List<Predicate<Long>>> predicateMap = new HashMap<>();
 
-
     public StarTreeQueryBuilder() {}
 
     /**
@@ -51,6 +47,7 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     public StarTreeQueryBuilder(StreamInput in) throws IOException {
         super(in);
         filterClauses.addAll(readQueries(in));
+        in.readOptionalStringArray();
     }
 
     static List<QueryBuilder> readQueries(StreamInput in) throws IOException {
@@ -70,7 +67,7 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     @Override
     protected void doXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(NAME);
-        //printBoostAndQueryName(builder);
+        // printBoostAndQueryName(builder);
         doXArrayContent(FILTER, filterClauses, builder, params);
         builder.endObject();
     }
@@ -90,7 +87,7 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     private static final ObjectParser<StarTreeQueryBuilder, Void> PARSER = new ObjectParser<>(NAME, StarTreeQueryBuilder::new);
 
     static {
-        //declareStandardFields(PARSER);
+        // declareStandardFields(PARSER);
         PARSER.declareObjectArrayOrNull(
             (builder, clauses) -> clauses.forEach(builder::filter),
             (p, c) -> parseInnerQueryBuilder(p),
@@ -110,14 +107,23 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
         }
         filterClauses.add(queryBuilder);
 
-        List<Predicate<Long>> predicates = new ArrayList<>();
-        //predicates.add(day -> day > 2 && day < 5);
-        //predicates.add(day -> day == 30);
-        //predicateMap.put("day", predicates);
-        predicates = new ArrayList<>();
-        predicates.add(status -> status == 200);
-        predicateMap.put("status", predicates);
-
+        for (QueryBuilder filterClause : filterClauses) {
+            if (filterClause instanceof BoolQueryBuilder) {
+                BoolQueryBuilder bq = (BoolQueryBuilder) filterClause;
+                List<QueryBuilder> shouldQbs = bq.should();
+                for (QueryBuilder sqb : shouldQbs) {
+                    if (sqb instanceof TermQueryBuilder) {
+                        TermQueryBuilder tq = (TermQueryBuilder) sqb;
+                        String field = tq.fieldName();
+                        long val = Long.valueOf((String) tq.value());
+                        List<Predicate<Long>> predicates = predicateMap.getOrDefault(field, new ArrayList<>());
+                        Predicate<Long> predicate = status -> status == val;
+                        predicates.add(predicate);
+                        predicateMap.put(field, predicates);
+                    }
+                }
+            }
+        }
 
         return this;
     }
@@ -132,9 +138,10 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
 
     @Override
     protected Query doToQuery(QueryShardContext context) {
-//        Set<String> groupByCols = new HashSet<>();
-//        groupByCols.add("hour");
-        if(predicateMap.size() > 0) {
+        // Set<String> groupByCols = new HashSet<>();
+        // groupByCols.add("hour");
+        // TODO : star tree supports either group by or filter
+        if (predicateMap.size() > 0) {
             return new StarTreeQuery(predicateMap, new HashSet<>());
         }
         return new StarTreeQuery(new HashMap<>(), this.groupBy);

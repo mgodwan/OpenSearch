@@ -43,7 +43,6 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.NumericUtils;
 import org.opensearch.common.time.DateUtils;
 import org.opensearch.core.indices.breaker.CircuitBreakerService;
-import org.opensearch.index.codec.freshstartree.codec.StarTreeCodec;
 import org.opensearch.index.fielddata.FieldData;
 import org.opensearch.index.fielddata.IndexFieldData;
 import org.opensearch.index.fielddata.IndexFieldData.XFieldComparatorSource.Nested;

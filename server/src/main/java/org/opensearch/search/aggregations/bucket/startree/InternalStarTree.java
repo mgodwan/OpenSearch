@@ -8,11 +8,6 @@
 
 package org.opensearch.search.aggregations.bucket.startree;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -25,8 +20,15 @@ import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.search.aggregations.support.ValueType;
 import org.opensearch.search.aggregations.support.ValuesSourceType;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
-public class InternalStarTree<B extends InternalStarTree.Bucket, R extends InternalStarTree<B,R>> extends InternalMultiBucketAggregation<R, B> {
+public class InternalStarTree<B extends InternalStarTree.Bucket, R extends InternalStarTree<B, R>> extends InternalMultiBucketAggregation<
+    R,
+    B> {
     static final InternalStarTree.Factory FACTORY = new InternalStarTree.Factory();
 
     public static class Bucket extends InternalMultiBucketAggregation.InternalBucket {
@@ -34,11 +36,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         private final InternalAggregations aggregations;
         private final String key;
 
-        public Bucket(
-            String key,
-            long docCount,
-            InternalAggregations aggregations
-        ) {
+        public Bucket(String key, long docCount, InternalAggregations aggregations) {
             this.key = key;
             this.docCount = docCount;
             this.aggregations = aggregations;
@@ -120,11 +118,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         }
 
         @SuppressWarnings("unchecked")
-        public B createBucket(
-            String key,
-            long docCount,
-            InternalAggregations aggregations
-        ) {
+        public B createBucket(String key, long docCount, InternalAggregations aggregations) {
             return (B) new InternalStarTree.Bucket(key, docCount, aggregations);
         }
 
@@ -135,11 +129,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
 
         @SuppressWarnings("unchecked")
         public B createBucket(InternalAggregations aggregations, B prototype) {
-            return (B) new InternalStarTree.Bucket(
-                prototype.getKey(),
-                prototype.getDocCount(),
-                aggregations
-            );
+            return (B) new InternalStarTree.Bucket(prototype.getKey(), prototype.getDocCount(), aggregations);
         }
     }
 
@@ -163,13 +153,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         List<B> ranges = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             String key = in.readString();
-            ranges.add(
-                getFactory().createBucket(
-                    key,
-                    in.readVLong(),
-                    InternalAggregations.readFrom(in)
-                )
-            );
+            ranges.add(getFactory().createBucket(key, in.readVLong(), InternalAggregations.readFrom(in)));
         }
         this.ranges = ranges;
     }

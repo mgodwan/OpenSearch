@@ -64,7 +64,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.opensearch.search.query.QueryPhase;
 
 import static org.opensearch.core.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
@@ -357,8 +356,13 @@ public class RangeAggregator extends BucketsAggregator {
 
     private long subBucketOrdinal(long owningBucketOrdinal, int rangeOrd) {
         long subord = owningBucketOrdinal * ranges.length + rangeOrd;
-        LOGGER.info("Owning bucket ordinal : {} , rangeord : {} , len : {} == SubOrd : {}",
-            owningBucketOrdinal, rangeOrd, ranges.length, subord);
+        LOGGER.info(
+            "Owning bucket ordinal : {} , rangeord : {} , len : {} == SubOrd : {}",
+            owningBucketOrdinal,
+            rangeOrd,
+            ranges.length,
+            subord
+        );
         return owningBucketOrdinal * ranges.length + rangeOrd;
     }
 

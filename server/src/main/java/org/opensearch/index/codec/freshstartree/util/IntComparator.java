@@ -18,7 +18,6 @@ package org.opensearch.index.codec.freshstartree.util;
 
 import java.util.Comparator;
 
-
 /** Int comparator */
 public interface IntComparator extends Comparator<Integer> {
     int compare(int var1, int var2);

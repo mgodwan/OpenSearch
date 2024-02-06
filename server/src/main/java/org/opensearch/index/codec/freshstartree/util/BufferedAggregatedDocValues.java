@@ -16,11 +16,11 @@
  */
 package org.opensearch.index.codec.freshstartree.util;
 
-import java.io.IOException;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.packed.PackedLongValues;
 
+import java.io.IOException;
 
 /** Buffered aggregated doc values - in memory */
 public class BufferedAggregatedDocValues extends NumericDocValues {
@@ -39,8 +39,7 @@ public class BufferedAggregatedDocValues extends NumericDocValues {
     }
 
     @Override
-    public int nextDoc()
-        throws IOException {
+    public int nextDoc() throws IOException {
         int docID = docsWithField.nextDoc();
         if (docID != NO_MORE_DOCS) {
             value = iter.next();
@@ -54,8 +53,7 @@ public class BufferedAggregatedDocValues extends NumericDocValues {
     }
 
     @Override
-    public boolean advanceExact(int target)
-        throws IOException {
+    public boolean advanceExact(int target) throws IOException {
         throw new UnsupportedOperationException();
     }
 

@@ -16,12 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.lucene90.IndexedDISI;
@@ -47,6 +41,12 @@ import org.apache.lucene.util.LongValues;
 import org.apache.lucene.util.packed.DirectMonotonicReader;
 import org.apache.lucene.util.packed.DirectReader;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created a copy to initialize producer without field info stored in state which is the case for
@@ -67,9 +67,14 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     private List<String> dimensionSplitOrder;
 
     /** expert: instantiates a new reader */
-    public Lucene90DocValuesProducerCopy(SegmentReadState state, String dataCodec, String dataExtension,
-        String metaCodec, String metaExtension, List<String> dimensionSplitOrder)
-        throws IOException {
+    public Lucene90DocValuesProducerCopy(
+        SegmentReadState state,
+        String dataCodec,
+        String dataExtension,
+        String metaCodec,
+        String metaExtension,
+        List<String> dimensionSplitOrder
+    ) throws IOException {
         String metaName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, metaExtension);
         this.maxDoc = state.segmentInfo.maxDoc();
         numerics = new HashMap<>();
@@ -83,9 +88,14 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
             Throwable priorE = null;
 
             try {
-                version = CodecUtil.checkIndexHeader(in, metaCodec, 0,// TODO : don't hardcode
+                version = CodecUtil.checkIndexHeader(
+                    in,
+                    metaCodec,
+                    0,// TODO : don't hardcode
                     0, // TODO : don't hardcode
-                    state.segmentInfo.getId(), state.segmentSuffix);
+                    state.segmentInfo.getId(),
+                    state.segmentSuffix
+                );
 
                 readFields(in, fieldInfoArr);
             } catch (Throwable exception) {
@@ -99,12 +109,16 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         this.data = state.directory.openInput(dataName, state.context);
         boolean success = false;
         try {
-            final int version2 = CodecUtil.checkIndexHeader(data, dataCodec, 0, // TODO : don't hardcode
+            final int version2 = CodecUtil.checkIndexHeader(
+                data,
+                dataCodec,
+                0, // TODO : don't hardcode
                 0, // Todo : don't hardcode
-                state.segmentInfo.getId(), state.segmentSuffix);
+                state.segmentInfo.getId(),
+                state.segmentSuffix
+            );
             if (version != version2) {
-                throw new CorruptIndexException("Format versions mismatch: meta=" + version + ", data=" + version2,
-                    data);
+                throw new CorruptIndexException("Format versions mismatch: meta=" + version + ", data=" + version2, data);
             }
 
             // NOTE: data file is too costly to verify checksum against all the bytes on open,
@@ -122,8 +136,14 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     }
 
     // Used for cloning
-    private Lucene90DocValuesProducerCopy(Map<String, NumericEntry> numerics,
-        Map<String, SortedNumericEntry> sortedNumerics, IndexInput data, int maxDoc, int version, boolean merging) {
+    private Lucene90DocValuesProducerCopy(
+        Map<String, NumericEntry> numerics,
+        Map<String, SortedNumericEntry> sortedNumerics,
+        IndexInput data,
+        int maxDoc,
+        int version,
+        boolean merging
+    ) {
         this.numerics = numerics;
         this.sortedNumerics = sortedNumerics;
         this.data = data.clone();
@@ -141,26 +161,55 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         List<String> metrics = new ArrayList<>();
         // TODO : remove this
         metrics.add("status_sum");
-        //metrics.add("status_count");
+        // metrics.add("status_count");
         FieldInfo[] fArr = new FieldInfo[dimensionSplitOrder.size() + metrics.size()];
         int fieldNum = 0;
         for (int i = 0; i < dimensionSplitOrder.size(); i++) {
-            fArr[fieldNum] = new FieldInfo(dimensionSplitOrder.get(i) + "_dim", fieldNum, false, false, true,
-                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS, DocValuesType.NUMERIC, -1,
-                Collections.emptyMap(), 0, 0, 0, 0, VectorEncoding.FLOAT32, VectorSimilarityFunction.EUCLIDEAN, false);
+            fArr[fieldNum] = new FieldInfo(
+                dimensionSplitOrder.get(i) + "_dim",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
             fieldNum++;
         }
         for (int i = 0; i < metrics.size(); i++) {
-            fArr[fieldNum] = new FieldInfo(metrics.get(i) + "_metric", fieldNum, false, false, true,
-                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS, DocValuesType.NUMERIC, -1,
-                Collections.emptyMap(), 0, 0, 0, 0, VectorEncoding.FLOAT32, VectorSimilarityFunction.EUCLIDEAN, false);
+            fArr[fieldNum] = new FieldInfo(
+                metrics.get(i) + "_metric",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
             fieldNum++;
         }
         return fArr;
     }
 
-    private void readFields(IndexInput meta, FieldInfo[] infos)
-        throws IOException {
+    private void readFields(IndexInput meta, FieldInfo[] infos) throws IOException {
         for (int fieldNumber = meta.readInt(); fieldNumber != -1; fieldNumber = meta.readInt()) {
             FieldInfo info = infos[fieldNumber];
             if (info == null) {
@@ -177,15 +226,13 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
     }
 
-    private NumericEntry readNumeric(IndexInput meta)
-        throws IOException {
+    private NumericEntry readNumeric(IndexInput meta) throws IOException {
         NumericEntry entry = new NumericEntry();
         readNumeric(meta, entry);
         return entry;
     }
 
-    private void readNumeric(IndexInput meta, NumericEntry entry)
-        throws IOException {
+    private void readNumeric(IndexInput meta, NumericEntry entry) throws IOException {
         entry.docsWithFieldOffset = meta.readLong();
         entry.docsWithFieldLength = meta.readLong();
         entry.jumpTableEntryCount = meta.readShort();
@@ -214,15 +261,13 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         entry.valueJumpTableOffset = meta.readLong();
     }
 
-    private SortedNumericEntry readSortedNumeric(IndexInput meta)
-        throws IOException {
+    private SortedNumericEntry readSortedNumeric(IndexInput meta) throws IOException {
         SortedNumericEntry entry = new SortedNumericEntry();
         readSortedNumeric(meta, entry);
         return entry;
     }
 
-    private SortedNumericEntry readSortedNumeric(IndexInput meta, SortedNumericEntry entry)
-        throws IOException {
+    private SortedNumericEntry readSortedNumeric(IndexInput meta, SortedNumericEntry entry) throws IOException {
         readNumeric(meta, entry);
         entry.numDocsWithField = meta.readInt();
         if (entry.numDocsWithField != entry.numValues) {
@@ -235,8 +280,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
         data.close();
     }
 
@@ -265,14 +309,12 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     }
 
     @Override
-    public NumericDocValues getNumeric(FieldInfo field)
-        throws IOException {
+    public NumericDocValues getNumeric(FieldInfo field) throws IOException {
         NumericEntry entry = numerics.get(field.name);
         return getNumeric(entry);
     }
 
-    public NumericDocValues getNumeric(String fieldName)
-        throws IOException {
+    public NumericDocValues getNumeric(String fieldName) throws IOException {
         NumericEntry entry = numerics.get(fieldName);
         return getNumeric(entry);
     }
@@ -292,14 +334,12 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int nextDoc()
-            throws IOException {
+        public int nextDoc() throws IOException {
             return advance(doc + 1);
         }
 
         @Override
-        public int advance(int target)
-            throws IOException {
+        public int advance(int target) throws IOException {
             if (target >= maxDoc) {
                 return doc = NO_MORE_DOCS;
             }
@@ -327,20 +367,17 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int advance(int target)
-            throws IOException {
+        public int advance(int target) throws IOException {
             return disi.advance(target);
         }
 
         @Override
-        public boolean advanceExact(int target)
-            throws IOException {
+        public boolean advanceExact(int target) throws IOException {
             return disi.advanceExact(target);
         }
 
         @Override
-        public int nextDoc()
-            throws IOException {
+        public int nextDoc() throws IOException {
             return disi.nextDoc();
         }
 
@@ -363,8 +400,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
     }
 
-    private NumericDocValues getNumeric(NumericEntry entry)
-        throws IOException {
+    private NumericDocValues getNumeric(NumericEntry entry) throws IOException {
         if (entry.docsWithFieldOffset == -2) {
             // empty
             return DocValues.emptyNumeric();
@@ -373,8 +409,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
             if (entry.bitsPerValue == 0) {
                 return new DenseNumericDocValues(maxDoc) {
                     @Override
-                    public long longValue()
-                        throws IOException {
+                    public long longValue() throws IOException {
                         return entry.minValue;
                     }
                 };
@@ -386,8 +421,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final VaryingBPVReader vBPVReader = new VaryingBPVReader(entry, slice);
 
                         @Override
-                        public long longValue()
-                            throws IOException {
+                        public long longValue() throws IOException {
                             return vBPVReader.getLongValue(doc);
                         }
                     };
@@ -397,8 +431,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final long[] table = entry.table;
                         return new DenseNumericDocValues(maxDoc) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return table[(int) values.get(doc)];
                             }
                         };
@@ -406,8 +439,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         // Common case for ordinals, which are encoded as numerics
                         return new DenseNumericDocValues(maxDoc) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return values.get(doc);
                             }
                         };
@@ -416,8 +448,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final long delta = entry.minValue;
                         return new DenseNumericDocValues(maxDoc) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return mul * values.get(doc) + delta;
                             }
                         };
@@ -426,14 +457,18 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
             }
         } else {
             // sparse
-            final IndexedDISI disi =
-                new IndexedDISI(data, entry.docsWithFieldOffset, entry.docsWithFieldLength, entry.jumpTableEntryCount,
-                    entry.denseRankPower, entry.numValues);
+            final IndexedDISI disi = new IndexedDISI(
+                data,
+                entry.docsWithFieldOffset,
+                entry.docsWithFieldLength,
+                entry.jumpTableEntryCount,
+                entry.denseRankPower,
+                entry.numValues
+            );
             if (entry.bitsPerValue == 0) {
                 return new SparseNumericDocValues(disi) {
                     @Override
-                    public long longValue()
-                        throws IOException {
+                    public long longValue() throws IOException {
                         return entry.minValue;
                     }
                 };
@@ -445,8 +480,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final VaryingBPVReader vBPVReader = new VaryingBPVReader(entry, slice);
 
                         @Override
-                        public long longValue()
-                            throws IOException {
+                        public long longValue() throws IOException {
                             final int index = disi.index();
                             return vBPVReader.getLongValue(index);
                         }
@@ -457,16 +491,14 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final long[] table = entry.table;
                         return new SparseNumericDocValues(disi) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return table[(int) values.get(disi.index())];
                             }
                         };
                     } else if (entry.gcd == 1 && entry.minValue == 0) {
                         return new SparseNumericDocValues(disi) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return values.get(disi.index());
                             }
                         };
@@ -475,8 +507,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                         final long delta = entry.minValue;
                         return new SparseNumericDocValues(disi) {
                             @Override
-                            public long longValue()
-                                throws IOException {
+                            public long longValue() throws IOException {
                                 return mul * values.get(disi.index()) + delta;
                             }
                         };
@@ -486,8 +517,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
     }
 
-    private LongValues getNumericValues(NumericEntry entry)
-        throws IOException {
+    private LongValues getNumericValues(NumericEntry entry) throws IOException {
         if (entry.bitsPerValue == 0) {
             return new LongValues() {
                 @Override
@@ -554,8 +584,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int nextDoc()
-            throws IOException {
+        public int nextDoc() throws IOException {
             return advance(doc + 1);
         }
 
@@ -570,8 +599,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int advance(int target)
-            throws IOException {
+        public int advance(int target) throws IOException {
             if (target >= maxDoc) {
                 return doc = NO_MORE_DOCS;
             }
@@ -579,8 +607,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public boolean advanceExact(int target)
-            throws IOException {
+        public boolean advanceExact(int target) throws IOException {
             doc = target;
             return true;
         }
@@ -595,8 +622,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int nextDoc()
-            throws IOException {
+        public int nextDoc() throws IOException {
             return disi.nextDoc();
         }
 
@@ -611,45 +637,38 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         }
 
         @Override
-        public int advance(int target)
-            throws IOException {
+        public int advance(int target) throws IOException {
             return disi.advance(target);
         }
 
         @Override
-        public boolean advanceExact(int target)
-            throws IOException {
+        public boolean advanceExact(int target) throws IOException {
             return disi.advanceExact(target);
         }
     }
 
     @Override
-    public BinaryDocValues getBinary(FieldInfo field)
-        throws IOException {
+    public BinaryDocValues getBinary(FieldInfo field) throws IOException {
         return null; // TODO
     }
 
     @Override
-    public SortedDocValues getSorted(FieldInfo field)
-        throws IOException {
+    public SortedDocValues getSorted(FieldInfo field) throws IOException {
         return null; // TODO
     }
 
     @Override
-    public SortedNumericDocValues getSortedNumeric(FieldInfo field)
-        throws IOException {
+    public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
         SortedNumericEntry entry = sortedNumerics.get(field.name);
         return getSortedNumeric(entry);
     }
 
-    public SortedNumericDocValues getSortedNumeric(String fieldName)
-        throws IOException {
+    public SortedNumericDocValues getSortedNumeric(String fieldName) throws IOException {
         SortedNumericEntry entry = sortedNumerics.get(fieldName);
         return getSortedNumeric(entry);
     }
 
-    private SortedNumericDocValues getSortedNumeric(SortedNumericEntry entry)
-        throws IOException {
+    private SortedNumericDocValues getSortedNumeric(SortedNumericEntry entry) throws IOException {
         if (entry.numValues == entry.numDocsWithField) {
             return DocValues.singleton(getNumeric(entry));
         }
@@ -668,8 +687,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 int count;
 
                 @Override
-                public int nextDoc()
-                    throws IOException {
+                public int nextDoc() throws IOException {
                     return advance(doc + 1);
                 }
 
@@ -684,8 +702,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 }
 
                 @Override
-                public int advance(int target)
-                    throws IOException {
+                public int advance(int target) throws IOException {
                     if (target >= maxDoc) {
                         return doc = NO_MORE_DOCS;
                     }
@@ -696,8 +713,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 }
 
                 @Override
-                public boolean advanceExact(int target)
-                    throws IOException {
+                public boolean advanceExact(int target) throws IOException {
                     start = addresses.get(target);
                     end = addresses.get(target + 1L);
                     count = (int) (end - start);
@@ -706,8 +722,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 }
 
                 @Override
-                public long nextValue()
-                    throws IOException {
+                public long nextValue() throws IOException {
                     return values.get(start++);
                 }
 
@@ -718,9 +733,14 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
             };
         } else {
             // sparse
-            final IndexedDISI disi =
-                new IndexedDISI(data, entry.docsWithFieldOffset, entry.docsWithFieldLength, entry.jumpTableEntryCount,
-                    entry.denseRankPower, entry.numDocsWithField);
+            final IndexedDISI disi = new IndexedDISI(
+                data,
+                entry.docsWithFieldOffset,
+                entry.docsWithFieldLength,
+                entry.jumpTableEntryCount,
+                entry.denseRankPower,
+                entry.numDocsWithField
+            );
             return new SortedNumericDocValues() {
 
                 boolean set;
@@ -728,8 +748,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 int count;
 
                 @Override
-                public int nextDoc()
-                    throws IOException {
+                public int nextDoc() throws IOException {
                     set = false;
                     return disi.nextDoc();
                 }
@@ -745,22 +764,19 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                 }
 
                 @Override
-                public int advance(int target)
-                    throws IOException {
+                public int advance(int target) throws IOException {
                     set = false;
                     return disi.advance(target);
                 }
 
                 @Override
-                public boolean advanceExact(int target)
-                    throws IOException {
+                public boolean advanceExact(int target) throws IOException {
                     set = false;
                     return disi.advanceExact(target);
                 }
 
                 @Override
-                public long nextValue()
-                    throws IOException {
+                public long nextValue() throws IOException {
                     set();
                     return values.get(start++);
                 }
@@ -785,14 +801,12 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
     }
 
     @Override
-    public SortedSetDocValues getSortedSet(FieldInfo field)
-        throws IOException {
+    public SortedSetDocValues getSortedSet(FieldInfo field) throws IOException {
         return null;
     }
 
     @Override
-    public void checkIntegrity()
-        throws IOException {
+    public void checkIntegrity() throws IOException {
         CodecUtil.checksumEntireFile(data);
     }
 
@@ -817,19 +831,18 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
         long blockEndOffset;
         LongValues values;
 
-        VaryingBPVReader(NumericEntry entry, RandomAccessInput slice)
-            throws IOException {
+        VaryingBPVReader(NumericEntry entry, RandomAccessInput slice) throws IOException {
             this.entry = entry;
             this.slice = slice;
-            this.rankSlice = entry.valueJumpTableOffset == -1 ? null
+            this.rankSlice = entry.valueJumpTableOffset == -1
+                ? null
                 : data.randomAccessSlice(entry.valueJumpTableOffset, data.length() - entry.valueJumpTableOffset);
             shift = entry.blockShift;
             mul = entry.gcd;
             mask = (1 << shift) - 1;
         }
 
-        long getLongValue(long index)
-            throws IOException {
+        long getLongValue(long index) throws IOException {
             final long block = index >>> shift;
             if (this.block != block) {
                 int bitsPerValue;
@@ -854,8 +867,7 @@ public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
                     this.block++;
                 } while (this.block != block);
                 final int numValues = Math.toIntExact(Math.min(1 << shift, entry.numValues - (block << shift)));
-                values = bitsPerValue == 0 ? LongValues.ZEROES
-                    : getDirectReaderInstance(slice, bitsPerValue, offset, numValues);
+                values = bitsPerValue == 0 ? LongValues.ZEROES : getDirectReaderInstance(slice, bitsPerValue, offset, numValues);
             }
             return mul * values.get(index & mask) + delta;
         }

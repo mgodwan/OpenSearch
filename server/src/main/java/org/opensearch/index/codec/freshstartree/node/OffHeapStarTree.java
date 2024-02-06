@@ -16,6 +16,9 @@
  */
 package org.opensearch.index.codec.freshstartree.node;
 
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.RandomAccessInput;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,9 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.RandomAccessInput;
-
 
 /** Off heap implementation of star tree. */
 public class OffHeapStarTree implements StarTree {
@@ -34,8 +34,7 @@ public class OffHeapStarTree implements StarTree {
     private final OffHeapStarTreeNode _root;
     private final List<String> _dimensionNames = new ArrayList<>();
 
-    public OffHeapStarTree(IndexInput data)
-        throws IOException {
+    public OffHeapStarTree(IndexInput data) throws IOException {
         long magicmarker = data.readLong();
         if (MAGIC_MARKER != magicmarker) {
             throw new IOException("Invalid magic marker");
@@ -70,14 +69,12 @@ public class OffHeapStarTree implements StarTree {
     }
 
     @Override
-    public void printTree(Map<String, Map<String, String>> dictionaryMap)
-        throws IOException {
+    public void printTree(Map<String, Map<String, String>> dictionaryMap) throws IOException {
         printTreeHelper(dictionaryMap, _root, 0);
     }
 
     /** Helper method to print the tree. */
-    private void printTreeHelper(Map<String, Map<String, String>> dictionaryMap, OffHeapStarTreeNode node, int level)
-        throws IOException {
+    private void printTreeHelper(Map<String, Map<String, String>> dictionaryMap, OffHeapStarTreeNode node, int level) throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < level; i++) {
             stringBuilder.append("  ");
@@ -100,10 +97,14 @@ public class OffHeapStarTree implements StarTree {
             childDimensionName = _dimensionNames.get(childDimensionId);
         }
 
-        String formattedOutput = new StringJoiner(" - ").add("level : " + level).add("dimensionName : " + dimensionName)
-            .add("dimensionValue : " + dimensionValueString).add("childDimensionName : " + childDimensionName)
-            .add("startDocId : " + node.getStartDocId()).add("endDocId : " + node.getEndDocId())
-            .add("aggregatedDocId : " + node.getAggregatedDocId()).add("numChildren : " + node.getNumChildren())
+        String formattedOutput = new StringJoiner(" - ").add("level : " + level)
+            .add("dimensionName : " + dimensionName)
+            .add("dimensionValue : " + dimensionValueString)
+            .add("childDimensionName : " + childDimensionName)
+            .add("startDocId : " + node.getStartDocId())
+            .add("endDocId : " + node.getEndDocId())
+            .add("aggregatedDocId : " + node.getAggregatedDocId())
+            .add("numChildren : " + node.getNumChildren())
             .toString();
 
         stringBuilder.append(formattedOutput);

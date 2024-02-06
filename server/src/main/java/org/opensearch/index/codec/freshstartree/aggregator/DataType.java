@@ -18,7 +18,10 @@ package org.opensearch.index.codec.freshstartree.aggregator;
 
 /** Data type of doc values */
 public enum DataType {
-    INT(Integer.BYTES, true), LONG(Long.BYTES, true), FLOAT(Float.BYTES, true), DOUBLE(Double.BYTES, true);
+    INT(Integer.BYTES, true),
+    LONG(Long.BYTES, true),
+    FLOAT(Float.BYTES, true),
+    DOUBLE(Double.BYTES, true);
 
     private final int _size;
     private final boolean _numeric;

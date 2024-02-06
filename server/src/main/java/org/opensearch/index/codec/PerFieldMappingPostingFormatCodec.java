@@ -36,7 +36,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeCodec;
@@ -86,7 +85,6 @@ public class PerFieldMappingPostingFormatCodec extends StarTreeCodec { // TODO :
     public DocValuesFormat getDocValuesFormatForField(String field) {
         return dvFormat;
     }
-
 
     @Override
     public final DocValuesFormat docValuesFormat() {

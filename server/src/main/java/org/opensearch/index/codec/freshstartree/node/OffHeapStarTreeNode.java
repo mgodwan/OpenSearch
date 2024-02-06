@@ -16,17 +16,17 @@
  */
 package org.opensearch.index.codec.freshstartree.node;
 
-import java.io.IOException;
-import java.util.Iterator;
 import org.apache.lucene.store.RandomAccessInput;
 
+import java.io.IOException;
+import java.util.Iterator;
 
 /** Off heap implementation of {@link StarTreeNode} */
 public class OffHeapStarTreeNode implements StarTreeNode {
     public static final int NUM_INT_SERIALIZABLE_FIELDS = 6;
     public static final int NUM_LONG_SERIALIZABLE_FIELDS = 1;
-    public static final long SERIALIZABLE_SIZE_IN_BYTES =
-        ( Integer.BYTES * NUM_INT_SERIALIZABLE_FIELDS ) + ( Long.BYTES * NUM_LONG_SERIALIZABLE_FIELDS );
+    public static final long SERIALIZABLE_SIZE_IN_BYTES = (Integer.BYTES * NUM_INT_SERIALIZABLE_FIELDS) + (Long.BYTES
+        * NUM_LONG_SERIALIZABLE_FIELDS);
     private static final int DIMENSION_ID_OFFSET = 0;
     private static final int DIMENSION_VALUE_OFFSET = DIMENSION_ID_OFFSET + Integer.BYTES;
     private static final int START_DOC_ID_OFFSET = DIMENSION_VALUE_OFFSET + Long.BYTES;
@@ -42,38 +42,32 @@ public class OffHeapStarTreeNode implements StarTreeNode {
 
     RandomAccessInput in;
 
-    public OffHeapStarTreeNode(RandomAccessInput in, int nodeId)
-        throws IOException {
+    public OffHeapStarTreeNode(RandomAccessInput in, int nodeId) throws IOException {
         this.in = in;
         _nodeId = nodeId;
         _firstChildId = getInt(FIRST_CHILD_ID_OFFSET);
     }
 
-    private int getInt(int fieldOffset)
-        throws IOException {
+    private int getInt(int fieldOffset) throws IOException {
         return in.readInt(_nodeId * SERIALIZABLE_SIZE_IN_BYTES + fieldOffset);
     }
 
-    private long getLong(int fieldOffset)
-        throws IOException {
+    private long getLong(int fieldOffset) throws IOException {
         return in.readLong(_nodeId * SERIALIZABLE_SIZE_IN_BYTES + fieldOffset);
     }
 
     @Override
-    public int getDimensionId()
-        throws IOException {
+    public int getDimensionId() throws IOException {
         return getInt(DIMENSION_ID_OFFSET);
     }
 
     @Override
-    public long getDimensionValue()
-        throws IOException {
+    public long getDimensionValue() throws IOException {
         return getLong(DIMENSION_VALUE_OFFSET);
     }
 
     @Override
-    public int getChildDimensionId()
-        throws IOException {
+    public int getChildDimensionId() throws IOException {
         if (_firstChildId == INVALID_ID) {
             return INVALID_ID;
         } else {
@@ -82,26 +76,22 @@ public class OffHeapStarTreeNode implements StarTreeNode {
     }
 
     @Override
-    public int getStartDocId()
-        throws IOException {
+    public int getStartDocId() throws IOException {
         return getInt(START_DOC_ID_OFFSET);
     }
 
     @Override
-    public int getEndDocId()
-        throws IOException {
+    public int getEndDocId() throws IOException {
         return getInt(END_DOC_ID_OFFSET);
     }
 
     @Override
-    public int getAggregatedDocId()
-        throws IOException {
+    public int getAggregatedDocId() throws IOException {
         return getInt(AGGREGATE_DOC_ID_OFFSET);
     }
 
     @Override
-    public int getNumChildren()
-        throws IOException {
+    public int getNumChildren() throws IOException {
         if (_firstChildId == INVALID_ID) {
             return 0;
         } else {
@@ -115,8 +105,7 @@ public class OffHeapStarTreeNode implements StarTreeNode {
     }
 
     @Override
-    public StarTreeNode getChildForDimensionValue(long dimensionValue)
-        throws IOException {
+    public StarTreeNode getChildForDimensionValue(long dimensionValue) throws IOException {
         if (isLeaf()) {
             return null;
         }
@@ -152,8 +141,7 @@ public class OffHeapStarTreeNode implements StarTreeNode {
     }
 
     @Override
-    public Iterator<OffHeapStarTreeNode> getChildrenIterator()
-        throws IOException {
+    public Iterator<OffHeapStarTreeNode> getChildrenIterator() throws IOException {
         return new Iterator<OffHeapStarTreeNode>() {
             private int _currentChildId = _firstChildId;
             private final int _lastChildId = getInt(LAST_CHILD_ID_OFFSET);

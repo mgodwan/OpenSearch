@@ -16,21 +16,8 @@
  */
 package org.opensearch.index.codec.freshstartree.builder;
 
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.NumericDocValues;
@@ -44,6 +31,15 @@ import org.apache.lucene.util.IOUtils;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
 import org.opensearch.index.codec.freshstartree.util.QuickSorter;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Off heap implementation of star tree builder
@@ -70,7 +66,6 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     private static final String SEGMENT_RECORD_FILE_NAME = "segment.record";
     private static final String STAR_TREE_RECORD_FILE_NAME = "star-tree.record";
 
-
     private final List<Long> _starTreeRecordOffsets;
 
     private int _numReadableStarTreeRecords;
@@ -85,23 +80,32 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     long currBytes = 0;
     Map<String, Integer> fileToByteSizeMap;
     int starTreeFileCount = 0;
-    int  currentStarTreeFileIndex = 0;
+    int currentStarTreeFileIndex = 0;
     int prevStartDocId = Integer.MAX_VALUE;
 
-    public OffHeapBufferedSingleTreeBuilder(IndexOutput output, List<String> dimensionsSplitOrder,
-        Map<String, SortedNumericDocValues> docValuesMap, int maxDoc, DocValuesConsumer consumer,
-        SegmentWriteState state)
-        throws IOException {
+    public OffHeapBufferedSingleTreeBuilder(
+        IndexOutput output,
+        List<String> dimensionsSplitOrder,
+        Map<String, SortedNumericDocValues> docValuesMap,
+        int maxDoc,
+        DocValuesConsumer consumer,
+        SegmentWriteState state
+    ) throws IOException {
         super(output, dimensionsSplitOrder, docValuesMap, maxDoc, consumer, state);
         this.state = state;
         fileToByteSizeMap = new LinkedHashMap<>(); // maintain order
 
         // TODO : how to set this dynammically
-        String segmentRecordFileName =
-            IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, SEGMENT_RECORD_FILE_NAME);
-        String starTreeRecordFileName =
-            IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, STAR_TREE_RECORD_FILE_NAME) +
-                "_" + starTreeFileCount;
+        String segmentRecordFileName = IndexFileNames.segmentFileName(
+            state.segmentInfo.name,
+            state.segmentSuffix,
+            SEGMENT_RECORD_FILE_NAME
+        );
+        String starTreeRecordFileName = IndexFileNames.segmentFileName(
+            state.segmentInfo.name,
+            state.segmentSuffix,
+            STAR_TREE_RECORD_FILE_NAME
+        ) + "_" + starTreeFileCount;
 
         // TODO : create temp output
         starTreeRecordFileOutput = state.directory.createOutput(starTreeRecordFileName, state.context);
@@ -111,13 +115,11 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     }
 
     @Override
-    public void build(List<StarTreeAggregatedValues> aggrList)
-        throws IOException {
+    public void build(List<StarTreeAggregatedValues> aggrList) throws IOException {
         build(mergeRecords(aggrList), true);
     }
 
-    private Iterator<Record> mergeRecords(List<StarTreeAggregatedValues> aggrList)
-        throws IOException {
+    private Iterator<Record> mergeRecords(List<StarTreeAggregatedValues> aggrList) throws IOException {
         int recordBytesLength = 0;
         int numDocs = 0;
         Integer[] sortedDocIds;
@@ -128,8 +130,7 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
                     long[] dims = new long[starTree.dimensionValues.size()];
                     int i = 0;
                     for (Map.Entry<String, NumericDocValues> dimValue : starTree.dimensionValues.entrySet()) {
-                        endOfDoc = dimValue.getValue().nextDoc() == DocIdSetIterator.NO_MORE_DOCS
-                            || dimValue.getValue().longValue() == -1;
+                        endOfDoc = dimValue.getValue().nextDoc() == DocIdSetIterator.NO_MORE_DOCS || dimValue.getValue().longValue() == -1;
                         if (endOfDoc) {
                             break;
                         }
@@ -162,7 +163,7 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
             segmentRecordFileOutput.close();
         }
 
-        if(numDocs == 0) return new ArrayList<Record>().iterator();
+        if (numDocs == 0) return new ArrayList<Record>().iterator();
 
         return sortRecords(sortedDocIds, numDocs, recordBytesLength);
     }
@@ -196,8 +197,8 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
                     }
                     break;
                 case DOUBLE:
-                    //          byteBuffer.putDouble((Double) starTreeRecord._metrics[i]);
-                    //          break;
+                    // byteBuffer.putDouble((Double) starTreeRecord._metrics[i]);
+                    // break;
                 case INT:
                 case FLOAT:
                 default:
@@ -207,8 +208,7 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         return bytes;
     }
 
-    private Record deserializeStarTreeRecord(RandomAccessInput buffer, long offset)
-        throws IOException {
+    private Record deserializeStarTreeRecord(RandomAccessInput buffer, long offset) throws IOException {
         long[] dimensions = new long[_numDimensions];
         for (int i = 0; i < _numDimensions; i++) {
             dimensions[i] = buffer.readLong(offset);
@@ -223,8 +223,8 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
                     break;
                 case DOUBLE:
                     // TODO : handle double
-                    //          metrics[i] = buffer.getDouble((int) offset);
-                    //          offset += Double.BYTES;
+                    // metrics[i] = buffer.getDouble((int) offset);
+                    // offset += Double.BYTES;
                     break;
                 case FLOAT:
                 case INT:
@@ -235,13 +235,12 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         return new Record(dimensions, metrics);
     }
 
-    //  public void copyTo(ByteBuffer byteBuffer, long offset, byte[] buffer) {
-    //    copyTo(offset, byteBuffer, 0, buffer.length);
-    //  }
+    // public void copyTo(ByteBuffer byteBuffer, long offset, byte[] buffer) {
+    // copyTo(offset, byteBuffer, 0, buffer.length);
+    // }
 
     @Override
-    void appendRecord(Record record)
-        throws IOException {
+    void appendRecord(Record record) throws IOException {
         byte[] bytes = serializeStarTreeRecord(record);
         starTreeRecordFileOutput.writeBytes(bytes, bytes.length);
         _starTreeRecordOffsets.add(currBytes);
@@ -249,23 +248,19 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     }
 
     @Override
-    Record getStarTreeRecord(int docId)
-        throws IOException {
+    Record getStarTreeRecord(int docId) throws IOException {
         ensureBufferReadable(docId);
         return deserializeStarTreeRecord(starTreeRecordRandomInput, _starTreeRecordOffsets.get(docId));
     }
 
     @Override
-    long getDimensionValue(int docId, int dimensionId)
-        throws IOException {
+    long getDimensionValue(int docId, int dimensionId) throws IOException {
         ensureBufferReadable(docId, false);
-        return starTreeRecordRandomInput.readLong(
-             (_starTreeRecordOffsets.get(docId) + (dimensionId * Long.BYTES)));
+        return starTreeRecordRandomInput.readLong((_starTreeRecordOffsets.get(docId) + (dimensionId * Long.BYTES)));
     }
 
     @Override
-    Iterator<Record> sortAndAggregateSegmentRecords(int numDocs)
-        throws IOException {
+    Iterator<Record> sortAndAggregateSegmentRecords(int numDocs) throws IOException {
         // Write all dimensions for segment records into the buffer, and sort all records using an int
         // array
         int recordBytesLength = 0;
@@ -289,11 +284,11 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         return sortRecords(sortedDocIds, numDocs, recordBytesLength);
     }
 
-    private Iterator<Record> sortRecords(Integer[] sortedDocIds, int numDocs, int recordBytesLength)
-        throws IOException {
+    private Iterator<Record> sortRecords(Integer[] sortedDocIds, int numDocs, int recordBytesLength) throws IOException {
         IndexInput segmentRecordFileInput = state.directory.openInput(
             IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, SEGMENT_RECORD_FILE_NAME),
-            state.context);
+            state.context
+        );
         final long recordBytes = recordBytesLength;
         logger.info("Segment record is of length : {}", segmentRecordFileInput.length());
         segmentRandomInput = segmentRecordFileInput.randomAccessSlice(0, segmentRecordFileInput.length());
@@ -323,15 +318,13 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
             // segmentRecordFileInput.close();
             // state.directory.deleteFile(IndexFileNames.segmentFileName(state.segmentInfo.name,
             // state.segmentSuffix,
-            //     SEGMENT_RECORD_FILE_NAME));
+            // SEGMENT_RECORD_FILE_NAME));
             // Files.deleteIfExists(new Path(IndexFileNames.segmentFileName(state.segmentInfo.name,
             // state.segmentSuffix,
             // SEGMENT_RECORD_FILE_NAME)));
         }
-        if(sortedDocIds != null)
-           logger.info("Sorted doc ids length" + sortedDocIds.length);
-        else
-            logger.info("Sorted doc ids array is null");
+        if (sortedDocIds != null) logger.info("Sorted doc ids length" + sortedDocIds.length);
+        else logger.info("Sorted doc ids array is null");
 
         // Create an iterator for aggregated records
         return new Iterator<Record>() {
@@ -368,14 +361,12 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         };
     }
 
-    public Record getSegmentRecord(int docID, long recordBytes)
-        throws IOException {
+    public Record getSegmentRecord(int docID, long recordBytes) throws IOException {
         return deserializeStarTreeRecord(segmentRandomInput, docID * recordBytes);
     }
 
     @Override
-    Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId)
-        throws IOException {
+    Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId) throws IOException {
         ensureBufferReadable(endDocId, true);
 
         // Sort all records using an int array
@@ -455,21 +446,19 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         ensureBufferReadable(docId, false);
     }
 
-    private void ensureBufferReadable(int docId, boolean endDocCheck)
-        throws IOException {
+    private void ensureBufferReadable(int docId, boolean endDocCheck) throws IOException {
 
-        if (docId >= prevStartDocId && (( endDocCheck && docId <= _numReadableStarTreeRecords )
-            || (!endDocCheck && docId < _numReadableStarTreeRecords)) ) {
+        if (docId >= prevStartDocId
+            && ((endDocCheck && docId <= _numReadableStarTreeRecords) || (!endDocCheck && docId < _numReadableStarTreeRecords))) {
             return;
         }
         IndexInput in = null;
-        if(docId < _numDocs ) {
+        if (docId < _numDocs) {
             int prevStartDocId = 0;
-            for(Map.Entry<String, Integer> entry : fileToByteSizeMap.entrySet()) {
-                if(docId < entry.getValue() - 1) {
+            for (Map.Entry<String, Integer> entry : fileToByteSizeMap.entrySet()) {
+                if (docId < entry.getValue() - 1) {
                     in = state.directory.openInput(entry.getKey(), state.context);
-                    starTreeRecordRandomInput =
-                        in.randomAccessSlice(in.getFilePointer(), in.length() - in.getFilePointer());
+                    starTreeRecordRandomInput = in.randomAccessSlice(in.getFilePointer(), in.length() - in.getFilePointer());
                     _numReadableStarTreeRecords = entry.getValue();
                     break;
                 }
@@ -478,18 +467,17 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
             this.prevStartDocId = prevStartDocId;
         }
 
-        if(in != null) return;
-
+        if (in != null) return;
 
         starTreeRecordFileOutput.close();
-        logger.info("Created a file : {} of size : {}" , segmentRecordFileOutput.getName(), segmentRecordFileOutput.getFilePointer());
-        fileToByteSizeMap.put(starTreeRecordFileOutput.getName(),
-            _numDocs);
+        logger.info("Created a file : {} of size : {}", segmentRecordFileOutput.getName(), segmentRecordFileOutput.getFilePointer());
+        fileToByteSizeMap.put(starTreeRecordFileOutput.getName(), _numDocs);
 
-
-        String starTreeRecordFileName =
-            IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, STAR_TREE_RECORD_FILE_NAME) +
-                "_" + starTreeFileCount;
+        String starTreeRecordFileName = IndexFileNames.segmentFileName(
+            state.segmentInfo.name,
+            state.segmentSuffix,
+            STAR_TREE_RECORD_FILE_NAME
+        ) + "_" + starTreeFileCount;
 
         // TODO : create temp output
         starTreeRecordFileOutput = state.directory.createOutput(starTreeRecordFileName, state.context);
@@ -501,11 +489,10 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
         }
 
         int prevStartDocId = 0;
-        for(Map.Entry<String, Integer> entry : fileToByteSizeMap.entrySet()) {
-            if(docId <= entry.getValue() - 1) {
+        for (Map.Entry<String, Integer> entry : fileToByteSizeMap.entrySet()) {
+            if (docId <= entry.getValue() - 1) {
                 in = state.directory.openInput(entry.getKey(), state.context);
-                starTreeRecordRandomInput =
-                    in.randomAccessSlice(in.getFilePointer(), in.length() - in.getFilePointer());
+                starTreeRecordRandomInput = in.randomAccessSlice(in.getFilePointer(), in.length() - in.getFilePointer());
                 _numReadableStarTreeRecords = entry.getValue();
                 break;
             }
@@ -516,8 +503,7 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
         boolean success = false;
         try {
             if (starTreeRecordFileOutput != null) {

@@ -16,12 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.builder;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SegmentWriteState;
@@ -30,26 +24,34 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.IndexOutput;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /** On heap single tree builder */
 public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
     private final List<Record> _records = new ArrayList<>();
 
-    public OnHeapSingleTreeBuilder(IndexOutput output, List<String> dimensionsSplitOrder,
-        Map<String, SortedNumericDocValues> docValuesMap, int maxDoc, DocValuesConsumer consumer,
-        SegmentWriteState state)
-        throws IOException {
+    public OnHeapSingleTreeBuilder(
+        IndexOutput output,
+        List<String> dimensionsSplitOrder,
+        Map<String, SortedNumericDocValues> docValuesMap,
+        int maxDoc,
+        DocValuesConsumer consumer,
+        SegmentWriteState state
+    ) throws IOException {
         super(output, dimensionsSplitOrder, docValuesMap, maxDoc, consumer, state);
     }
 
     @Override
-    public void build(List<StarTreeAggregatedValues> aggrList)
-        throws IOException {
+    public void build(List<StarTreeAggregatedValues> aggrList) throws IOException {
         build(mergeRecords(aggrList), true);
     }
 
-    private Iterator<Record> mergeRecords(List<StarTreeAggregatedValues> aggrList)
-        throws IOException {
+    private Iterator<Record> mergeRecords(List<StarTreeAggregatedValues> aggrList) throws IOException {
         List<BaseSingleTreeBuilder.Record> records = new ArrayList<>();
         for (StarTreeAggregatedValues starTree : aggrList) {
             boolean endOfDoc = false;
@@ -57,8 +59,7 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
                 long[] dims = new long[starTree.dimensionValues.size()];
                 int i = 0;
                 for (Map.Entry<String, NumericDocValues> dimValue : starTree.dimensionValues.entrySet()) {
-                    endOfDoc = dimValue.getValue().nextDoc() == DocIdSetIterator.NO_MORE_DOCS
-                        || dimValue.getValue().longValue() == -1;
+                    endOfDoc = dimValue.getValue().nextDoc() == DocIdSetIterator.NO_MORE_DOCS || dimValue.getValue().longValue() == -1;
                     if (endOfDoc) {
                         break;
                     }
@@ -87,26 +88,22 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
     }
 
     @Override
-    void appendRecord(Record record)
-        throws IOException {
+    void appendRecord(Record record) throws IOException {
         _records.add(record);
     }
 
     @Override
-    Record getStarTreeRecord(int docId)
-        throws IOException {
+    Record getStarTreeRecord(int docId) throws IOException {
         return _records.get(docId);
     }
 
     @Override
-    long getDimensionValue(int docId, int dimensionId)
-        throws IOException {
+    long getDimensionValue(int docId, int dimensionId) throws IOException {
         return _records.get(docId)._dimensions[dimensionId];
     }
 
     @Override
-    Iterator<Record> sortAndAggregateSegmentRecords(int numDocs)
-        throws IOException {
+    Iterator<Record> sortAndAggregateSegmentRecords(int numDocs) throws IOException {
         Record[] records = new Record[numDocs];
         for (int i = 0; i < numDocs; i++) {
             records[i] = getNextSegmentRecord();
@@ -114,8 +111,7 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
         return sortAndAggregateSegmentRecords(records);
     }
 
-    public Iterator<Record> sortAndAggregateSegmentRecords(Record[] records)
-        throws IOException {
+    public Iterator<Record> sortAndAggregateSegmentRecords(Record[] records) throws IOException {
         Arrays.sort(records, (o1, o2) -> {
             for (int i = 0; i < _numDimensions; i++) {
                 if (o1._dimensions[i] != o2._dimensions[i]) {
@@ -157,8 +153,7 @@ public class OnHeapSingleTreeBuilder extends BaseSingleTreeBuilder {
     }
 
     @Override
-    Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId)
-        throws IOException {
+    Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId) throws IOException {
         int numDocs = endDocId - startDocId;
         Record[] records = new Record[numDocs];
         for (int i = 0; i < numDocs; i++) {

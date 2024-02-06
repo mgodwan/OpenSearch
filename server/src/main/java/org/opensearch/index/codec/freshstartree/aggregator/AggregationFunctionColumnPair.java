@@ -18,13 +18,11 @@ package org.opensearch.index.codec.freshstartree.aggregator;
 
 import java.util.Comparator;
 
-
 /** Aggregation function, doc values column pair */
 public class AggregationFunctionColumnPair implements Comparable<AggregationFunctionColumnPair> {
     public static final String DELIMITER = "__";
     public static final String STAR = "*";
-    public static final AggregationFunctionColumnPair COUNT_STAR =
-        new AggregationFunctionColumnPair(AggregationFunctionType.COUNT, STAR);
+    public static final AggregationFunctionColumnPair COUNT_STAR = new AggregationFunctionColumnPair(AggregationFunctionType.COUNT, STAR);
 
     private final AggregationFunctionType _functionType;
     private final String _column;
@@ -93,6 +91,7 @@ public class AggregationFunctionColumnPair implements Comparable<AggregationFunc
     @Override
     public int compareTo(AggregationFunctionColumnPair other) {
         return Comparator.comparing((AggregationFunctionColumnPair o) -> o._column)
-            .thenComparing((AggregationFunctionColumnPair o) -> o._functionType).compare(this, other);
+            .thenComparing((AggregationFunctionColumnPair o) -> o._functionType)
+            .compare(this, other);
     }
 }

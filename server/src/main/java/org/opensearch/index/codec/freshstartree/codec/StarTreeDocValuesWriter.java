@@ -16,11 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.DocValuesConsumer;
@@ -33,6 +28,11 @@ import org.apache.lucene.store.IndexOutput;
 import org.opensearch.index.codec.freshstartree.builder.BaseSingleTreeBuilder;
 import org.opensearch.index.codec.freshstartree.builder.OffHeapBufferedSingleTreeBuilder;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Custom star tree doc values writer
  * */
@@ -55,9 +55,7 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
     public static final String META_CODEC = "Lucene90DocValuesMetadata";
     private static final Logger logger = LogManager.getLogger(StarTreeDocValuesWriter.class);
 
-
-    public StarTreeDocValuesWriter(DocValuesConsumer delegate, SegmentWriteState segmentWriteState)
-        throws IOException {
+    public StarTreeDocValuesWriter(DocValuesConsumer delegate, SegmentWriteState segmentWriteState) throws IOException {
         this.delegate = delegate;
         this.state = segmentWriteState;
         dimensionReaders = new HashMap<>();
@@ -67,44 +65,40 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
     }
 
     @Override
-    public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         // TODO : check for attributes
-        //    if(field.attributes().containsKey("dimensions") ||
+        // if(field.attributes().containsKey("dimensions") ||
         // field.attributes().containsKey("metric") ) {
-        //      dimensionReaders.put(field.name, valuesProducer.getNumeric(field));
-        //    }
+        // dimensionReaders.put(field.name, valuesProducer.getNumeric(field));
+        // }
         delegate.addNumericField(field, valuesProducer);
     }
 
     @Override
-    public void addBinaryField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addBinaryField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         delegate.addBinaryField(field, valuesProducer);
     }
 
     @Override
-    public void addSortedField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         delegate.addSortedField(field, valuesProducer);
     }
 
     @Override
-    public void addSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         delegate.addSortedNumericField(field, valuesProducer);
         if (field.name.equalsIgnoreCase("size")) {
             return;
         }
         if (field.name.equalsIgnoreCase("@timestamp")) {
-            //logger.info("Adding timestamp fields");
+            // logger.info("Adding timestamp fields");
             dimensionReaders.put("minute_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put("hour_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put("day_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put("month_dim", valuesProducer.getSortedNumeric(field));
-            //dimensionReaders.put("year_dim", valuesProducer.getSortedNumeric(field));
+            // dimensionReaders.put("year_dim", valuesProducer.getSortedNumeric(field));
         } else {
-            //logger.info("Adding field : " + field.name);
+            // logger.info("Adding field : " + field.name);
             dimensionReaders.put(field.name + "_dim", valuesProducer.getSortedNumeric(field));
             dimensionsSplitOrder.add(field.name);
         }
@@ -115,20 +109,17 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
     }
 
     @Override
-    public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer)
-        throws IOException {
+    public void addSortedSetField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
         delegate.addSortedSetField(field, valuesProducer);
     }
 
     @Override
-    public void merge(MergeState mergeState)
-        throws IOException {
+    public void merge(MergeState mergeState) throws IOException {
         super.merge(mergeState);
         mergeAggregatedValues(mergeState);
     }
 
-    public void mergeAggregatedValues(MergeState mergeState)
-        throws IOException {
+    public void mergeAggregatedValues(MergeState mergeState) throws IOException {
         List<StarTreeAggregatedValues> aggrList = new ArrayList<>();
         for (int i = 0; i < mergeState.docValuesProducers.length; i++) {
             DocValuesProducer producer = mergeState.docValuesProducers[i];
@@ -137,25 +128,35 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
             aggrList.add(starTree);
         }
         long startTime = System.currentTimeMillis();
-        builder = new OffHeapBufferedSingleTreeBuilder(data, dimensionsSplitOrder, dimensionReaders, state.segmentInfo.maxDoc(),
-            docValuesConsumer, state);
+        builder = new OffHeapBufferedSingleTreeBuilder(
+            data,
+            dimensionsSplitOrder,
+            dimensionReaders,
+            state.segmentInfo.maxDoc(),
+            docValuesConsumer,
+            state
+        );
         builder.build(aggrList);
-        logger.info("Finished merging star-tree in ms : {}" , (System.currentTimeMillis() - startTime));
+        logger.info("Finished merging star-tree in ms : {}", (System.currentTimeMillis() - startTime));
     }
 
     @Override
-    public void aggregate()
-        throws IOException {
+    public void aggregate() throws IOException {
         long startTime = System.currentTimeMillis();
-        builder = new OffHeapBufferedSingleTreeBuilder(data, dimensionsSplitOrder, dimensionReaders, state.segmentInfo.maxDoc(),
-            docValuesConsumer, state);
+        builder = new OffHeapBufferedSingleTreeBuilder(
+            data,
+            dimensionsSplitOrder,
+            dimensionReaders,
+            state.segmentInfo.maxDoc(),
+            docValuesConsumer,
+            state
+        );
         builder.build();
-        logger.info("Finished building star-tree in ms : {}" , (System.currentTimeMillis() - startTime));
+        logger.info("Finished building star-tree in ms : {}", (System.currentTimeMillis() - startTime));
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
         if (delegate != null) {
             delegate.close();
         }

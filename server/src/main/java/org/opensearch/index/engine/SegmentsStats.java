@@ -97,7 +97,7 @@ public class SegmentsStats implements Writeable, ToXContentFragment {
         Map.entry("stttree", "Star tree"),
         Map.entry("sttd", "Star tree doc val data"),
         Map.entry("sttm", "Star tree doc val meta")
-        );
+    );
 
     public SegmentsStats() {
         fileSizes = new HashMap<>();

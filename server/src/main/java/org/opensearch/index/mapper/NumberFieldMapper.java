@@ -111,7 +111,6 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         protected final Parameter<Boolean> isSumMetric = Parameter.boolParam("isSumMetric", false, m -> toType(m).isSumMetric, false);
         protected final Parameter<Boolean> isCountMetric = Parameter.boolParam("isCountMetric", false, m -> toType(m).isCountMetric, false);
 
-
         private final Parameter<Boolean> stored = Parameter.storeParam(m -> toType(m).stored, false);
 
         private final Parameter<Explicit<Boolean>> ignoreMalformed;
@@ -164,8 +163,18 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(indexed, hasDocValues, stored, ignoreMalformed, coerce, nullValue, meta, isDimension,
-                isSumMetric, isCountMetric);
+            return Arrays.asList(
+                indexed,
+                hasDocValues,
+                stored,
+                ignoreMalformed,
+                coerce,
+                nullValue,
+                meta,
+                isDimension,
+                isSumMetric,
+                isCountMetric
+            );
         }
 
         @Override

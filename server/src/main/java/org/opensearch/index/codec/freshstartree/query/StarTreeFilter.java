@@ -16,6 +16,16 @@
  */
 package org.opensearch.index.codec.freshstartree.query;
 
+import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.SortedNumericDocValues;
+import org.apache.lucene.search.ConjunctionUtils;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.util.DocIdSetBuilder;
+import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
+import org.opensearch.index.codec.freshstartree.node.StarTree;
+import org.opensearch.index.codec.freshstartree.node.StarTreeNode;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -27,18 +37,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
-import org.apache.lucene.index.DocValues;
-import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.index.SortedNumericDocValues;
-import org.apache.lucene.search.ConjunctionUtils;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.util.DocIdSetBuilder;
-import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
-import org.opensearch.index.codec.freshstartree.node.StarTree;
-import org.opensearch.index.codec.freshstartree.node.StarTreeNode;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
-
 
 /** Filter operator for star tree data structure. */
 public class StarTreeFilter {
@@ -63,9 +63,11 @@ public class StarTreeFilter {
     DocIdSetBuilder.BulkAdder adder;
     Map<String, NumericDocValues> dimValueMap;
 
-    public StarTreeFilter(StarTreeAggregatedValues starTreeAggrStructure,
-        Map<String, List<Predicate<Long>>> predicateEvaluators, Set<String> groupByColumns)
-        throws IOException {
+    public StarTreeFilter(
+        StarTreeAggregatedValues starTreeAggrStructure,
+        Map<String, List<Predicate<Long>>> predicateEvaluators,
+        Set<String> groupByColumns
+    ) throws IOException {
         // This filter operator does not support AND/OR/NOT operations.
         _starTree = starTreeAggrStructure._starTree;
         dimValueMap = starTreeAggrStructure.dimensionValues;
@@ -84,8 +86,7 @@ public class StarTreeFilter {
      *   <li>For the remaining columns, use other indexes to match them
      * </ul>
      */
-    public DocIdSetIterator getStarTreeResult()
-        throws IOException {
+    public DocIdSetIterator getStarTreeResult() throws IOException {
         StarTreeResult starTreeResult = traverseStarTree();
         List<DocIdSetIterator> andIterators = new ArrayList<>();
         andIterators.add(starTreeResult._matchedDocIds.build().iterator());
@@ -117,8 +118,7 @@ public class StarTreeFilter {
      * predicate columns that are not matched. Returns {@code null} if no matching dictionary id found
      * for a column (i.e. the result for the filter operator is empty).
      */
-    private StarTreeResult traverseStarTree()
-        throws IOException {
+    private StarTreeResult traverseStarTree() throws IOException {
         Set<String> globalRemainingPredicateColumns = null;
 
         StarTree starTree = _starTree;
@@ -262,7 +262,9 @@ public class StarTreeFilter {
             }
         }
 
-        return new StarTreeResult(docsWithField,
-            globalRemainingPredicateColumns != null ? globalRemainingPredicateColumns : Collections.emptySet());
+        return new StarTreeResult(
+            docsWithField,
+            globalRemainingPredicateColumns != null ? globalRemainingPredicateColumns : Collections.emptySet()
+        );
     }
 }

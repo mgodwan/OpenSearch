@@ -8,8 +8,6 @@
 
 package org.opensearch.search.aggregations.bucket.startree;
 
-import java.io.IOException;
-import java.util.Map;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.search.aggregations.Aggregator;
 import org.opensearch.search.aggregations.AggregatorFactories;
@@ -17,16 +15,23 @@ import org.opensearch.search.aggregations.AggregatorFactory;
 import org.opensearch.search.aggregations.CardinalityUpperBound;
 import org.opensearch.search.internal.SearchContext;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 public class StarTreeAggregatorFactory extends AggregatorFactory {
+    private List<String> fieldCols;
+
     StarTreeAggregatorFactory(
         String name,
         QueryShardContext queryShardContext,
         AggregatorFactory parent,
         AggregatorFactories.Builder subFactoriesBuilder,
-        Map<String, Object> metadata
+        Map<String, Object> metadata,
+        List<String> fieldCols
     ) throws IOException {
         super(name, queryShardContext, parent, subFactoriesBuilder, metadata);
+        this.fieldCols = fieldCols;
     }
 
     @Override
@@ -36,7 +41,7 @@ public class StarTreeAggregatorFactory extends AggregatorFactory {
         CardinalityUpperBound cardinality,
         Map<String, Object> metadata
     ) throws IOException {
-        return new StarTreeAggregator(name, factories, null,null,searchContext ,parent, metadata);
+        return new StarTreeAggregator(name, factories, null, null, searchContext, parent, metadata, fieldCols);
     }
 
     @Override

@@ -16,11 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.query;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Predicate;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
@@ -34,6 +29,11 @@ import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.Accountable;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 
 /** Query class for querying star tree data structure */
 public class StarTreeQuery extends Query implements Accountable {
@@ -72,18 +72,16 @@ public class StarTreeQuery extends Query implements Accountable {
     }
 
     @Override
-    public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
-        throws IOException {
+    public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
         return new ConstantScoreWeight(this, boost) {
             @Override
-            public Scorer scorer(LeafReaderContext context)
-                throws IOException {
+            public Scorer scorer(LeafReaderContext context) throws IOException {
                 Object obj = context.reader().getAggregatedDocValues();
                 DocIdSetIterator result = null;
                 if (obj != null) {
-                StarTreeAggregatedValues val = (StarTreeAggregatedValues) obj;
-                  StarTreeFilter filter = new StarTreeFilter(val, compositePredicateMap, groupByColumns);
-                  result = filter.getStarTreeResult();
+                    StarTreeAggregatedValues val = (StarTreeAggregatedValues) obj;
+                    StarTreeFilter filter = new StarTreeFilter(val, compositePredicateMap, groupByColumns);
+                    result = filter.getStarTreeResult();
                 }
                 return new ConstantScoreScorer(this, score(), scoreMode, result);
             }

@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-
 /** Interface for star tree */
 public interface StarTree {
 
@@ -33,6 +32,5 @@ public interface StarTree {
      */
     List<String> getDimensionNames();
 
-    void printTree(Map<String, Map<String, String>> dictionaryMap)
-        throws IOException;
+    void printTree(Map<String, Map<String, String>> dictionaryMap) throws IOException;
 }

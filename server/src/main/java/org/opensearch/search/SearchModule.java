@@ -158,7 +158,6 @@ import org.opensearch.search.aggregations.bucket.sampler.SamplerAggregationBuild
 import org.opensearch.search.aggregations.bucket.sampler.UnmappedSampler;
 import org.opensearch.search.aggregations.bucket.startree.InternalStarTree;
 import org.opensearch.search.aggregations.bucket.startree.StarTreeAggregationBuilder;
-import org.opensearch.search.aggregations.bucket.startree.StarTreeAggregator;
 import org.opensearch.search.aggregations.bucket.terms.DoubleTerms;
 import org.opensearch.search.aggregations.bucket.terms.InternalMultiTerms;
 import org.opensearch.search.aggregations.bucket.terms.LongRareTerms;
@@ -498,7 +497,7 @@ public class SearchModule {
             builder
         );
         registerAggregation(
-            new AggregationSpec(StarTreeAggregationBuilder.NAME, StarTreeAggregationBuilder::new, StarTreeAggregationBuilder::parse)
+            new AggregationSpec(StarTreeAggregationBuilder.NAME, StarTreeAggregationBuilder::new, StarTreeAggregationBuilder.PARSER)
                 .addResultReader(InternalStarTree::new),
             builder
         );
@@ -1213,7 +1212,6 @@ public class SearchModule {
         }
 
         registerQuery(new QuerySpec<>(StarTreeQueryBuilder.NAME, StarTreeQueryBuilder::new, StarTreeQueryBuilder::fromXContent));
-
 
         registerFromPlugin(plugins, SearchPlugin::getQueries, this::registerQuery);
     }

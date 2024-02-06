@@ -16,7 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.util.Objects;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.CompoundFormat;
 import org.apache.lucene.codecs.DocValuesFormat;
@@ -31,7 +30,6 @@ import org.apache.lucene.codecs.StoredFieldsFormat;
 import org.apache.lucene.codecs.TermVectorsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90StoredFieldsFormat;
 
-
 /** Codec for performing aggregation during indexing */
 public class StarTreeCodec extends Codec {
     private Codec lucene95Codec;
@@ -45,7 +43,7 @@ public class StarTreeCodec extends Codec {
 
     public StarTreeCodec() {
         super(STAR_TREE_CODEC_NAME);
-        storedFieldsFormat =  new Lucene90StoredFieldsFormat(Lucene90StoredFieldsFormat.Mode.BEST_SPEED);
+        storedFieldsFormat = new Lucene90StoredFieldsFormat(Lucene90StoredFieldsFormat.Mode.BEST_SPEED);
     }
 
     public Codec getDelegate() {

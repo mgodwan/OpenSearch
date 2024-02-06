@@ -160,8 +160,7 @@ public final class TranslogLeafReader extends LeafReader {
     }
 
     @Override
-    public Object getAggregatedDocValues()
-        throws IOException {
+    public Object getAggregatedDocValues() throws IOException {
         throw new UnsupportedOperationException();
     }
 

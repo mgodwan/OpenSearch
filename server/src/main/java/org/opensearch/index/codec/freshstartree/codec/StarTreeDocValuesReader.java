@@ -16,10 +16,6 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
@@ -34,6 +30,10 @@ import org.apache.lucene.store.IndexInput;
 import org.opensearch.index.codec.freshstartree.node.OffHeapStarTree;
 import org.opensearch.index.codec.freshstartree.node.StarTree;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Custom star tree doc values reader */
 public class StarTreeDocValuesReader extends DocValuesProducer {
@@ -51,71 +51,58 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
     public static final String DATA_CODEC = "Lucene90DocValuesData";
     public static final String META_CODEC = "Lucene90DocValuesMetadata";
 
-    public StarTreeDocValuesReader(DocValuesProducer producer, SegmentReadState state)
-        throws IOException {
+    public StarTreeDocValuesReader(DocValuesProducer producer, SegmentReadState state) throws IOException {
         this.delegate = producer;
 
         String dataName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, "stttree");
         this.data = state.directory.openInput(dataName, state.context);
         CodecUtil.checkIndexHeader(data, "STARTreeCodec", 0, 0, state.segmentInfo.getId(), state.segmentSuffix);
         starTree = new OffHeapStarTree(data);
-        valuesProducer = new Lucene90DocValuesProducerCopy(state, DATA_CODEC, "sttd", META_CODEC, "sttm",
-            starTree.getDimensionNames());
+        valuesProducer = new Lucene90DocValuesProducerCopy(state, DATA_CODEC, "sttd", META_CODEC, "sttm", starTree.getDimensionNames());
         dimensionValues = new HashMap<>();
     }
 
     @Override
-    public NumericDocValues getNumeric(FieldInfo field)
-        throws IOException {
+    public NumericDocValues getNumeric(FieldInfo field) throws IOException {
         return delegate.getNumeric(field);
     }
 
     @Override
-    public StarTreeAggregatedValues getAggregatedDocValues()
-        throws IOException {
-        //    starTree.printTree(new HashMap<>());
+    public StarTreeAggregatedValues getAggregatedDocValues() throws IOException {
+        // starTree.printTree(new HashMap<>());
         List<String> dimensionsSplitOrder = starTree.getDimensionNames();
         for (int i = 0; i < dimensionsSplitOrder.size(); i++) {
-            dimensionValues.put(dimensionsSplitOrder.get(i),
-                valuesProducer.getNumeric(dimensionsSplitOrder.get(i) + "_dim"));
+            dimensionValues.put(dimensionsSplitOrder.get(i), valuesProducer.getNumeric(dimensionsSplitOrder.get(i) + "_dim"));
         }
         metricValues = new HashMap<>();
         metricValues.put("status_sum", valuesProducer.getNumeric("status_sum_metric"));
-        //metricValues.put("status_count", valuesProducer.getNumeric("status_count_metric"));
+        // metricValues.put("status_count", valuesProducer.getNumeric("status_count_metric"));
         return new StarTreeAggregatedValues(starTree, dimensionValues, metricValues);
     }
 
     @Override
-    public BinaryDocValues getBinary(FieldInfo field)
-        throws IOException {
+    public BinaryDocValues getBinary(FieldInfo field) throws IOException {
         return delegate.getBinary(field);
     }
 
     @Override
-    public SortedDocValues getSorted(FieldInfo field)
-        throws IOException {
+    public SortedDocValues getSorted(FieldInfo field) throws IOException {
         return delegate.getSorted(field);
     }
 
     @Override
-    public SortedNumericDocValues getSortedNumeric(FieldInfo field)
-        throws IOException {
+    public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
         return delegate.getSortedNumeric(field);
     }
 
     @Override
-    public SortedSetDocValues getSortedSet(FieldInfo field)
-        throws IOException {
+    public SortedSetDocValues getSortedSet(FieldInfo field) throws IOException {
         return delegate.getSortedSet(field);
     }
 
     @Override
-    public void checkIntegrity()
-        throws IOException {
-    }
+    public void checkIntegrity() throws IOException {}
 
     @Override
-    public void close()
-        throws IOException {
-    }
+    public void close() throws IOException {}
 }

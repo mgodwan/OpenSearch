@@ -16,15 +16,16 @@
  */
 package org.opensearch.index.codec.freshstartree.builder;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.store.IndexOutput;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.store.IndexOutput;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.opensearch.index.codec.freshstartree.node.OffHeapStarTreeNode.SERIALIZABLE_SIZE_IN_BYTES;
@@ -34,8 +35,7 @@ public class StarTreeBuilderUtils {
 
     private static final Logger logger = LogManager.getLogger(StarTreeBuilderUtils.class);
 
-    private StarTreeBuilderUtils() {
-    }
+    private StarTreeBuilderUtils() {}
 
     public static final int INVALID_ID = -1;
     public static final long MAGIC_MARKER = 0xBADDA55B00DAD00DL;
@@ -53,8 +53,7 @@ public class StarTreeBuilderUtils {
         public Map<Long, TreeNode> _children;
     }
 
-    public static void serializeTree(IndexOutput indexOutput, TreeNode rootNode, String[] dimensions, int numNodes)
-        throws IOException {
+    public static void serializeTree(IndexOutput indexOutput, TreeNode rootNode, String[] dimensions, int numNodes) throws IOException {
         int headerSizeInBytes = computeHeaderByteSize(dimensions);
         long totalSizeInBytes = headerSizeInBytes + (long) numNodes * SERIALIZABLE_SIZE_IN_BYTES;
 
@@ -78,8 +77,7 @@ public class StarTreeBuilderUtils {
         return headerSizeInBytes;
     }
 
-    private static void writeHeader(IndexOutput output, int headerSizeInBytes, String[] dimensions, int numNodes)
-        throws IOException {
+    private static void writeHeader(IndexOutput output, int headerSizeInBytes, String[] dimensions, int numNodes) throws IOException {
         output.writeLong(MAGIC_MARKER);
         output.writeInt(1);
         output.writeInt(headerSizeInBytes);
@@ -91,8 +89,7 @@ public class StarTreeBuilderUtils {
         output.writeInt(numNodes);
     }
 
-    private static void writeNodes(IndexOutput output, TreeNode rootNode)
-        throws IOException {
+    private static void writeNodes(IndexOutput output, TreeNode rootNode) throws IOException {
         Queue<TreeNode> queue = new LinkedList<>();
         queue.add(rootNode);
 
@@ -118,8 +115,7 @@ public class StarTreeBuilderUtils {
         }
     }
 
-    private static void writeNode(IndexOutput output, TreeNode node, int firstChildId, int lastChildId)
-        throws IOException {
+    private static void writeNode(IndexOutput output, TreeNode node, int firstChildId, int lastChildId) throws IOException {
         output.writeInt(node._dimensionId);
         output.writeLong(node._dimensionValue);
         output.writeInt(node._startDocId);

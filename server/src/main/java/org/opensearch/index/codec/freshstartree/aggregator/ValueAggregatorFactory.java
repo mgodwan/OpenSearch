@@ -18,8 +18,7 @@ package org.opensearch.index.codec.freshstartree.aggregator;
 
 /** Value aggregator factory for a given aggregation type */
 public class ValueAggregatorFactory {
-    private ValueAggregatorFactory() {
-    }
+    private ValueAggregatorFactory() {}
 
     /**
      * Returns a new instance of value aggregator for the given aggregation type.
@@ -33,8 +32,8 @@ public class ValueAggregatorFactory {
                 return new CountValueAggregator();
             case SUM:
                 return new SumValueAggregator();
-            //      case AVG:
-            //        return new AvgValueAggregator();
+            // case AVG:
+            // return new AvgValueAggregator();
             default:
                 throw new IllegalStateException("Unsupported aggregation type: " + aggregationType);
         }
@@ -52,8 +51,8 @@ public class ValueAggregatorFactory {
                 return CountValueAggregator.AGGREGATED_VALUE_TYPE;
             case SUM:
                 return SumValueAggregator.AGGREGATED_VALUE_TYPE;
-            //      case AVG:
-            //        return AvgValueAggregator.AGGREGATED_VALUE_TYPE;
+            // case AVG:
+            // return AvgValueAggregator.AGGREGATED_VALUE_TYPE;
             default:
                 throw new IllegalStateException("Unsupported aggregation type: " + aggregationType);
         }

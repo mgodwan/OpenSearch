@@ -16,9 +16,10 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
-import java.util.Map;
 import org.apache.lucene.index.NumericDocValues;
 import org.opensearch.index.codec.freshstartree.node.StarTree;
+
+import java.util.Map;
 
 // TODO : this is tightly coupled to star tree
 
@@ -29,8 +30,11 @@ public class StarTreeAggregatedValues {
 
     public Map<String, NumericDocValues> metricValues;
 
-    public StarTreeAggregatedValues(StarTree starTree, Map<String, NumericDocValues> dimensionValues,
-        Map<String, NumericDocValues> metricValues) {
+    public StarTreeAggregatedValues(
+        StarTree starTree,
+        Map<String, NumericDocValues> dimensionValues,
+        Map<String, NumericDocValues> metricValues
+    ) {
         this._starTree = starTree;
         this.dimensionValues = dimensionValues;
         this.metricValues = metricValues;
