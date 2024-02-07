@@ -91,27 +91,28 @@ public class StarTreeFilter {
         StarTreeResult starTreeResult = traverseStarTree();
         List<DocIdSetIterator> andIterators = new ArrayList<>();
         andIterators.add(starTreeResult._matchedDocIds.build().iterator());
-
+        DocIdSetIterator docIdSetIterator = andIterators.get(0);
         for (String remainingPredicateColumn : starTreeResult._remainingPredicateColumns) {
             // TODO : set to max value of doc values
             DocIdSetBuilder builder = new DocIdSetBuilder(Integer.MAX_VALUE);
             List<Predicate<Long>> compositePredicateEvaluators = _predicateEvaluators.get(remainingPredicateColumn);
             SortedNumericDocValues ndv = DocValues.singleton(this.dimValueMap.get(remainingPredicateColumn));
-            for (int docID = ndv.nextDoc(); docID != NO_MORE_DOCS; docID = ndv.nextDoc()) {
+
+            while (docIdSetIterator.nextDoc() != NO_MORE_DOCS) {
+                int docID = docIdSetIterator.docID();
+                ndv.advanceExact(docID);
+                long value = ndv.nextValue();
                 for (Predicate<Long> compositePredicateEvaluator : compositePredicateEvaluators) {
                     // TODO : this might be expensive as its done against all doc values docs
-                    if (compositePredicateEvaluator.test(ndv.nextValue())) {
+                    if (compositePredicateEvaluator.test(value)) {
                         builder.grow(1).add(docID);
                         break;
                     }
                 }
             }
-            andIterators.add(builder.build().iterator());
+            docIdSetIterator = builder.build().iterator();
         }
-        if (andIterators.size() > 1) {
-            return ConjunctionUtils.intersectIterators(andIterators);
-        }
-        return andIterators.get(0);
+        return docIdSetIterator;
     }
 
     /**
