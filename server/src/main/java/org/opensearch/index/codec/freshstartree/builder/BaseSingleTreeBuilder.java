@@ -59,10 +59,11 @@ import java.util.Set;
 /** Base class for star tree builder */
 public abstract class BaseSingleTreeBuilder {
     public static final int STAR_IN_DOC_VALUES_INDEX = -1;
-    public final static long SECOND = 1000;
+    public final static long SECOND = 1;// HTTP codec
     public final static long MINUTE = 60 * SECOND;
     public final static long HOUR = 60 * 60 * SECOND;
     public final static long DAY = 24 * HOUR;
+    public final static long MONTH = 30 * DAY;
     public final static long YEAR = 365 * DAY;
     private static final Logger logger = LogManager.getLogger(BaseSingleTreeBuilder.class);
     final int _numDimensions;
@@ -97,8 +98,8 @@ public abstract class BaseSingleTreeBuilder {
         dimensionsSplitOrder = new ArrayList<>();
         dimensionsSplitOrder.add("minute");
         dimensionsSplitOrder.add("hour");
-        dimensionsSplitOrder.add("day");
-        dimensionsSplitOrder.add("month");
+        //dimensionsSplitOrder.add("day");
+        //dimensionsSplitOrder.add("month");
         // dimensionsSplitOrder.add("year");
         dimensionsSplitOrder.add("status");
         _numDimensions = dimensionsSplitOrder.size();
@@ -567,15 +568,16 @@ public abstract class BaseSingleTreeBuilder {
     private long getTimeStampVal(final String fieldName, final long val) {
         switch (fieldName) {
             case "minute":
-                return val / MINUTE * MINUTE;
+                return val / MINUTE;// * MINUTE;
             case "hour":
-                return val / HOUR * HOUR;
+                logger.info( "val: " + val + " hour: " + (val/HOUR));
+                return val / HOUR;// * HOUR;
             case "day":
-                return val / DAY * DAY;
+                return val / DAY;// * DAY;
             case "month":
-                return DateUtils.roundMonthOfYear(val); // TODO
+                return val / MONTH;// * MONTH; // TODO
             case "year":
-                return DateUtils.roundYear(val);
+                return val / YEAR;// * YEAR;
             default:
                 return val;
         }

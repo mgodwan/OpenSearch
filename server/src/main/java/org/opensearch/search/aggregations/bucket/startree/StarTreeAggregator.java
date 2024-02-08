@@ -203,6 +203,7 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
         for (Map.Entry<String, NumericDocValues> fieldEntry : fieldColsMap.entrySet()) {
             fieldEntry.getValue().advanceExact(doc);
             long val = fieldEntry.getValue().longValue();
+            System.out.println("Key field : " + fieldEntry.getKey()  + " Value : " + val);
             sj.add("" + val);
         }
         return sj.toString();

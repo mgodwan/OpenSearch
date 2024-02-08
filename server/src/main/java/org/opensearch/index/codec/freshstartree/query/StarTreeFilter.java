@@ -85,6 +85,8 @@ public class StarTreeFilter {
      *   <li>For the remaining columns, use other indexes to match them
      * </ul>
      */
+
+    // 1706268600 / (60*60*1000) * (60*60*1000)
     public DocIdSetIterator getStarTreeResult() throws IOException {
         StarTreeResult starTreeResult = traverseStarTree();
         List<DocIdSetIterator> andIterators = new ArrayList<>();
