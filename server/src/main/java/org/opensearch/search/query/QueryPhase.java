@@ -71,16 +71,11 @@ import org.opensearch.search.suggest.SuggestProcessor;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.opensearch.search.query.QueryCollectorContext.createEarlyTerminationCollectorContext;
@@ -195,13 +190,6 @@ public class QueryPhase {
         final ContextIndexSearcher searcher = searchContext.searcher();
         final IndexReader reader = searcher.getIndexReader();
         QuerySearchResult queryResult = searchContext.queryResult();
-        Set<String> groupByCols = new HashSet<>();
-        // groupByCols.add("day");
-        groupByCols.add("status");
-        Map<String, List<Predicate<Integer>>> predicateMap = new HashMap<>();
-        List<Predicate<Integer>> predicates = new ArrayList<>();
-        predicates.add(status -> status == 200);
-        predicateMap.put("status", predicates);
         queryResult.searchTimedOut(false);
         try {
             queryResult.from(searchContext.from());
@@ -296,7 +284,6 @@ public class QueryPhase {
                     collectors,
                     hasFilterCollector,
                     timeoutSet
-
                 );
 
                 ExecutorService executor = searchContext.indexShard().getThreadPool().executor(ThreadPool.Names.SEARCH);

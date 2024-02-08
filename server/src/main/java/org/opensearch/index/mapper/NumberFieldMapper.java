@@ -89,9 +89,6 @@ import java.util.function.Supplier;
 public class NumberFieldMapper extends ParametrizedFieldMapper {
 
     public static final Setting<Boolean> COERCE_SETTING = Setting.boolSetting("index.mapping.coerce", true, Property.IndexScope);
-    private Boolean isDimension;
-    private Boolean isSumMetric;
-    private Boolean isCountMetric;
 
     private static NumberFieldMapper toType(FieldMapper in) {
         return (NumberFieldMapper) in;
@@ -106,10 +103,6 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
 
         private final Parameter<Boolean> indexed = Parameter.indexParam(m -> toType(m).indexed, true);
         private final Parameter<Boolean> hasDocValues = Parameter.docValuesParam(m -> toType(m).hasDocValues, true);
-
-        protected final Parameter<Boolean> isDimension = Parameter.boolParam("isDimension", false, m -> toType(m).isDimension, false);
-        protected final Parameter<Boolean> isSumMetric = Parameter.boolParam("isSumMetric", false, m -> toType(m).isSumMetric, false);
-        protected final Parameter<Boolean> isCountMetric = Parameter.boolParam("isCountMetric", false, m -> toType(m).isCountMetric, false);
 
         private final Parameter<Boolean> stored = Parameter.storeParam(m -> toType(m).stored, false);
 
@@ -163,18 +156,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(
-                indexed,
-                hasDocValues,
-                stored,
-                ignoreMalformed,
-                coerce,
-                nullValue,
-                meta,
-                isDimension,
-                isSumMetric,
-                isCountMetric
-            );
+            return Arrays.asList(indexed, hasDocValues, stored, ignoreMalformed, coerce, nullValue, meta);
         }
 
         @Override
@@ -1362,9 +1344,6 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         this.nullValue = builder.nullValue.getValue();
         this.ignoreMalformedByDefault = builder.ignoreMalformed.getDefaultValue().value();
         this.coerceByDefault = builder.coerce.getDefaultValue().value();
-        this.isCountMetric = builder.isCountMetric.getValue();
-        this.isSumMetric = builder.isSumMetric.getValue();
-        this.isDimension = builder.isDimension.getValue();
     }
 
     boolean coerce() {

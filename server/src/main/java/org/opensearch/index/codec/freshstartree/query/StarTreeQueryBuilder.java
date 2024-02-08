@@ -138,8 +138,6 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
 
     @Override
     protected Query doToQuery(QueryShardContext context) {
-        // Set<String> groupByCols = new HashSet<>();
-        // groupByCols.add("hour");
         // TODO : star tree supports either group by or filter
         if (predicateMap.size() > 0) {
             return new StarTreeQuery(predicateMap, new HashSet<>());

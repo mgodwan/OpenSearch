@@ -95,8 +95,8 @@ public class SegmentsStats implements Writeable, ToXContentFragment {
         Map.entry("tvf", "Term Vector Fields"),
         Map.entry("liv", "Live Documents"),
         Map.entry("stttree", "Star tree"),
-        Map.entry("sttd", "Star tree doc val data"),
-        Map.entry("sttm", "Star tree doc val meta")
+        Map.entry("sttd", "Star tree doc values data"),
+        Map.entry("sttm", "Star tree doc values meta")
     );
 
     public SegmentsStats() {

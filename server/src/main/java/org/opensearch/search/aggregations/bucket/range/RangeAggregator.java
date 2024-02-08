@@ -31,8 +31,6 @@
 
 package org.opensearch.search.aggregations.bucket.range;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.ScoreMode;
 import org.opensearch.core.ParseField;
@@ -76,8 +74,6 @@ public class RangeAggregator extends BucketsAggregator {
 
     public static final ParseField RANGES_FIELD = new ParseField("ranges");
     public static final ParseField KEYED_FIELD = new ParseField("keyed");
-
-    private static final Logger LOGGER = LogManager.getLogger(RangeAggregator.class);
 
     /**
      * Range for the range aggregator
@@ -355,14 +351,6 @@ public class RangeAggregator extends BucketsAggregator {
     }
 
     private long subBucketOrdinal(long owningBucketOrdinal, int rangeOrd) {
-        long subord = owningBucketOrdinal * ranges.length + rangeOrd;
-        LOGGER.info(
-            "Owning bucket ordinal : {} , rangeord : {} , len : {} == SubOrd : {}",
-            owningBucketOrdinal,
-            rangeOrd,
-            ranges.length,
-            subord
-        );
         return owningBucketOrdinal * ranges.length + rangeOrd;
     }
 

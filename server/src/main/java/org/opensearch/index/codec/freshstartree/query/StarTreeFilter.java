@@ -19,7 +19,6 @@ package org.opensearch.index.codec.freshstartree.query;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
-import org.apache.lucene.search.ConjunctionUtils;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.DocIdSetBuilder;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
@@ -37,7 +36,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
-import org.opensearch.index.document.SortedUnsignedLongDocValuesRangeQuery;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
@@ -203,8 +201,7 @@ public class StarTreeFilter {
                 // When the star-node exists, and the number of matching doc ids is more than or equal to
                 // the
                 // number of non-star child nodes, check if all the child nodes match the predicate, and use
-                // the
-                // star-node if so
+                // the star-node if so
                 if (starNode != null) {
                     List<StarTreeNode> matchingChildNodes = new ArrayList<>();
                     boolean findLeafChildNode = false;

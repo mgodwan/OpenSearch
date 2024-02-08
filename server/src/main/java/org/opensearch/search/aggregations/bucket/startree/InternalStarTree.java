@@ -8,24 +8,22 @@
 
 package org.opensearch.search.aggregations.bucket.startree;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.search.aggregations.Aggregation;
-import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.InternalAggregations;
 import org.opensearch.search.aggregations.InternalMultiBucketAggregation;
-import org.opensearch.search.aggregations.bucket.adjacency.InternalAdjacencyMatrix;
 import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.search.aggregations.support.ValueType;
 import org.opensearch.search.aggregations.support.ValuesSourceType;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,7 +72,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             builder.field(Aggregation.CommonFields.KEY.getPreferredName(), key);
-            // TODO : this is hack
+            // TODO : this is hack ( we are mapping bucket.noofdocs to sum )
             builder.field("SUM", sum);
             aggregations.toXContentInternal(builder, params);
             builder.endObject();
@@ -97,9 +95,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
                 return false;
             }
             InternalStarTree.Bucket that = (InternalStarTree.Bucket) other;
-            return Objects.equals(sum, that.sum)
-                && Objects.equals(aggregations, that.aggregations)
-                && Objects.equals(key, that.key);
+            return Objects.equals(sum, that.sum) && Objects.equals(aggregations, that.aggregations) && Objects.equals(key, that.key);
         }
 
         @Override
@@ -134,6 +130,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
 
         @SuppressWarnings("unchecked")
         public B createBucket(InternalAggregations aggregations, B prototype) {
+            // TODO : prototype.getDocCount() -- is mapped to sum - change this
             return (B) new InternalStarTree.Bucket(prototype.getKey(), prototype.getDocCount(), aggregations);
         }
     }
@@ -210,7 +207,7 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
 
         ArrayList<B> reducedBuckets = new ArrayList<>(bucketsMap.size());
 
-        for(List<B> sameRangeList : bucketsMap.values()) {
+        for (List<B> sameRangeList : bucketsMap.values()) {
             B reducedBucket = reduceBucket(sameRangeList, reduceContext);
             if (reducedBucket.getDocCount() >= 1) {
                 reducedBuckets.add(reducedBucket);
@@ -225,7 +222,6 @@ public class InternalStarTree<B extends InternalStarTree.Bucket, R extends Inter
     @Override
     protected B reduceBucket(List<B> buckets, ReduceContext context) {
         assert buckets.size() > 0;
-
 
         B reduced = null;
         List<InternalAggregations> aggregationsList = new ArrayList<>(buckets.size());

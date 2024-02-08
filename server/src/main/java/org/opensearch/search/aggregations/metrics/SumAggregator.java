@@ -31,8 +31,6 @@
 
 package org.opensearch.search.aggregations.metrics;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.ScoreMode;
 import org.opensearch.common.lease.Releasables;
@@ -50,7 +48,6 @@ import org.opensearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Aggregate all docs into a single sum value
@@ -64,10 +61,6 @@ public class SumAggregator extends NumericMetricsAggregator.SingleValue {
 
     private DoubleArray sums;
     private DoubleArray compensations;
-
-    private AtomicInteger bucket2;
-
-    private static final Logger logger = LogManager.getLogger(SumAggregator.class);
 
     SumAggregator(
         String name,
@@ -84,7 +77,6 @@ public class SumAggregator extends NumericMetricsAggregator.SingleValue {
             sums = context.bigArrays().newDoubleArray(1, true);
             compensations = context.bigArrays().newDoubleArray(1, true);
         }
-        bucket2 = new AtomicInteger(0);
     }
 
     @Override
@@ -100,11 +92,9 @@ public class SumAggregator extends NumericMetricsAggregator.SingleValue {
         final BigArrays bigArrays = context.bigArrays();
         final SortedNumericDoubleValues values = valuesSource.doubleValues(ctx);
         final CompensatedSum kahanSummation = new CompensatedSum(0, 0);
-        // int bucket = 0;
         return new LeafBucketCollectorBase(sub, values) {
             @Override
             public void collect(int doc, long bucket) throws IOException {
-                // long bucket = bucket2.get();
                 sums = bigArrays.grow(sums, bucket + 1);
                 compensations = bigArrays.grow(compensations, bucket + 1);
 
