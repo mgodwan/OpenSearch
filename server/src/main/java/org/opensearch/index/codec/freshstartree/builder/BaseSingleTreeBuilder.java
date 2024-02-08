@@ -16,6 +16,7 @@
  */
 package org.opensearch.index.codec.freshstartree.builder;
 
+import java.time.temporal.ChronoField;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.CodecUtil;
@@ -59,7 +60,7 @@ import java.util.Set;
 /** Base class for star tree builder */
 public abstract class BaseSingleTreeBuilder {
     public static final int STAR_IN_DOC_VALUES_INDEX = -1;
-    public final static long SECOND = 1;// HTTP codec
+    public final static long SECOND = 1000;// HTTP codec
     public final static long MINUTE = 60 * SECOND;
     public final static long HOUR = 60 * 60 * SECOND;
     public final static long DAY = 24 * HOUR;
@@ -98,8 +99,8 @@ public abstract class BaseSingleTreeBuilder {
         dimensionsSplitOrder = new ArrayList<>();
         dimensionsSplitOrder.add("minute");
         dimensionsSplitOrder.add("hour");
-        //dimensionsSplitOrder.add("day");
-        //dimensionsSplitOrder.add("month");
+        dimensionsSplitOrder.add("day");
+        dimensionsSplitOrder.add("month");
         // dimensionsSplitOrder.add("year");
         dimensionsSplitOrder.add("status");
         _numDimensions = dimensionsSplitOrder.size();
@@ -565,19 +566,48 @@ public abstract class BaseSingleTreeBuilder {
         return new Record(dimensions, metrics);
     }
 
-    private long getTimeStampVal(final String fieldName, final long val) {
+    private long getTimeStampVal1(final String fieldName, final long val) {
         switch (fieldName) {
             case "minute":
-                return val / MINUTE;// * MINUTE;
+                return val / MINUTE;
             case "hour":
-                logger.info( "val: " + val + " hour: " + (val/HOUR));
-                return val / HOUR;// * HOUR;
+                System.out.println(val + " " + val % HOUR);
+                return val / HOUR;
             case "day":
-                return val / DAY;// * DAY;
+                return val / DAY;
             case "month":
-                return val / MONTH;// * MONTH; // TODO
+                return val / MONTH;
             case "year":
-                return val / YEAR;// * YEAR;
+                return val / YEAR;
+            default:
+                return val;
+        }
+    }
+
+    private long getTimeStampVal(final String fieldName, final long val) {
+        long roundedDate = 0;
+        long ratio = 0;
+
+        switch (fieldName) {
+
+            case "minute":
+                ratio = ChronoField.MINUTE_OF_HOUR.getBaseUnit().getDuration().toMillis();
+                roundedDate = DateUtils.roundFloor(val, ratio);
+                return roundedDate;
+            case "hour":
+                ratio = ChronoField.HOUR_OF_DAY.getBaseUnit().getDuration().toMillis();
+                roundedDate = DateUtils.roundFloor(val, ratio);
+                return roundedDate;
+            case "day":
+                ratio = ChronoField.DAY_OF_MONTH.getBaseUnit().getDuration().toMillis();
+                roundedDate = DateUtils.roundFloor(val, ratio);
+                return roundedDate;
+            case "month":
+                roundedDate = DateUtils.roundMonthOfYear(val);
+                return roundedDate;
+            case "year":
+                roundedDate = DateUtils.roundYear(val);
+                return roundedDate;
             default:
                 return val;
         }

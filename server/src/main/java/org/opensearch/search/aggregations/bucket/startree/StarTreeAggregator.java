@@ -203,7 +203,7 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
         for (Map.Entry<String, NumericDocValues> fieldEntry : fieldColsMap.entrySet()) {
             fieldEntry.getValue().advanceExact(doc);
             long val = fieldEntry.getValue().longValue();
-            System.out.println("Key field : " + fieldEntry.getKey()  + " Value : " + val);
+            //System.out.println("Key field : " + fieldEntry.getKey()  + " Value : " + val);
             sj.add("" + val);
         }
         return sj.toString();
@@ -211,13 +211,13 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
 
     private long subBucketOrdinal(long owningBucketOrdinal, int keyOrd) {
         long subord = owningBucketOrdinal * indexMap.size() + keyOrd;
-        logger.info(
-            "Owning bucket ordinal : {} , rangeord : {} , len : {} == SubOrd : {}",
-            owningBucketOrdinal,
-            keyOrd,
-            indexMap.size(),
-            subord
-        );
+//        logger.info(
+//            "Owning bucket ordinal : {} , rangeord : {} , len : {} == SubOrd : {}",
+//            owningBucketOrdinal,
+//            keyOrd,
+//            indexMap.size(),
+//            subord
+//        );
         return owningBucketOrdinal * indexMap.size() + keyOrd;
     }
 }
