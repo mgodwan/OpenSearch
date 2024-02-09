@@ -211,7 +211,13 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
     private Record deserializeStarTreeRecord(RandomAccessInput buffer, long offset) throws IOException {
         long[] dimensions = new long[_numDimensions];
         for (int i = 0; i < _numDimensions; i++) {
-            dimensions[i] = buffer.readLong(offset);
+            try {
+                dimensions[i] = buffer.readLong(offset);
+            } catch(Exception e) {
+                logger.info("Error reading dimension value at offset " + offset + " for dimension"
+                    + " " + i + " : _numReadableStarTreeRecords = " + _numReadableStarTreeRecords);
+                throw e;
+            }
             offset += Long.BYTES;
         }
         Object[] metrics = new Object[_numMetrics];
@@ -367,6 +373,8 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
 
     @Override
     Iterator<Record> generateRecordsForStarNode(int startDocId, int endDocId, int dimensionId) throws IOException {
+        // End doc id is not inclusive but start doc is inclusive
+        // Hence we need to check if buffer is readable till endDocId - 1
         ensureBufferReadable(endDocId, true);
 
         // Sort all records using an int array
@@ -453,10 +461,20 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
             return;
         }
         IndexInput in = null;
+        /**
+         * If docId is less then the _numDocs , then we need to find a previous file associated with doc id
+         * The fileToByteSizeMap is in the following format
+         * file1 -> 521
+         * file2 -> 780
+         *
+         * which represents that file1 contains all docs till "520".
+         * "prevStartDocId" essentially tracks the "start doc id" of the range in the present file
+         * "_numReadableStarTreeRecords" tracks the "end doc id + 1" of the range in the present file
+         */
         if (docId < _numDocs) {
             int prevStartDocId = 0;
             for (Map.Entry<String, Integer> entry : fileToByteSizeMap.entrySet()) {
-                if (docId < entry.getValue() - 1) {
+                if (docId < entry.getValue()) {
                     in = state.directory.openInput(entry.getKey(), state.context);
                     starTreeRecordRandomInput = in.randomAccessSlice(in.getFilePointer(), in.length() - in.getFilePointer());
                     _numReadableStarTreeRecords = entry.getValue();

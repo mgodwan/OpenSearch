@@ -16,6 +16,8 @@
  */
 package org.opensearch.index.codec.freshstartree.query;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
@@ -41,6 +43,8 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 /** Filter operator for star tree data structure. */
 public class StarTreeFilter {
+    private static final Logger logger = LogManager.getLogger(StarTreeFilter.class);
+
 
     /** Helper class to wrap the result from traversing the star tree. */
     static class StarTreeResult {
@@ -125,6 +129,7 @@ public class StarTreeFilter {
 
         StarTree starTree = _starTree;
         List<String> dimensionNames = starTree.getDimensionNames();
+        logger.info("Dimension names {}", dimensionNames);
         StarTreeNode starTreeRootNode = starTree.getRoot();
 
         // Track whether we have found a leaf node added to the queue. If we have found a leaf node, and

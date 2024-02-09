@@ -8,6 +8,8 @@
 
 package org.opensearch.index.codec.freshstartree.query;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.Query;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.ParsingException;
@@ -16,6 +18,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.index.codec.freshstartree.builder.BaseSingleTreeBuilder;
 import org.opensearch.index.query.AbstractQueryBuilder;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -38,6 +41,7 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
 
     private final Set<String> groupBy = new HashSet<>();
     Map<String, List<Predicate<Long>>> predicateMap = new HashMap<>();
+    private static final Logger logger = LogManager.getLogger(StarTreeQueryBuilder.class);
 
     public StarTreeQueryBuilder() {}
 
@@ -140,8 +144,10 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     protected Query doToQuery(QueryShardContext context) {
         // TODO : star tree supports either group by or filter
         if (predicateMap.size() > 0) {
+            logger.info("Predicates: {} ", this.groupBy.toString() );
             return new StarTreeQuery(predicateMap, new HashSet<>());
         }
+        logger.info("Group by : {} ", this.groupBy.toString() );
         return new StarTreeQuery(new HashMap<>(), this.groupBy);
     }
 
