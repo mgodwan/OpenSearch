@@ -147,7 +147,7 @@ public abstract class BaseSingleTreeBuilder {
         }
 
         // TODO : Removing hardcoding
-        _maxLeafRecords = 100; // builderConfig.getMaxLeafRecords();
+        _maxLeafRecords = 10000; // builderConfig.getMaxLeafRecords();
     }
 
     private void constructStarTree(StarTreeBuilderUtils.TreeNode node, int startDocId, int endDocId) throws IOException {
@@ -381,6 +381,7 @@ public abstract class BaseSingleTreeBuilder {
         // if(star) {
         // System.out.println("======Overall sum =====" + (long) record._metrics[0]);
         // }
+        //logger.info("Record : {}", record.toString());
         appendRecord(record);
         _numDocs++;
     }

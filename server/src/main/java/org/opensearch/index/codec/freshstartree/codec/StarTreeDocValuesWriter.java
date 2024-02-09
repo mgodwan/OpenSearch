@@ -16,6 +16,8 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.DocValuesConsumer;
@@ -60,7 +62,12 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
         this.state = segmentWriteState;
         dimensionReaders = new HashMap<>();
         dimensionsSplitOrder = new ArrayList<>();
-
+//        dimensionsSplitOrder.add("minute");
+//        dimensionsSplitOrder.add("hour");
+//        dimensionsSplitOrder.add("day");
+//        dimensionsSplitOrder.add("month");
+//        // dimensionsSplitOrder.add("year");
+//        dimensionsSplitOrder.add("status");
         docValuesConsumer = new Lucene90DocValuesConsumerCopy(state, DATA_CODEC, "sttd", META_CODEC, "sttm");
     }
 
@@ -100,7 +107,7 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
         } else {
             // logger.info("Adding field : " + field.name);
             dimensionReaders.put(field.name + "_dim", valuesProducer.getSortedNumeric(field));
-            dimensionsSplitOrder.add(field.name);
+            //dimensionsSplitOrder.add(field.name);
         }
         if (field.name.contains("status")) {
             // TODO : change this metric type
@@ -121,16 +128,18 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
 
     public void mergeAggregatedValues(MergeState mergeState) throws IOException {
         List<StarTreeAggregatedValues> aggrList = new ArrayList<>();
+        List<String> dimNames = new ArrayList<>();
         for (int i = 0; i < mergeState.docValuesProducers.length; i++) {
             DocValuesProducer producer = mergeState.docValuesProducers[i];
             Object obj = producer.getAggregatedDocValues();
             StarTreeAggregatedValues starTree = (StarTreeAggregatedValues) obj;
+            dimNames = starTree.dimensionValues.keySet().stream().collect(Collectors.toList());
             aggrList.add(starTree);
         }
         long startTime = System.currentTimeMillis();
         builder = new OffHeapBufferedSingleTreeBuilder(
             data,
-            dimensionsSplitOrder,
+            dimNames,
             dimensionReaders,
             state.segmentInfo.maxDoc(),
             docValuesConsumer,

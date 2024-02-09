@@ -16,6 +16,8 @@
  */
 package org.opensearch.index.codec.freshstartree.node;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.RandomAccessInput;
 
@@ -29,6 +31,7 @@ import java.util.StringJoiner;
 
 /** Off heap implementation of star tree. */
 public class OffHeapStarTree implements StarTree {
+    private static final Logger logger = LogManager.getLogger(OffHeapStarTree.class);
     public static final long MAGIC_MARKER = 0xBADDA55B00DAD00DL;
     public static final int VERSION = 1;
     private final OffHeapStarTreeNode _root;
@@ -108,6 +111,7 @@ public class OffHeapStarTree implements StarTree {
             .toString();
 
         stringBuilder.append(formattedOutput);
+        logger.info(stringBuilder.toString());
 
         if (!node.isLeaf()) {
             Iterator<OffHeapStarTreeNode> childrenIterator = node.getChildrenIterator();

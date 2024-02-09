@@ -178,7 +178,6 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
                 for (String field : fieldCols) {
                     fieldColToDocValuesMap.put(field, aggrVals.dimensionValues.get(field));
                 }
-
                 NumericDocValues dv = aggrVals.metricValues.get("status_sum");
                 if (dv.advanceExact(doc)) {
 

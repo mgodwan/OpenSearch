@@ -16,6 +16,7 @@
  */
 package org.opensearch.index.codec.freshstartree.codec;
 
+import java.util.LinkedHashMap;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 /** Custom star tree doc values reader */
 public class StarTreeDocValuesReader extends DocValuesProducer {
@@ -59,7 +61,7 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
         CodecUtil.checkIndexHeader(data, "STARTreeCodec", 0, 0, state.segmentInfo.getId(), state.segmentSuffix);
         starTree = new OffHeapStarTree(data);
         valuesProducer = new Lucene90DocValuesProducerCopy(state, DATA_CODEC, "sttd", META_CODEC, "sttm", starTree.getDimensionNames());
-        dimensionValues = new HashMap<>();
+        dimensionValues = new LinkedHashMap<>();
     }
 
     @Override
@@ -69,7 +71,6 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
 
     @Override
     public StarTreeAggregatedValues getAggregatedDocValues() throws IOException {
-        // starTree.printTree(new HashMap<>());
         List<String> dimensionsSplitOrder = starTree.getDimensionNames();
         for (int i = 0; i < dimensionsSplitOrder.size(); i++) {
             dimensionValues.put(dimensionsSplitOrder.get(i), valuesProducer.getNumeric(dimensionsSplitOrder.get(i) + "_dim"));

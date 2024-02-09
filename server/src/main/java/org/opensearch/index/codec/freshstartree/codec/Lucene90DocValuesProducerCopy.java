@@ -55,6 +55,7 @@ import java.util.Map;
  * We don't create aggregated doc value fields in traditional add/update doc workflow where fieldInfo gets populated
  */
 public class Lucene90DocValuesProducerCopy extends DocValuesProducer {
+
     private final Map<String, NumericEntry> numerics;
     private final Map<String, SortedNumericEntry> sortedNumerics;
     private final IndexInput data;
