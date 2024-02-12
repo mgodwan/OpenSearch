@@ -104,13 +104,10 @@ public class StarTreeDocValuesWriter extends DocValuesConsumer {
             dimensionReaders.put("day_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put("month_dim", valuesProducer.getSortedNumeric(field));
             // dimensionReaders.put("year_dim", valuesProducer.getSortedNumeric(field));
-        } else {
-            // logger.info("Adding field : " + field.name);
-            dimensionReaders.put(field.name + "_dim", valuesProducer.getSortedNumeric(field));
-            //dimensionsSplitOrder.add(field.name);
         }
         if (field.name.contains("status")) {
             // TODO : change this metric type
+            dimensionReaders.put(field.name + "_dim", valuesProducer.getSortedNumeric(field));
             dimensionReaders.put(field.name + "_sum_metric", valuesProducer.getSortedNumeric(field));
         }
     }

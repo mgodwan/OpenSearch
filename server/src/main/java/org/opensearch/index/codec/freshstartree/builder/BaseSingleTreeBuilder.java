@@ -102,7 +102,8 @@ public abstract class BaseSingleTreeBuilder {
         dimensionsSplitOrder.add("day");
         dimensionsSplitOrder.add("month");
         // dimensionsSplitOrder.add("year");
-        dimensionsSplitOrder.add("status");
+        dimensionsSplitOrder.add("elb_status");
+        dimensionsSplitOrder.add("target_status");
         _numDimensions = dimensionsSplitOrder.size();
         _dimensionsSplitOrder = new String[_numDimensions];
         _skipStarNodeCreationForDimensions = new HashSet<>();
@@ -111,10 +112,13 @@ public abstract class BaseSingleTreeBuilder {
         List<String> functionColumnPairList = new ArrayList<>();
 
         // TODO : pass function column pair - Remove hardcoding
-        functionColumnPairList.add("SUM__status");
+        functionColumnPairList.add("SUM__elb_status");
+        functionColumnPairList.add("SUM__target_status");
+        functionColumnPairList.add("COUNT__target_status");
         List<AggregationFunctionColumnPair> aggregationSpecs = new ArrayList<>();
-        aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__status"));
-        // aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__status"));
+        aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__elb_status"));
+        aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__elb_status"));
+        aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__target_status"));
 
         _dimensionReaders = new SortedNumericDocValues[_numDimensions];
         Set<String> skipStarNodeCreationForDimensions = new HashSet<>();
