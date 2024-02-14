@@ -117,8 +117,8 @@ public abstract class BaseSingleTreeBuilder {
         functionColumnPairList.add("COUNT__target_status");
         List<AggregationFunctionColumnPair> aggregationSpecs = new ArrayList<>();
         aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__elb_status"));
-        aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__elb_status"));
         aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("SUM__target_status"));
+        //aggregationSpecs.add(AggregationFunctionColumnPair.fromColumnName("COUNT__elb_status"));
 
         _dimensionReaders = new SortedNumericDocValues[_numDimensions];
         Set<String> skipStarNodeCreationForDimensions = new HashSet<>();
@@ -564,7 +564,12 @@ public abstract class BaseSingleTreeBuilder {
         for (int i = 0; i < _numMetrics; i++) {
             // Ignore the column for COUNT aggregation function
             if (_metricReaders[i] != null) {
-                _metricReaders[i].nextDoc();
+                try {
+                    _metricReaders[i].nextDoc();
+                } catch (Exception e) {
+                    // TODO : handle null values in columns
+                    logger.info(e);
+                }
                 metrics[i] = _metricReaders[i].nextValue();
             }
         }
@@ -621,8 +626,13 @@ public abstract class BaseSingleTreeBuilder {
     long[] getNextSegmentRecordDimensions() throws IOException {
         long[] dimensions = new long[_numDimensions];
         for (int i = 0; i < _numDimensions; i++) {
-            _dimensionReaders[i].nextDoc();
+            try {
+                _dimensionReaders[i].nextDoc();
+            } catch(Exception e) {
+                logger.info(e);
+            }
             dimensions[i] = getTimeStampVal(_dimensionsSplitOrder[i], _dimensionReaders[i].nextValue());
+            //logger.info("Dim : {} , DimValue : {}", _dimensionsSplitOrder[i], _dimensionReaders[i].nextValue());
         }
         return dimensions;
     }

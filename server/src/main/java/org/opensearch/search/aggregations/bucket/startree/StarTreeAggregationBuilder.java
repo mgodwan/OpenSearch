@@ -29,6 +29,7 @@ public class StarTreeAggregationBuilder extends AbstractAggregationBuilder<StarT
     public static final String NAME = "startree";
 
     private List<String> fieldCols;
+    private List<String> metrics;
     public static final ObjectParser<StarTreeAggregationBuilder, String> PARSER = ObjectParser.fromBuilder(
         NAME,
         StarTreeAggregationBuilder::new
@@ -36,11 +37,17 @@ public class StarTreeAggregationBuilder extends AbstractAggregationBuilder<StarT
 
     static {
         PARSER.declareStringArray(StarTreeAggregationBuilder::groupby, new ParseField("groupby"));
+        PARSER.declareStringArray(StarTreeAggregationBuilder::metrics, new ParseField("metrics"));
     }
 
     private void groupby(List<String> strings) {
         fieldCols = new ArrayList<>();
         fieldCols.addAll(strings);
+    }
+
+    private void metrics(List<String> strings) {
+        metrics = new ArrayList<>();
+        metrics.addAll(strings);
     }
 
     public StarTreeAggregationBuilder(String name) {
@@ -66,8 +73,12 @@ public class StarTreeAggregationBuilder extends AbstractAggregationBuilder<StarT
     public StarTreeAggregationBuilder(StreamInput in) throws IOException {
         super(in);
         String[] fieldArr = in.readOptionalStringArray();
+        String[] metrics = in.readOptionalStringArray();
         if (fieldArr != null) {
             fieldCols = Arrays.asList(fieldArr);
+        }
+        if(metrics != null) {
+            this.metrics = Arrays.asList(metrics);
         }
     }
 
@@ -75,6 +86,7 @@ public class StarTreeAggregationBuilder extends AbstractAggregationBuilder<StarT
     protected void doWriteTo(StreamOutput out) throws IOException {
         // Nothing to write
         out.writeOptionalStringArray(fieldCols.toArray(new String[0]));
+        out.writeOptionalStringArray(metrics.toArray(new String[0]));
     }
 
     @Override
@@ -88,7 +100,7 @@ public class StarTreeAggregationBuilder extends AbstractAggregationBuilder<StarT
         AggregatorFactory parent,
         AggregatorFactories.Builder subFactoriesBuilder
     ) throws IOException {
-        return new StarTreeAggregatorFactory(name, queryShardContext, parent, subFactoriesBuilder, metadata, fieldCols);
+        return new StarTreeAggregatorFactory(name, queryShardContext, parent, subFactoriesBuilder, metadata, fieldCols, metrics);
     }
 
     @Override

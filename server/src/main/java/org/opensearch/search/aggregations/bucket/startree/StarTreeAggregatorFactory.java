@@ -21,6 +21,7 @@ import java.util.Map;
 
 public class StarTreeAggregatorFactory extends AggregatorFactory {
     private List<String> fieldCols;
+    private List<String> metrics;
 
     StarTreeAggregatorFactory(
         String name,
@@ -28,10 +29,12 @@ public class StarTreeAggregatorFactory extends AggregatorFactory {
         AggregatorFactory parent,
         AggregatorFactories.Builder subFactoriesBuilder,
         Map<String, Object> metadata,
-        List<String> fieldCols
+        List<String> fieldCols,
+        List<String> metrics
     ) throws IOException {
         super(name, queryShardContext, parent, subFactoriesBuilder, metadata);
         this.fieldCols = fieldCols;
+        this.metrics = metrics;
     }
 
     @Override
@@ -41,7 +44,7 @@ public class StarTreeAggregatorFactory extends AggregatorFactory {
         CardinalityUpperBound cardinality,
         Map<String, Object> metadata
     ) throws IOException {
-        return new StarTreeAggregator(name, factories, null, null, searchContext, parent, metadata, fieldCols);
+        return new StarTreeAggregator(name, factories, null, null, searchContext, parent, metadata, fieldCols, metrics);
     }
 
     @Override

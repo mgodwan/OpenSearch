@@ -50,6 +50,8 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
 
     private List<String> fieldCols;
 
+    private List<String> metrics;
+
     final InternalStarTree.Factory starTreeFactory;
 
     private static final Logger logger = LogManager.getLogger(StarTreeAggregator.class);
@@ -62,12 +64,14 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
         SearchContext context,
         Aggregator parent,
         Map<String, Object> metadata,
-        List<String> fieldCols
+        List<String> fieldCols,
+        List<String> metrics
     ) throws IOException {
         super(name, factories, context, parent, CardinalityUpperBound.MANY, metadata);
         this._starTrees = starTrees;
         this.starTreeFactory = starTreeFactory;
         this.fieldCols = fieldCols;
+        this.metrics = metrics;
     }
 
     public static class StarTree implements Writeable, ToXContentObject {
@@ -179,7 +183,7 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
                     fieldColToDocValuesMap.put(field, aggrVals.dimensionValues.get(field));
                 }
                 // Another hardcoding
-                NumericDocValues dv = aggrVals.metricValues.get("elb_status_count");
+                NumericDocValues dv = aggrVals.metricValues.get(metrics.get(0));
                 if (dv.advanceExact(doc)) {
 
                     String key = getKey(fieldColToDocValuesMap, doc);
@@ -190,7 +194,7 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
                         indexMap.put(key, indexMap.size());
                         sumMap.put(key, dv.longValue());
                     }
-
+                    logger.info("Sum : {}" + sumMap.get(key));
                     collectBucket(sub, doc, subBucketOrdinal(bucket, indexMap.get(key)));
                 }
             }
