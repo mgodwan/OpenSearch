@@ -17,6 +17,7 @@
 package org.opensearch.index.codec.freshstartree.codec;
 
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.opensearch.index.codec.freshstartree.node.StarTree;
 
 import java.util.Map;
@@ -26,14 +27,14 @@ import java.util.Map;
 /** Star tree aggregated values holder for reader / query */
 public class StarTreeAggregatedValues {
     public StarTree _starTree;
-    public Map<String, NumericDocValues> dimensionValues;
+    public Map<String, SortedNumericDocValues> dimensionValues;
 
-    public Map<String, NumericDocValues> metricValues;
+    public Map<String, SortedNumericDocValues> metricValues;
 
     public StarTreeAggregatedValues(
         StarTree starTree,
-        Map<String, NumericDocValues> dimensionValues,
-        Map<String, NumericDocValues> metricValues
+        Map<String, SortedNumericDocValues> dimensionValues,
+        Map<String, SortedNumericDocValues> metricValues
     ) {
         this._starTree = starTree;
         this.dimensionValues = dimensionValues;

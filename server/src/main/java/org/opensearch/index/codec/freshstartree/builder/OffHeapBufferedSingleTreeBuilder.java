@@ -129,12 +129,14 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
                 while (!endOfDoc) {
                     long[] dims = new long[starTree.dimensionValues.size()];
                     int i = 0;
-                    for (Map.Entry<String, NumericDocValues> dimValue : starTree.dimensionValues.entrySet()) {
-                        endOfDoc = dimValue.getValue().nextDoc() == DocIdSetIterator.NO_MORE_DOCS || dimValue.getValue().longValue() == -1;
+                    for (Map.Entry<String, SortedNumericDocValues> dimValue : starTree.dimensionValues.entrySet()) {
+                        int doc = dimValue.getValue().nextDoc();
+                        long val = dimValue.getValue().nextValue();
+
+                        endOfDoc = doc == DocIdSetIterator.NO_MORE_DOCS || val == -1;
                         if (endOfDoc) {
                             break;
                         }
-                        long val = dimValue.getValue().longValue();
                         dims[i] = val;
                         i++;
                     }
@@ -143,9 +145,9 @@ public class OffHeapBufferedSingleTreeBuilder extends BaseSingleTreeBuilder {
                     }
                     i = 0;
                     Object[] metrics = new Object[starTree.metricValues.size()];
-                    for (Map.Entry<String, NumericDocValues> metricValue : starTree.metricValues.entrySet()) {
+                    for (Map.Entry<String, SortedNumericDocValues> metricValue : starTree.metricValues.entrySet()) {
                         metricValue.getValue().nextDoc();
-                        metrics[i] = metricValue.getValue().longValue();
+                        metrics[i] = metricValue.getValue().nextValue();
                         i++;
                     }
                     Record record = new Record(dims, metrics);

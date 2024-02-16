@@ -47,9 +47,9 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
 
     StarTree starTree;
 
-    Map<String, NumericDocValues> dimensionValues;
+    Map<String, SortedNumericDocValues> dimensionValues;
 
-    Map<String, NumericDocValues> metricValues;
+    Map<String, SortedNumericDocValues> metricValues;
     public static final String DATA_CODEC = "Lucene90DocValuesData";
     public static final String META_CODEC = "Lucene90DocValuesMetadata";
 
@@ -73,11 +73,11 @@ public class StarTreeDocValuesReader extends DocValuesProducer {
     public StarTreeAggregatedValues getAggregatedDocValues() throws IOException {
         List<String> dimensionsSplitOrder = starTree.getDimensionNames();
         for (int i = 0; i < dimensionsSplitOrder.size(); i++) {
-            dimensionValues.put(dimensionsSplitOrder.get(i), valuesProducer.getNumeric(dimensionsSplitOrder.get(i) + "_dim"));
+            dimensionValues.put(dimensionsSplitOrder.get(i), valuesProducer.getSortedNumeric(dimensionsSplitOrder.get(i) + "_dim"));
         }
         metricValues = new HashMap<>();
-        metricValues.put("elb_status_sum", valuesProducer.getNumeric("elb_status_sum_metric"));
-        metricValues.put("target_status_sum", valuesProducer.getNumeric("target_status_sum_metric"));
+        metricValues.put("elb_status_sum", valuesProducer.getSortedNumeric("elb_status_sum_metric"));
+        metricValues.put("target_status_sum", valuesProducer.getSortedNumeric("target_status_sum_metric"));
         //metricValues.put("elb_status_count", valuesProducer.getNumeric("elb_status_count_metric"));
         //metricValues.put("status_count", valuesProducer.getNumeric("status_count_metric"));
         return new StarTreeAggregatedValues(starTree, dimensionValues, metricValues);

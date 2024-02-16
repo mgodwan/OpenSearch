@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
@@ -176,23 +177,23 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
             public void collect(int doc, long bucket) throws IOException {
                 StarTreeAggregatedValues aggrVals = (StarTreeAggregatedValues) ctx.reader().getAggregatedDocValues();
 
-                Map<String, NumericDocValues> fieldColToDocValuesMap = new HashMap<>();
+                Map<String, SortedNumericDocValues> fieldColToDocValuesMap = new HashMap<>();
 
                 // TODO : validations
                 for (String field : fieldCols) {
                     fieldColToDocValuesMap.put(field, aggrVals.dimensionValues.get(field));
                 }
                 // Another hardcoding
-                NumericDocValues dv = aggrVals.metricValues.get(metrics.get(0));
+                SortedNumericDocValues dv = aggrVals.metricValues.get(metrics.get(0));
                 if (dv.advanceExact(doc)) {
 
                     String key = getKey(fieldColToDocValuesMap, doc);
 
                     if (indexMap.containsKey(key)) {
-                        sumMap.put(key, sumMap.getOrDefault(key, 0l) + dv.longValue());
+                        sumMap.put(key, sumMap.getOrDefault(key, 0l) + dv.nextValue());
                     } else {
                         indexMap.put(key, indexMap.size());
-                        sumMap.put(key, dv.longValue());
+                        sumMap.put(key, dv.nextValue());
                     }
                     collectBucket(sub, doc, subBucketOrdinal(bucket, indexMap.get(key)));
                 }
@@ -201,11 +202,11 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
 
     }
 
-    private String getKey(Map<String, NumericDocValues> fieldColsMap, int doc) throws IOException {
+    private String getKey(Map<String, SortedNumericDocValues> fieldColsMap, int doc) throws IOException {
         StringJoiner sj = new StringJoiner("-");
-        for (Map.Entry<String, NumericDocValues> fieldEntry : fieldColsMap.entrySet()) {
+        for (Map.Entry<String, SortedNumericDocValues> fieldEntry : fieldColsMap.entrySet()) {
             fieldEntry.getValue().advanceExact(doc);
-            long val = fieldEntry.getValue().longValue();
+            long val = fieldEntry.getValue().nextValue();
             //System.out.println("Key field : " + fieldEntry.getKey()  + " Value : " + val);
             sj.add("" + val);
         }

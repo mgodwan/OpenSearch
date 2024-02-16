@@ -67,7 +67,7 @@ public class StarTreeFilter {
     DocIdSetBuilder docsWithField;
 
     DocIdSetBuilder.BulkAdder adder;
-    Map<String, NumericDocValues> dimValueMap;
+    Map<String, SortedNumericDocValues> dimValueMap;
     int docNum;
     public StarTreeFilter(
         StarTreeAggregatedValues starTreeAggrStructure,
@@ -108,7 +108,7 @@ public class StarTreeFilter {
             // TODO : set to max value of doc values
             DocIdSetBuilder builder = new DocIdSetBuilder(starTreeResult.numOfMatchedDocs);
             List<Predicate<Long>> compositePredicateEvaluators = _predicateEvaluators.get(remainingPredicateColumn);
-            SortedNumericDocValues ndv = DocValues.singleton(this.dimValueMap.get(remainingPredicateColumn));
+            SortedNumericDocValues ndv = this.dimValueMap.get(remainingPredicateColumn);
             long ndvStartTime1 = System.nanoTime();
             while (docIdSetIterator.nextDoc() != NO_MORE_DOCS) {
                 docCount++;
@@ -184,8 +184,9 @@ public class StarTreeFilter {
             // If all predicate columns and group-by columns are matched, we can use aggregated document
             if (remainingPredicateColumns.isEmpty() && remainingGroupByColumns.isEmpty()) {
                 adder = docsWithField.grow(1);
-                docNum++;
-                adder.add(starTreeNode.getAggregatedDocId());
+                int docId = starTreeNode.getAggregatedDocId();
+                adder.add(docId);
+                docNum = docId > docNum ? docId : docNum;
                 continue;
             }
 
@@ -197,8 +198,8 @@ public class StarTreeFilter {
             if (starTreeNode.isLeaf()) {
                 for (long i = starTreeNode.getStartDocId(); i < starTreeNode.getEndDocId(); i++) {
                     adder = docsWithField.grow(1);
-                    docNum++;
                     adder.add((int) i);
+                    docNum = (int)i > docNum ? (int)i : docNum;
                 }
                 continue;
             }

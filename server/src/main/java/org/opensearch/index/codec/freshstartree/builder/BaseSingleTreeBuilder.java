@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
+import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.EmptyDocValuesProducer;
@@ -34,6 +35,8 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.Counter;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.packed.PackedInts;
 import org.apache.lucene.util.packed.PackedLongValues;
@@ -42,6 +45,7 @@ import org.opensearch.index.codec.freshstartree.aggregator.AggregationFunctionCo
 import org.opensearch.index.codec.freshstartree.aggregator.AggregationFunctionType;
 import org.opensearch.index.codec.freshstartree.aggregator.ValueAggregator;
 import org.opensearch.index.codec.freshstartree.aggregator.ValueAggregatorFactory;
+import org.opensearch.index.codec.freshstartree.codec.SortedNumericDocValuesWriter;
 import org.opensearch.index.codec.freshstartree.codec.StarTreeAggregatedValues;
 import org.opensearch.index.codec.freshstartree.node.StarTreeNode;
 import org.opensearch.index.codec.freshstartree.util.BufferedAggregatedDocValues;
@@ -151,7 +155,7 @@ public abstract class BaseSingleTreeBuilder {
         }
 
         // TODO : Removing hardcoding
-        _maxLeafRecords = 10000; // builderConfig.getMaxLeafRecords();
+        _maxLeafRecords = 1000; // builderConfig.getMaxLeafRecords();
     }
 
     private void constructStarTree(StarTreeBuilderUtils.TreeNode node, int startDocId, int endDocId) throws IOException {
@@ -257,10 +261,116 @@ public abstract class BaseSingleTreeBuilder {
         logger.info("Finished creating aggregated documents, got aggregated records : {}", numAggregatedRecords);
 
         // Create doc values indices in disk
-        createDocValuesIndices(_docValuesConsumer);
+        createSortedDocValuesIndices(_docValuesConsumer);
 
         // Serialize and save in disk
         StarTreeBuilderUtils.serializeTree(indexOutput, _rootNode, _dimensionsSplitOrder, _numNodes);
+    }
+
+    private void createSortedDocValuesIndices(DocValuesConsumer docValuesConsumer) throws IOException {
+        List<SortedNumericDocValuesWriter> dimWriterList = new ArrayList<>();
+        List<SortedNumericDocValuesWriter> metricWriterList = new ArrayList<>();
+        FieldInfo[] dimFieldInfoArr = new FieldInfo[_dimensionReaders.length];
+        FieldInfo[] metricFieldInfoArr = new FieldInfo[_metricReaders.length];
+        int fieldNum = 0;
+        for (int i = 0; i < _dimensionReaders.length; i++) {
+            final FieldInfo fi = new FieldInfo(
+                _dimensionsSplitOrder[i] + "_dim",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.SORTED_NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
+            dimFieldInfoArr[i] = fi;
+            final SortedNumericDocValuesWriter w = new SortedNumericDocValuesWriter(fi, Counter.newCounter());
+            dimWriterList.add(w);
+            fieldNum++;
+        }
+        for (int i = 0; i < _metricReaders.length; i++) {
+            FieldInfo fi = new FieldInfo(
+                _metrics[i] + "_metric",
+                fieldNum,
+                false,
+                false,
+                true,
+                IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
+                DocValuesType.SORTED_NUMERIC,
+                -1,
+                Collections.emptyMap(),
+                0,
+                0,
+                0,
+                0,
+                VectorEncoding.FLOAT32,
+                VectorSimilarityFunction.EUCLIDEAN,
+                false
+            );
+            final SortedNumericDocValuesWriter w = new SortedNumericDocValuesWriter(fi, Counter.newCounter());
+            metricWriterList.add(w);
+            metricFieldInfoArr[i] = fi;
+            fieldNum++;
+        }
+
+        for (int docId = 0; docId < _numDocs; docId++) {
+            Record record = getStarTreeRecord(docId);
+            for (int i = 0; i < record._dimensions.length; i++) {
+                long val = record._dimensions[i];
+                dimWriterList.get(i).addValue(docId, val);
+            }
+            for (int i = 0; i < record._metrics.length; i++) {
+                switch (_valueAggregators[i].getAggregatedValueType()) {
+                    case LONG:
+                        long val = (long) record._metrics[i];
+                        metricWriterList.get(i).addValue(docId, val);
+                        break;
+                    // TODO: support this
+                    case DOUBLE:
+                        // double doubleval = (double) record._metrics[i];
+                        // break;
+                    case FLOAT:
+                    case INT:
+                    default:
+                        throw new IllegalStateException("Unsupported value type");
+                }
+            }
+        }
+
+        for (int i = 0; i < _dimensionReaders.length; i++) {
+            final int finalI = i;
+            DocValuesProducer a1 = new EmptyDocValuesProducer() {
+                @Override
+                public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
+
+                    return dimWriterList.get(finalI).getSortedNumericDocValues();
+                }
+            };
+            docValuesConsumer.addSortedNumericField(dimFieldInfoArr[i], a1);
+        }
+
+        for (int i = 0; i < _metricReaders.length; i++) {
+            final int finalI = i;
+            DocValuesProducer a1 = new EmptyDocValuesProducer() {
+                @Override
+                public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
+
+                    return metricWriterList.get(finalI).getSortedNumericDocValues();
+                }
+            };
+            docValuesConsumer.addSortedNumericField(metricFieldInfoArr[i], a1);
+        }
+
+
     }
 
     private void createDocValuesIndices(DocValuesConsumer docValuesConsumer) throws IOException {
@@ -280,7 +390,7 @@ public abstract class BaseSingleTreeBuilder {
                 false,
                 true,
                 IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
-                DocValuesType.NUMERIC,
+                DocValuesType.SORTED_NUMERIC,
                 -1,
                 Collections.emptyMap(),
                 0,
@@ -303,7 +413,7 @@ public abstract class BaseSingleTreeBuilder {
                 false,
                 true,
                 IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS,
-                DocValuesType.NUMERIC,
+                DocValuesType.SORTED_NUMERIC,
                 -1,
                 Collections.emptyMap(),
                 0,
@@ -347,24 +457,24 @@ public abstract class BaseSingleTreeBuilder {
             final int finalI = i;
             DocValuesProducer a1 = new EmptyDocValuesProducer() {
                 @Override
-                public NumericDocValues getNumeric(FieldInfo field) throws IOException {
+                public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
 
-                    return new BufferedAggregatedDocValues(pendingDimArr[finalI].build(), docsWithField.iterator());
+                    return DocValues.singleton(new BufferedAggregatedDocValues(pendingDimArr[finalI].build(), docsWithField.iterator()));
                 }
             };
-            docValuesConsumer.addNumericField(dimFieldInfoArr[i], a1);
+            docValuesConsumer.addSortedNumericField(dimFieldInfoArr[i], a1);
         }
 
         for (int i = 0; i < _metricReaders.length; i++) {
             final int finalI = i;
             DocValuesProducer a1 = new EmptyDocValuesProducer() {
                 @Override
-                public NumericDocValues getNumeric(FieldInfo field) throws IOException {
+                public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
 
-                    return new BufferedAggregatedDocValues(pendingMetricArr[finalI].build(), docsWithField.iterator());
+                    return DocValues.singleton(new BufferedAggregatedDocValues(pendingDimArr[finalI].build(), docsWithField.iterator()));
                 }
             };
-            docValuesConsumer.addNumericField(metricFieldInfoArr[i], a1);
+            docValuesConsumer.addSortedNumericField(metricFieldInfoArr[i], a1);
         }
     }
 
