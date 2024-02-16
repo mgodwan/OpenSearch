@@ -194,7 +194,6 @@ public class StarTreeAggregator extends BucketsAggregator implements SingleBucke
                         indexMap.put(key, indexMap.size());
                         sumMap.put(key, dv.longValue());
                     }
-                    logger.info("Sum : {}" + sumMap.get(key));
                     collectBucket(sub, doc, subBucketOrdinal(bucket, indexMap.get(key)));
                 }
             }

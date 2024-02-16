@@ -267,7 +267,7 @@ public final class IndexModule {
     // whether to use the query cache
     public static final Setting<Boolean> INDEX_QUERY_CACHE_ENABLED_SETTING = Setting.boolSetting(
         "index.queries.cache.enabled",
-        true,
+        false,
         Property.IndexScope
     );
 
