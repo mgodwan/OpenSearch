@@ -96,10 +96,7 @@ public class StarTreeFilter {
 
     // 1706268600 / (60*60*1000) * (60*60*1000)
     public DocIdSetIterator getStarTreeResult() throws IOException {
-        long startTime = System.nanoTime();
         StarTreeResult starTreeResult = traverseStarTree();
-        logger.info("Star tree traversal took : {}", System.nanoTime() - startTime);
-        startTime = System.nanoTime();
         List<DocIdSetIterator> andIterators = new ArrayList<>();
         andIterators.add(starTreeResult._matchedDocIds.build().iterator());
         DocIdSetIterator docIdSetIterator = andIterators.get(0);
@@ -109,31 +106,33 @@ public class StarTreeFilter {
             DocIdSetBuilder builder = new DocIdSetBuilder(starTreeResult.numOfMatchedDocs);
             List<Predicate<Long>> compositePredicateEvaluators = _predicateEvaluators.get(remainingPredicateColumn);
             SortedNumericDocValues ndv = this.dimValueMap.get(remainingPredicateColumn);
-            long ndvStartTime1 = System.nanoTime();
+            List<Integer> docIds = new ArrayList<>();
             while (docIdSetIterator.nextDoc() != NO_MORE_DOCS) {
                 docCount++;
-                long ndvStartTime = System.nanoTime();
                 int docID = docIdSetIterator.docID();
-                ndv.advanceExact(docID);
-                long value = ndv.nextValue();
-                logger.info("Advancing took : {}", System.nanoTime() - ndvStartTime);
-                ndvStartTime = System.nanoTime();
-                for (Predicate<Long> compositePredicateEvaluator : compositePredicateEvaluators) {
-                    // TODO : this might be expensive as its done against all doc values docs
-                    if (compositePredicateEvaluator.test(value)) {
-                        builder.grow(1).add(docID);
-                        break;
+                if(ndv.advanceExact(docID)) {
+                    final int valuesCount = ndv.docValueCount();
+                    long value = ndv.nextValue();
+                    for (Predicate<Long> compositePredicateEvaluator : compositePredicateEvaluators) {
+                        // TODO : this might be expensive as its done against all doc values docs
+                        if (compositePredicateEvaluator.test(value)) {
+                            docIds.add(docID);
+                            for (int i = 0; i < valuesCount - 1; i++) {
+                                while(docIdSetIterator.nextDoc() != NO_MORE_DOCS) {
+                                    docIds.add(docIdSetIterator.docID());
+                                }
+                            }
+                            break;
+                        }
                     }
                 }
-                logger.info("Predicate took : {}", System.nanoTime() - ndvStartTime);
             }
-            logger.info("Overall ndv took : {}", System.nanoTime() - ndvStartTime1);
-            long buildTime = System.nanoTime();
+            DocIdSetBuilder.BulkAdder adder = builder.grow(docIds.size());
+            for(int docID : docIds) {
+                adder.add(docID);
+            }
             docIdSetIterator = builder.build().iterator();
-            logger.info("Builder took : {}", System.nanoTime() - buildTime);
         }
-        logger.info("Doc value num : {}" , docCount);
-        logger.info("Rest of tree traversal took : {}", System.nanoTime() - startTime);
         return docIdSetIterator;
     }
 
@@ -168,6 +167,7 @@ public class StarTreeFilter {
         }
 
         StarTreeNode starTreeNode;
+        List<Integer> docIds = new ArrayList<>();
         while ((starTreeNode = queue.poll()) != null) {
             int dimensionId = starTreeNode.getDimensionId();
             if (dimensionId > currentDimensionId) {
@@ -183,9 +183,8 @@ public class StarTreeFilter {
 
             // If all predicate columns and group-by columns are matched, we can use aggregated document
             if (remainingPredicateColumns.isEmpty() && remainingGroupByColumns.isEmpty()) {
-                adder = docsWithField.grow(1);
                 int docId = starTreeNode.getAggregatedDocId();
-                adder.add(docId);
+                docIds.add(docId);
                 docNum = docId > docNum ? docId : docNum;
                 continue;
             }
@@ -197,8 +196,7 @@ public class StarTreeFilter {
             // remaining predicate columns for this node
             if (starTreeNode.isLeaf()) {
                 for (long i = starTreeNode.getStartDocId(); i < starTreeNode.getEndDocId(); i++) {
-                    adder = docsWithField.grow(1);
-                    adder.add((int) i);
+                    docIds.add((int)i);
                     docNum = (int)i > docNum ? (int)i : docNum;
                 }
                 continue;
@@ -289,6 +287,10 @@ public class StarTreeFilter {
             }
         }
 
+        adder = docsWithField.grow(docIds.size());
+        for(int id : docIds) {
+            adder.add(id);
+        }
         return new StarTreeResult(
             docsWithField,
             globalRemainingPredicateColumns != null ? globalRemainingPredicateColumns : Collections.emptySet(),

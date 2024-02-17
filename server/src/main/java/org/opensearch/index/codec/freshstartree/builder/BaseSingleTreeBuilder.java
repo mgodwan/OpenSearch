@@ -155,7 +155,7 @@ public abstract class BaseSingleTreeBuilder {
         }
 
         // TODO : Removing hardcoding
-        _maxLeafRecords = 1000; // builderConfig.getMaxLeafRecords();
+        _maxLeafRecords = 100; // builderConfig.getMaxLeafRecords();
     }
 
     private void constructStarTree(StarTreeBuilderUtils.TreeNode node, int startDocId, int endDocId) throws IOException {

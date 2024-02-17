@@ -144,7 +144,7 @@ public class StarTreeQueryBuilder extends AbstractQueryBuilder<StarTreeQueryBuil
     protected Query doToQuery(QueryShardContext context) {
         // TODO : star tree supports either group by or filter
         if (predicateMap.size() > 0) {
-            logger.info("Predicates: {} ", this.groupBy.toString() );
+            //logger.info("Predicates: {} ", this.groupBy.toString() );
             return new StarTreeQuery(predicateMap, new HashSet<>());
         }
         logger.info("Group by : {} ", this.groupBy.toString() );

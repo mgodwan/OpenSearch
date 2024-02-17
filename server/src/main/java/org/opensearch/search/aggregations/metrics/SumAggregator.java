@@ -31,6 +31,8 @@
 
 package org.opensearch.search.aggregations.metrics;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.ScoreMode;
 import org.opensearch.common.lease.Releasables;
@@ -42,6 +44,7 @@ import org.opensearch.search.aggregations.Aggregator;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.LeafBucketCollector;
 import org.opensearch.search.aggregations.LeafBucketCollectorBase;
+import org.opensearch.search.aggregations.bucket.startree.StarTreeAggregator;
 import org.opensearch.search.aggregations.support.ValuesSource;
 import org.opensearch.search.aggregations.support.ValuesSourceConfig;
 import org.opensearch.search.internal.SearchContext;
@@ -61,6 +64,8 @@ public class SumAggregator extends NumericMetricsAggregator.SingleValue {
 
     private DoubleArray sums;
     private DoubleArray compensations;
+    private static final Logger logger = LogManager.getLogger(SumAggregator.class);
+
 
     SumAggregator(
         String name,
@@ -95,11 +100,13 @@ public class SumAggregator extends NumericMetricsAggregator.SingleValue {
         return new LeafBucketCollectorBase(sub, values) {
             @Override
             public void collect(int doc, long bucket) throws IOException {
+                //logger.info("collecting doc : {}", doc);
                 sums = bigArrays.grow(sums, bucket + 1);
                 compensations = bigArrays.grow(compensations, bucket + 1);
 
                 if (values.advanceExact(doc)) {
                     final int valuesCount = values.docValueCount();
+                    //logger.info("values count : {}" , valuesCount);
                     // Compute the sum of double values with Kahan summation algorithm which is more
                     // accurate than naive summation.
                     double sum = sums.get(bucket);
