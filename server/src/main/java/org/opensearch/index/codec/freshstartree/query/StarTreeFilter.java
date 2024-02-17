@@ -18,8 +18,6 @@ package org.opensearch.index.codec.freshstartree.query;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.DocValues;
-import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.DocIdSetBuilder;
@@ -51,11 +49,14 @@ public class StarTreeFilter {
         final DocIdSetBuilder _matchedDocIds;
         final Set<String> _remainingPredicateColumns;
         final int numOfMatchedDocs;
+        final int maxMatchedDoc;
 
-        StarTreeResult(DocIdSetBuilder matchedDocIds, Set<String> remainingPredicateColumns, int numOfMatchedDocs) {
+        StarTreeResult(DocIdSetBuilder matchedDocIds, Set<String> remainingPredicateColumns, int numOfMatchedDocs,
+            int maxMatchedDoc) {
             _matchedDocIds = matchedDocIds;
             _remainingPredicateColumns = remainingPredicateColumns;
             this.numOfMatchedDocs = numOfMatchedDocs;
+            this.maxMatchedDoc = maxMatchedDoc;
         }
     }
 
@@ -68,7 +69,6 @@ public class StarTreeFilter {
 
     DocIdSetBuilder.BulkAdder adder;
     Map<String, SortedNumericDocValues> dimValueMap;
-    int docNum;
     public StarTreeFilter(
         StarTreeAggregatedValues starTreeAggrStructure,
         Map<String, List<Predicate<Long>>> predicateEvaluators,
@@ -82,7 +82,6 @@ public class StarTreeFilter {
 
         // TODO : this should be the maximum number of doc values
         docsWithField = new DocIdSetBuilder(Integer.MAX_VALUE);
-        docNum = 0;
     }
 
     /**
@@ -97,13 +96,14 @@ public class StarTreeFilter {
     // 1706268600 / (60*60*1000) * (60*60*1000)
     public DocIdSetIterator getStarTreeResult() throws IOException {
         StarTreeResult starTreeResult = traverseStarTree();
+        logger.info("Matched docs in star tree : {}" , starTreeResult.numOfMatchedDocs);
         List<DocIdSetIterator> andIterators = new ArrayList<>();
         andIterators.add(starTreeResult._matchedDocIds.build().iterator());
         DocIdSetIterator docIdSetIterator = andIterators.get(0);
         int docCount = 0;
         for (String remainingPredicateColumn : starTreeResult._remainingPredicateColumns) {
             // TODO : set to max value of doc values
-            DocIdSetBuilder builder = new DocIdSetBuilder(starTreeResult.numOfMatchedDocs);
+            DocIdSetBuilder builder = new DocIdSetBuilder(starTreeResult.maxMatchedDoc);
             List<Predicate<Long>> compositePredicateEvaluators = _predicateEvaluators.get(remainingPredicateColumn);
             SortedNumericDocValues ndv = this.dimValueMap.get(remainingPredicateColumn);
             List<Integer> docIds = new ArrayList<>();
@@ -166,6 +166,9 @@ public class StarTreeFilter {
             globalRemainingPredicateColumns = new HashSet<>(remainingPredicateColumns);
         }
 
+        int matchedDocsCountInStarTree = 0;
+        int maxDocNum = -1;
+
         StarTreeNode starTreeNode;
         List<Integer> docIds = new ArrayList<>();
         while ((starTreeNode = queue.poll()) != null) {
@@ -185,7 +188,8 @@ public class StarTreeFilter {
             if (remainingPredicateColumns.isEmpty() && remainingGroupByColumns.isEmpty()) {
                 int docId = starTreeNode.getAggregatedDocId();
                 docIds.add(docId);
-                docNum = docId > docNum ? docId : docNum;
+                matchedDocsCountInStarTree++;
+                maxDocNum = docId > maxDocNum ? docId : maxDocNum;
                 continue;
             }
 
@@ -197,7 +201,8 @@ public class StarTreeFilter {
             if (starTreeNode.isLeaf()) {
                 for (long i = starTreeNode.getStartDocId(); i < starTreeNode.getEndDocId(); i++) {
                     docIds.add((int)i);
-                    docNum = (int)i > docNum ? (int)i : docNum;
+                    matchedDocsCountInStarTree++;
+                    maxDocNum = (int)i > maxDocNum ? (int)i : maxDocNum;
                 }
                 continue;
             }
@@ -294,7 +299,8 @@ public class StarTreeFilter {
         return new StarTreeResult(
             docsWithField,
             globalRemainingPredicateColumns != null ? globalRemainingPredicateColumns : Collections.emptySet(),
-            docNum
+            matchedDocsCountInStarTree,
+            maxDocNum
         );
     }
 }

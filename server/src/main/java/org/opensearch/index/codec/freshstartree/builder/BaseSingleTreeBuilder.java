@@ -101,6 +101,7 @@ public abstract class BaseSingleTreeBuilder {
         indexOutput = state.directory.createOutput(docFileName, state.context);
         CodecUtil.writeIndexHeader(indexOutput, "STARTreeCodec", 0, state.segmentInfo.getId(), state.segmentSuffix);
         dimensionsSplitOrder = new ArrayList<>();
+
         dimensionsSplitOrder.add("minute");
         dimensionsSplitOrder.add("hour");
         dimensionsSplitOrder.add("day");
