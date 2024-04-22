@@ -290,6 +290,8 @@ import org.opensearch.action.admin.indices.stats.IndicesStatsAction;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequestBuilder;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.opensearch.action.admin.indices.template.contextaware.PutContextTemplateAction;
+import org.opensearch.action.admin.indices.template.contextaware.PutContextTemplateRequest;
 import org.opensearch.action.admin.indices.template.delete.DeleteIndexTemplateAction;
 import org.opensearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.opensearch.action.admin.indices.template.delete.DeleteIndexTemplateRequestBuilder;
@@ -1959,6 +1961,16 @@ public abstract class AbstractClient implements Client {
         @Override
         public void putTemplate(final PutIndexTemplateRequest request, final ActionListener<AcknowledgedResponse> listener) {
             execute(PutIndexTemplateAction.INSTANCE, request, listener);
+        }
+
+        @Override
+        public ActionFuture<AcknowledgedResponse> putContextTemplate(PutContextTemplateRequest request) {
+            return execute(PutContextTemplateAction.INSTANCE, request);
+        }
+
+        @Override
+        public void putContextTemplate(PutContextTemplateRequest request, ActionListener<AcknowledgedResponse> listener) {
+            execute(PutContextTemplateAction.INSTANCE, request, listener);
         }
 
         @Override

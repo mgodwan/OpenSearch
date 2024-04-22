@@ -109,6 +109,7 @@ import org.opensearch.action.admin.indices.shrink.ResizeResponse;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequestBuilder;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.opensearch.action.admin.indices.template.contextaware.PutContextTemplateRequest;
 import org.opensearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.opensearch.action.admin.indices.template.delete.DeleteIndexTemplateRequestBuilder;
 import org.opensearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
@@ -691,6 +692,11 @@ public interface IndicesAdminClient extends OpenSearchClient {
      * Puts an index template.
      */
     void putTemplate(PutIndexTemplateRequest request, ActionListener<AcknowledgedResponse> listener);
+
+
+    ActionFuture<AcknowledgedResponse> putContextTemplate(PutContextTemplateRequest request);
+
+    void putContextTemplate(PutContextTemplateRequest request, ActionListener<AcknowledgedResponse> listener);
 
     /**
      * Puts an index template.

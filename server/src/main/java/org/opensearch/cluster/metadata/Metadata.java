@@ -261,6 +261,7 @@ public class Metadata implements Iterable<IndexMetadata>, Diffable<Metadata>, To
     private final DiffableStringMap hashesOfConsistentSettings;
     private final Map<String, IndexMetadata> indices;
     private final Map<String, IndexTemplateMetadata> templates;
+
     private final Map<String, Custom> customs;
 
     private final transient int totalNumberOfShards; // Transient ? not serializable anyway?
