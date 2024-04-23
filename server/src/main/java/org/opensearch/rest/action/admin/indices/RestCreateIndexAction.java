@@ -32,6 +32,7 @@
 
 package org.opensearch.rest.action.admin.indices;
 
+import com.hubspot.jinjava.Jinjava;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.client.node.NodeClient;
@@ -105,5 +106,14 @@ public class RestCreateIndexAction extends BaseRestHandler {
 
         newSource.put("mappings", singletonMap(MapperService.SINGLE_MAPPING_NAME, mappings));
         return newSource;
+    }
+
+    public static void main(String[] args) {
+        String template = "\"index.codec\": \"best_compression\",\"index.refresh_interval\": \"120s\",\"index.merge.policy\": \"LOG_BYTE_SIZE\",\"index.replication.type\": \"{{ replication_type | default('SEGMENT') | tojson}}\"";
+        Jinjava jinjava = new Jinjava();
+        Map<String, Object> params = new HashMap<>();
+        params.put("replication_type", "DOCUMENT");
+
+        System.out.println(jinjava.render(template, params));
     }
 }

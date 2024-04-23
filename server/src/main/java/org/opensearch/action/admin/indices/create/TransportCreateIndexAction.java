@@ -32,21 +32,27 @@
 
 package org.opensearch.action.admin.indices.create;
 
+import com.hubspot.jinjava.Jinjava;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.clustermanager.TransportClusterManagerNodeAction;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.block.ClusterBlockException;
 import org.opensearch.cluster.block.ClusterBlockLevel;
+import org.opensearch.cluster.metadata.ContextTemplateMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.MetadataCreateIndexService;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.xcontent.MediaType;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Create index action.
@@ -111,6 +117,19 @@ public class TransportCreateIndexAction extends TransportClusterManagerNodeActio
             cause = "api";
         }
 
+        Settings settingsToApply = request.settings();
+        if (request.context() != null) {
+            Jinjava jinjava = new Jinjava();
+            Map<String, Object> contextParams = request.context().params();
+            System.out.println("Params: " + contextParams);
+            String template = ((ContextTemplateMetadata) state.metadata().custom(ContextTemplateMetadata.TYPE)).getContextTemplates()
+                .get(request.context().name()).getSettings();
+            String appliedSettings = jinjava.render(template, contextParams);
+            System.out.println("Applied settings: " + appliedSettings);
+            Settings contextSettings = Settings.builder().loadFromSource(appliedSettings, XContentType.JSON).build();
+            settingsToApply = Settings.builder().put(contextSettings).put(request.settings()).build();
+        }
+
         final String indexName = indexNameExpressionResolver.resolveDateMathExpression(request.index());
         final CreateIndexClusterStateUpdateRequest updateRequest = new CreateIndexClusterStateUpdateRequest(
             cause,
@@ -118,7 +137,7 @@ public class TransportCreateIndexAction extends TransportClusterManagerNodeActio
             request.index()
         ).ackTimeout(request.timeout())
             .masterNodeTimeout(request.clusterManagerNodeTimeout())
-            .settings(request.settings())
+            .settings(settingsToApply)
             .mappings(request.mappings())
             .aliases(request.aliases())
             .waitForActiveShards(request.waitForActiveShards());

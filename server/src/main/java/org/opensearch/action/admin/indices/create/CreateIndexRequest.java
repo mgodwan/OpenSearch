@@ -39,6 +39,7 @@ import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.opensearch.action.admin.indices.template.contextaware.Context;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.master.AcknowledgedRequest;
@@ -89,6 +90,7 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
     public static final ParseField MAPPINGS = new ParseField("mappings");
     public static final ParseField SETTINGS = new ParseField("settings");
     public static final ParseField ALIASES = new ParseField("aliases");
+    public static final ParseField CONTEXT = new ParseField("context");
 
     private String cause = "";
 
@@ -99,6 +101,8 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
     private String mappings = "{}";
 
     private final Set<Alias> aliases = new HashSet<>();
+
+    private Context context;
 
     private ActiveShardCount waitForActiveShards = ActiveShardCount.DEFAULT;
 
@@ -383,6 +387,16 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
         }
     }
 
+    public CreateIndexRequest context(Map<String, ?> source) {
+        try {
+            XContentBuilder builder = XContentFactory.jsonBuilder();
+            builder.map(source);
+            return context(BytesReference.bytes(builder));
+        } catch (IOException e) {
+            throw new OpenSearchGenerationException("Failed to generate [" + source + "]", e);
+        }
+    }
+
     /**
      * Sets the aliases that will be associated with the index when it gets created
      */
@@ -412,6 +426,25 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
         } catch (IOException e) {
             throw new OpenSearchParseException("Failed to parse aliases", e);
         }
+    }
+
+    public CreateIndexRequest context(BytesReference source) {
+        // EMPTY is safe here because we never call namedObject
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, source)) {
+            return context(Context.fromXContent(parser));
+        } catch (IOException e) {
+            throw new OpenSearchParseException("Failed to parse aliases", e);
+        }
+    }
+
+    public CreateIndexRequest context(Context context) {
+        this.context = context;
+        System.out.println(context);
+        return this;
+    }
+
+    public Context context() {
+        return context;
     }
 
     /**
@@ -524,6 +557,8 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
                 }
             } else if (ALIASES.match(name, deprecationHandler)) {
                 aliases((Map<String, Object>) entry.getValue());
+            } else if (CONTEXT.match(name, deprecationHandler)) {
+                context((Map<String, Object>) entry.getValue());
             } else {
                 throw new OpenSearchParseException("unknown key [{}] for create index", name);
             }

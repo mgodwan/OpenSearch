@@ -39,6 +39,8 @@ public class RestContextTemplateAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         String settings = (String) XContentHelper.convertToMap(request.requiredContent(), false, request.getMediaType()).v2()
             .get("settings");
+        String version = XContentHelper.convertToMap(request.requiredContent(), false, request.getMediaType()).v2()
+            .get("version").toString();
         PutContextTemplateRequest putContextTemplateRequest = new PutContextTemplateRequest()
             .name(request.param("name"))
             .settings(settings);

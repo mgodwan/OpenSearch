@@ -23,10 +23,12 @@ import java.io.IOException;
 @PublicApi(since = "3.0")
 public class PutContextTemplateRequest  extends ClusterManagerNodeRequest<PutContextTemplateRequest> implements IndicesRequest, ToXContentObject {
 
-    // Convert to a valid json
+    // TODO: Use as a valid json
     private String settings;
 
     private String name;
+
+    private String version = "-1";
 
     public String settings() {
         return settings;
@@ -36,18 +38,24 @@ public class PutContextTemplateRequest  extends ClusterManagerNodeRequest<PutCon
         return name;
     }
 
+    public String version() {
+        return version;
+    }
+
     public PutContextTemplateRequest() {
     }
 
     public PutContextTemplateRequest(StreamInput in) throws IOException {
         this.name = in.readString();
         this.settings = in.readString();
+        this.version = in.readString();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         out.writeString(settings);
+        out.writeString(version);
     }
 
 
@@ -61,11 +69,17 @@ public class PutContextTemplateRequest  extends ClusterManagerNodeRequest<PutCon
         return this;
     }
 
+    public PutContextTemplateRequest version(String version) {
+        this.version = version;
+        return this;
+    }
+
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("name", name);
         builder.field("settings", settings);
+        builder.field("version", version);
         builder.endObject();
         return null;
     }
@@ -90,6 +104,7 @@ public class PutContextTemplateRequest  extends ClusterManagerNodeRequest<PutCon
         return "PutContextTemplateRequest{" +
             "settings='" + settings + '\'' +
             ", name='" + name + '\'' +
+            ", version='" + version + '\'' +
             '}';
     }
 }
