@@ -35,6 +35,8 @@ package org.opensearch.gateway;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.action.admin.indices.template.put.PutComponentTemplateAction;
+import org.opensearch.client.Client;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateListener;
@@ -42,6 +44,7 @@ import org.opensearch.cluster.ClusterStateUpdateTask;
 import org.opensearch.cluster.block.ClusterBlock;
 import org.opensearch.cluster.block.ClusterBlockLevel;
 import org.opensearch.cluster.coordination.Coordinator;
+import org.opensearch.cluster.metadata.ComponentTemplate;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.allocation.AllocationService;
@@ -53,10 +56,19 @@ import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.common.util.io.Streams;
+import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.core.rest.RestStatus;
+import org.opensearch.core.xcontent.DeprecationHandler;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.discovery.Discovery;
 import org.opensearch.threadpool.ThreadPool;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -141,6 +153,7 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
     private final int expectedClusterManagerNodes;
 
     private final Runnable recoveryRunnable;
+    private final Client client;
 
     private final AtomicBoolean recoveryInProgress = new AtomicBoolean();
     private final AtomicBoolean scheduledRecovery = new AtomicBoolean();
@@ -152,8 +165,10 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
         final ClusterService clusterService,
         final ThreadPool threadPool,
         final TransportNodesListGatewayMetaState listGatewayMetaState,
-        final Discovery discovery
+        final Discovery discovery,
+        final Client client
     ) {
+        this.client = client;
         this.allocationService = allocationService;
         this.clusterService = clusterService;
         this.threadPool = threadPool;
@@ -384,5 +399,4 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
     TimeValue recoverAfterTime() {
         return recoverAfterTime;
     }
-
 }

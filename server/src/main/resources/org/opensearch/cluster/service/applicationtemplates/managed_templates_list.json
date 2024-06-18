@@ -1,0 +1,6 @@
+{
+  "managed_templates": [
+    "basic_logs.json",
+    "aws_elb_logs.json"
+  ]
+}

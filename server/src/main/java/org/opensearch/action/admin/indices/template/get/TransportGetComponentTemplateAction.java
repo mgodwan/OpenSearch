@@ -105,7 +105,11 @@ public class TransportGetComponentTemplateAction extends TransportClusterManager
 
         // If we did not ask for a specific name, then we return all templates
         if (request.name() == null) {
-            listener.onResponse(new GetComponentTemplateAction.Response(allTemplates));
+            final Map<String, ComponentTemplate> results = new HashMap<>();
+            for (Map.Entry<String, ComponentTemplate> entry : allTemplates.entrySet()) {
+                putTemplateBasedOnIncludesMeta(results, entry.getKey(), entry.getValue(), request);
+            }
+            listener.onResponse(new GetComponentTemplateAction.Response(results));
             return;
         }
 
@@ -114,15 +118,33 @@ public class TransportGetComponentTemplateAction extends TransportClusterManager
         if (Regex.isSimpleMatchPattern(name)) {
             for (Map.Entry<String, ComponentTemplate> entry : allTemplates.entrySet()) {
                 if (Regex.simpleMatch(name, entry.getKey())) {
-                    results.put(entry.getKey(), entry.getValue());
+                    putTemplateBasedOnIncludesMeta(results, entry.getKey(), entry.getValue(), request);
                 }
             }
         } else if (allTemplates.containsKey(name)) {
-            results.put(name, allTemplates.get(name));
+            putTemplateBasedOnIncludesMeta(results, name, allTemplates.get(name), request);
         } else {
             throw new ResourceNotFoundException("component template matching [" + request.name() + "] not found");
         }
 
+
+
         listener.onResponse(new GetComponentTemplateAction.Response(results));
+    }
+
+    private void putTemplateBasedOnIncludesMeta(Map<String, ComponentTemplate> resultSet, String name, ComponentTemplate template, GetComponentTemplateAction.Request request) {
+        if (request.includes() == GetComponentTemplateAction.Includes.ALL) {
+            resultSet.put(name, template);
+        } else if (request.includes() == GetComponentTemplateAction.Includes.MANAGED) {
+            if (template.metadata() != null
+                && Boolean.parseBoolean(String.valueOf(template.metadata().get("__managed")))) {
+                resultSet.put(name, template);
+            }
+        } else {
+            if (template.metadata() != null
+                && !Boolean.parseBoolean(String.valueOf(template.metadata().get("__managed")))) {
+                resultSet.put(name, template);
+            }
+        }
     }
 }

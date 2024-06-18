@@ -47,12 +47,15 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
+
+import static org.opensearch.cluster.service.applicationtemplates.ClusterStateComponentTemplateLoader.TEMPLATE_LOADER_IDENTIFIER;
 
 /**
  * An action for putting a single component template into the cluster state
@@ -120,6 +123,12 @@ public class TransportPutComponentTemplateAction extends TransportClusterManager
             indexScopedSettings.validate(settings, true);
             template = new Template(settings, template.mappings(), template.aliases());
             componentTemplate = new ComponentTemplate(template, componentTemplate.version(), componentTemplate.metadata());
+        }
+        if (componentTemplate.metadata() != null
+            && Boolean.parseBoolean(String.valueOf(componentTemplate.metadata().get("__managed")))
+            && !threadPool.getThreadContext().getTransient(ThreadContext.ACTION_ORIGIN_TRANSIENT_NAME).equals(TEMPLATE_LOADER_IDENTIFIER)) {
+            listener.onFailure(new IllegalArgumentException("Cannot create a managed template"));
+            return;
         }
         indexTemplateService.putComponentTemplate(
             request.cause(),

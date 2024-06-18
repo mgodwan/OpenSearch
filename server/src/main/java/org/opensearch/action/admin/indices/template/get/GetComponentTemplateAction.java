@@ -72,6 +72,8 @@ public class GetComponentTemplateAction extends ActionType<GetComponentTemplateA
         @Nullable
         private String name;
 
+        private Includes includeTemplates = Includes.USER;
+
         public Request() {}
 
         public Request(String name) {
@@ -102,11 +104,25 @@ public class GetComponentTemplateAction extends ActionType<GetComponentTemplateA
             return this;
         }
 
+        public Request includes(String includes) {
+            for (Includes curr: Includes.values()) {
+                if (curr.includes.equals(includes)) {
+                    this.includeTemplates = curr;
+                    return this;
+                }
+            }
+            throw new IllegalArgumentException("Invalid value provided for includes param: " + includes);
+        }
+
         /**
          * The name of the component templates.
          */
         public String name() {
             return this.name;
+        }
+
+        public Includes includes () {
+            return includeTemplates;
         }
     }
 
@@ -170,4 +186,15 @@ public class GetComponentTemplateAction extends ActionType<GetComponentTemplateA
 
     }
 
+    public enum Includes {
+        ALL("all"),
+        USER("user"),
+        MANAGED("managed");
+
+        public final String includes;
+
+        private Includes(String includes) {
+            this.includes = includes;
+        }
+     }
 }
