@@ -37,6 +37,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.Version;
 import org.opensearch.action.support.PlainActionFuture;
+import org.opensearch.client.Client;
 import org.opensearch.cluster.AckedClusterStateTaskListener;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterManagerMetrics;
@@ -140,16 +141,18 @@ public class MasterService extends AbstractLifecycleComponent {
     private final ClusterManagerThrottlingStats throttlingStats;
     private final ClusterStateStats stateStats;
     private final ClusterManagerMetrics clusterManagerMetrics;
+    private final ManagedTemplatesService managedTemplatesService;
 
     public MasterService(Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool) {
-        this(settings, clusterSettings, threadPool, new ClusterManagerMetrics(NoopMetricsRegistry.INSTANCE));
+        this(settings, clusterSettings, threadPool, new ClusterManagerMetrics(NoopMetricsRegistry.INSTANCE), null);
     }
 
     public MasterService(
         Settings settings,
         ClusterSettings clusterSettings,
         ThreadPool threadPool,
-        ClusterManagerMetrics clusterManagerMetrics
+        ClusterManagerMetrics clusterManagerMetrics,
+        Supplier<Client> clientProvider
     ) {
         this.nodeName = Objects.requireNonNull(Node.NODE_NAME_SETTING.get(settings));
 
@@ -169,6 +172,7 @@ public class MasterService extends AbstractLifecycleComponent {
         this.stateStats = new ClusterStateStats();
         this.threadPool = threadPool;
         this.clusterManagerMetrics = clusterManagerMetrics;
+        this.managedTemplatesService = new ManagedTemplatesService(clientProvider, threadPool);
     }
 
     private void setSlowTaskLoggingThreshold(TimeValue slowTaskLoggingThreshold) {
@@ -395,6 +399,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
         try {
             taskOutputs.clusterStatePublished(clusterChangedEvent);
+            threadPool.executor(ThreadPool.Names.GENERIC).submit(() -> managedTemplatesService.loadTemplates(clusterChangedEvent.state().metadata().componentTemplates()));
         } catch (Exception e) {
             logger.error(
                 () -> new ParameterizedMessage(

@@ -8,11 +8,14 @@
 
 package org.opensearch.cluster.service;
 
+import org.opensearch.client.Client;
 import org.opensearch.cluster.ClusterManagerMetrics;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.threadpool.ThreadPool;
+
+import java.util.function.Supplier;
 
 /**
  * Main Cluster Manager Node Service
@@ -30,8 +33,9 @@ public class ClusterManagerService extends MasterService {
         Settings settings,
         ClusterSettings clusterSettings,
         ThreadPool threadPool,
-        ClusterManagerMetrics clusterManagerMetrics
+        ClusterManagerMetrics clusterManagerMetrics,
+        Supplier<Client> clientSupplier
     ) {
-        super(settings, clusterSettings, threadPool, clusterManagerMetrics);
+        super(settings, clusterSettings, threadPool, clusterManagerMetrics, clientSupplier);
     }
 }

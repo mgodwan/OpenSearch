@@ -658,7 +658,8 @@ public class Node implements Closeable {
                 settings,
                 settingsModule.getClusterSettings(),
                 threadPool,
-                clusterManagerMetrics
+                clusterManagerMetrics,
+                () -> this.client
             );
             clusterService.addStateApplier(scriptService);
             resourcesToClose.add(clusterService);
