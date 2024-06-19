@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.Client;
+import org.opensearch.client.OriginSettingClient;
 import org.opensearch.cluster.metadata.ComponentTemplate;
 import org.opensearch.common.util.io.Streams;
 import org.opensearch.common.xcontent.json.JsonXContent;
@@ -74,7 +75,7 @@ public class ManagedTemplatesService {
             try {
                 PutComponentTemplateAction.Request request = new PutComponentTemplateAction.Request(name).componentTemplate(ComponentTemplate.parse(contentParser));
                 if (!existingMetadata.containsKey(name) || existingMetadata.get(name).version() < request.componentTemplate().version()) {
-                    client.get().admin().indices().execute(PutComponentTemplateAction.INSTANCE, request, new ActionListener<AcknowledgedResponse>() {
+                    new OriginSettingClient(client.get(), "managed").admin().indices().execute(PutComponentTemplateAction.INSTANCE, request, new ActionListener<AcknowledgedResponse>() {
                         @Override
                         public void onResponse(AcknowledgedResponse acknowledgedResponse) {
                             logger.info("success");

@@ -613,7 +613,8 @@ public class MetadataIndexTemplateService {
                 template.priority(),
                 template.version(),
                 template.metadata(),
-                template.getDataStreamTemplate()
+                template.getDataStreamTemplate(),
+                template.context()
             );
         }
 
@@ -1228,6 +1229,11 @@ public class MetadataIndexTemplateService {
         componentSettings.forEach(templateSettings::put);
         // Add the actual index template's settings to the end, since it takes the highest precedence.
         Optional.ofNullable(template.template()).map(Template::settings).ifPresent(templateSettings::put);
+
+        // Now add context settings
+        Template managedTemplate = metadata.componentTemplates().get(template.context().name()).template();
+        templateSettings.put(managedTemplate.settings());
+
         return templateSettings.build();
     }
 
