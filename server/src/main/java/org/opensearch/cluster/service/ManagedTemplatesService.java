@@ -55,7 +55,6 @@ public class ManagedTemplatesService {
                     String fileName = listParser.text();
                     logger.info("Loading template: " + fileName);
                     loadTemplate(fileName, metadata);
-                    listParser.nextToken();
                 }
             }
 

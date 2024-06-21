@@ -1166,6 +1166,10 @@ public class MetadataIndexTemplateService {
                 })
                 .ifPresent(mappings::add);
         }
+
+        CompressedXContent contextMappings = state.metadata().componentTemplates().get(template.context().name()).template().mappings();
+        mappings.add(contextMappings);
+
         return Collections.unmodifiableList(mappings);
     }
 
