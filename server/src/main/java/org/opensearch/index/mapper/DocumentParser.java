@@ -661,6 +661,15 @@ final class DocumentParser {
         throws IOException {
         XContentParser parser = context.parser();
         XContentParser.Token token;
+        if (context.mapperService().isCompositeIndexPresent() && context.mapperService().isCompositeField(arrayFieldName)) {
+            throw new MapperParsingException(
+                "object mapping for ["
+                    + mapper.name()
+                    + "] with array for ["
+                    + arrayFieldName
+                    + "] but cannot be accepted as field is also part of composite index mapping which does not accept array"
+            );
+        }
         final String[] paths = splitAndValidatePath(lastFieldName);
         while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
             if (token == XContentParser.Token.START_OBJECT) {
