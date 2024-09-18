@@ -32,15 +32,20 @@
 
 package org.opensearch.index.get;
 
+import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexableFieldType;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.SortedNumericDocValues;
+import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.util.BytesRef;
 import org.opensearch.OpenSearchException;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.annotation.PublicApi;
@@ -63,9 +68,11 @@ import org.opensearch.index.engine.TranslogLeafReader;
 import org.opensearch.index.fieldvisitor.CustomFieldsVisitor;
 import org.opensearch.index.fieldvisitor.FieldsVisitor;
 import org.opensearch.index.mapper.DocumentMapper;
+import org.opensearch.index.mapper.FieldMapper;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.Mapper;
 import org.opensearch.index.mapper.MapperService;
+import org.opensearch.index.mapper.MetadataFieldMapper;
 import org.opensearch.index.mapper.ParsedDocument;
 import org.opensearch.index.mapper.RoutingFieldMapper;
 import org.opensearch.index.mapper.SourceFieldMapper;
@@ -284,6 +291,12 @@ public final class ShardGetService extends AbstractIndexShardComponent {
             }
             source = fieldVisitor.source();
 
+            try {
+                Map<String, Object> sourceAsMap = buildUsingDocValues(docIdAndVersion.docId, docIdAndVersion.reader, mapperService);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+
             // in case we read from translog, some extra steps are needed to make _source consistent and to load stored fields
             if (get.isFromTranslog()) {
                 // Fast path: if only asked for the source or stored fields that have been already provided by TranslogLeafReader,
@@ -434,5 +447,56 @@ public final class ShardGetService extends AbstractIndexShardComponent {
         }
 
         return new CustomFieldsVisitor(Sets.newHashSet(fields), fetchSourceContext.fetchSource());
+    }
+
+    private static Map<String, Object> buildUsingDocValues(int docId, LeafReader reader, MapperService mapperService) throws IOException {
+        Map<String, Object> docValues = new HashMap<>();
+        for (Mapper mapper: mapperService.documentMapper().mappers()) {
+            if (mapper instanceof MetadataFieldMapper) {
+                continue;
+            }
+            mapper.name();
+            if (mapper instanceof FieldMapper) {
+                FieldMapper fieldMapper = (FieldMapper) mapper;
+                if (fieldMapper.fieldType().hasDocValues()) {
+                    String fieldName = fieldMapper.name();
+                    FieldInfo fieldInfo = reader.getFieldInfos().fieldInfo(fieldName);
+                    if (fieldInfo != null) {
+                        switch (fieldInfo.getDocValuesType()) {
+                            case SORTED_SET:
+                                SortedSetDocValues dv = reader.getSortedSetDocValues(fieldName);
+                                if (dv.advanceExact(docId)) {
+                                    BytesRef[] values = new BytesRef[dv.docValueCount()];
+                                    for (int i = 0; i < dv.docValueCount(); i++) {
+                                        values[i] = dv.lookupOrd(dv.nextOrd());
+                                    }
+                                    if (values.length > 1) {
+                                        docValues.put(fieldName, values);
+                                    } else {
+                                        docValues.put(fieldName, values[0]);
+                                    }
+                                }
+                                break;
+                            case SORTED_NUMERIC:
+                                SortedNumericDocValues sndv = reader.getSortedNumericDocValues(fieldName);
+                                if (sndv.advanceExact(docId)) {
+                                    Long[] values = new Long[sndv.docValueCount()];
+                                    for (int i = 0; i < sndv.docValueCount(); i++) {
+                                        fieldMapper.fieldType().fielddataBuilder()
+                                        values[i] = sndv.nextValue();
+                                    }
+                                    if (values.length > 1) {
+                                        docValues.put(fieldName, values);
+                                    } else {
+                                        docValues.put(fieldName, values[0]);
+                                    }
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+        return docValues;
     }
 }

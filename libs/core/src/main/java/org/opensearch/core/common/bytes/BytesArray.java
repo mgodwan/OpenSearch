@@ -77,6 +77,7 @@ public final class BytesArray extends AbstractBytesReference {
         this.bytes = bytes;
         this.offset = offset;
         this.length = length;
+        new String(bytes);
     }
 
     @Override
