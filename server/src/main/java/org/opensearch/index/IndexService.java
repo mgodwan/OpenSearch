@@ -677,7 +677,8 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                 recoverySettings,
                 remoteStoreSettings,
                 seedRemote,
-                discoveryNodes
+                discoveryNodes,
+                indexFieldData
             );
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);

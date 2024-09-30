@@ -56,15 +56,22 @@ import org.opensearch.common.lucene.uid.VersionsAndSeqNoResolver.DocIdAndVersion
 import org.opensearch.common.metrics.CounterMetric;
 import org.opensearch.common.metrics.MeanMetric;
 import org.opensearch.common.util.set.Sets;
+import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.indices.breaker.NoneCircuitBreakerService;
 import org.opensearch.core.xcontent.MediaTypeRegistry;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.TranslogLeafReader;
+import org.opensearch.index.fielddata.IndexFieldDataCache;
+import org.opensearch.index.fielddata.IndexFieldDataService;
+import org.opensearch.index.fielddata.LeafNumericFieldData;
+import org.opensearch.index.fielddata.SortedNumericDoubleValues;
 import org.opensearch.index.fieldvisitor.CustomFieldsVisitor;
 import org.opensearch.index.fieldvisitor.FieldsVisitor;
 import org.opensearch.index.mapper.DocumentMapper;
@@ -80,14 +87,18 @@ import org.opensearch.index.mapper.SourceToParse;
 import org.opensearch.index.mapper.Uid;
 import org.opensearch.index.shard.AbstractIndexShardComponent;
 import org.opensearch.index.shard.IndexShard;
+import org.opensearch.indices.fielddata.cache.IndicesFieldDataCache;
+import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.fetch.subphase.FetchSourceContext;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.opensearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
@@ -291,12 +302,6 @@ public final class ShardGetService extends AbstractIndexShardComponent {
             }
             source = fieldVisitor.source();
 
-            try {
-                Map<String, Object> sourceAsMap = buildUsingDocValues(docIdAndVersion.docId, docIdAndVersion.reader, mapperService);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-
             // in case we read from translog, some extra steps are needed to make _source consistent and to load stored fields
             if (get.isFromTranslog()) {
                 // Fast path: if only asked for the source or stored fields that have been already provided by TranslogLeafReader,
@@ -428,6 +433,16 @@ public final class ShardGetService extends AbstractIndexShardComponent {
             }
         }
 
+        try {
+            Map<String, Object> sourceAsMap = buildUsingDocValues(docIdAndVersion.docId, docIdAndVersion.reader, mapperService, indexShard);
+            try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
+                builder.map(sourceAsMap);
+                source = BytesReference.bytes(builder);
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+
         return new GetResult(
             shardId.getIndexName(),
             id,
@@ -449,7 +464,7 @@ public final class ShardGetService extends AbstractIndexShardComponent {
         return new CustomFieldsVisitor(Sets.newHashSet(fields), fetchSourceContext.fetchSource());
     }
 
-    private static Map<String, Object> buildUsingDocValues(int docId, LeafReader reader, MapperService mapperService) throws IOException {
+    private static Map<String, Object> buildUsingDocValues(int docId, LeafReader reader, MapperService mapperService, IndexShard indexShard) throws IOException {
         Map<String, Object> docValues = new HashMap<>();
         for (Mapper mapper: mapperService.documentMapper().mappers()) {
             if (mapper instanceof MetadataFieldMapper) {
@@ -461,6 +476,7 @@ public final class ShardGetService extends AbstractIndexShardComponent {
                 if (fieldMapper.fieldType().hasDocValues()) {
                     String fieldName = fieldMapper.name();
                     FieldInfo fieldInfo = reader.getFieldInfos().fieldInfo(fieldName);
+                    DocValueFormat format = fieldMapper.fieldType().docValueFormat(null, null);
                     if (fieldInfo != null) {
                         switch (fieldInfo.getDocValuesType()) {
                             case SORTED_SET:
@@ -471,26 +487,40 @@ public final class ShardGetService extends AbstractIndexShardComponent {
                                         values[i] = dv.lookupOrd(dv.nextOrd());
                                     }
                                     if (values.length > 1) {
-                                        docValues.put(fieldName, values);
+                                        docValues.put(fieldName, Arrays.stream(values).map(format::format).collect(Collectors.toList()));
                                     } else {
-                                        docValues.put(fieldName, values[0]);
+                                        docValues.put(fieldName, format.format(values[0]));
                                     }
                                 }
                                 break;
                             case SORTED_NUMERIC:
                                 SortedNumericDocValues sndv = reader.getSortedNumericDocValues(fieldName);
-                                if (sndv.advanceExact(docId)) {
-                                    Long[] values = new Long[sndv.docValueCount()];
+//                                if (sndv.advanceExact(docId)) {
+//                                    Long[] values = new Long[sndv.docValueCount()];
+//                                    for (int i = 0; i < sndv.docValueCount(); i++) {
+//                                        values[i] = sndv.nextValue();
+//                                    }
+//                                    if (values.length > 1) {
+//                                        docValues.put(fieldName, Arrays.stream(values).map(format::format).collect(Collectors.toList()));
+//                                    } else {
+//                                        docValues.put(fieldName, format.format(values[0]));
+//                                    }
+//                                }
+
+                                SortedNumericDoubleValues doubleValues = ((LeafNumericFieldData) indexShard.indexFieldDataService().getForField(fieldMapper.fieldType(), "", () -> null)
+                                    .load(reader.getContext())).getDoubleValues();
+                                if (doubleValues.advanceExact(docId)) {
+                                    double[] vals = new double[doubleValues.docValueCount()];
                                     for (int i = 0; i < sndv.docValueCount(); i++) {
-                                        fieldMapper.fieldType().fielddataBuilder()
-                                        values[i] = sndv.nextValue();
+                                        vals[i] = doubleValues.nextValue();
                                     }
-                                    if (values.length > 1) {
-                                        docValues.put(fieldName, values);
+                                    if (vals.length > 1) {
+                                        docValues.put(fieldName, vals);
                                     } else {
-                                        docValues.put(fieldName, values[0]);
+                                        docValues.put(fieldName, vals[0]);
                                     }
                                 }
+
                                 break;
                         }
                     }

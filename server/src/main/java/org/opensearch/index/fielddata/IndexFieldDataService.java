@@ -34,6 +34,7 @@ package org.opensearch.index.fielddata;
 
 import org.apache.lucene.util.Accountable;
 import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.core.index.shard.ShardId;
@@ -59,6 +60,7 @@ import java.util.function.Supplier;
  *
  * @opensearch.internal
  */
+@PublicApi(since = "1.0.0")
 public class IndexFieldDataService extends AbstractIndexComponent implements Closeable {
     public static final String FIELDDATA_CACHE_VALUE_NODE = "node";
     public static final String FIELDDATA_CACHE_KEY = "index.fielddata.cache";
