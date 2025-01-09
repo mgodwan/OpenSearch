@@ -33,14 +33,18 @@
 package org.opensearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.codecs.DocValuesProducer;
+import org.apache.lucene.codecs.lucene90.DVSkipProducer;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LiveIndexWriterConfig;
 import org.apache.lucene.index.MergePolicy;
@@ -1803,6 +1807,22 @@ public class InternalEngine extends Engine {
         // for a long time:
         maybePruneDeletes();
         mergeScheduler.refreshConfig();
+
+//        if (refreshed) {
+//            try (Searcher searcher = acquireSearcher("post_refresh")) {
+//                searcher.getDirectoryReader().leaves().forEach(leafReaderContext -> {
+//                    LeafReader reader = leafReaderContext.reader();
+//                    if (reader instanceof CodecReader) {
+//                        DocValuesProducer dvReader = ((CodecReader) reader).getDocValuesReader();
+//                        if (dvReader instanceof DVSkipProducer) {
+//                            ((DVSkipProducer) dvReader).getSkipper(null);
+//                        }
+//                    }
+//                });
+//            } catch (Exception ex) {
+//
+//            }
+//        }
         return refreshed;
     }
 

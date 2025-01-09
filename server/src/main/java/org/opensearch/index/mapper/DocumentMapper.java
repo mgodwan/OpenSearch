@@ -248,6 +248,9 @@ public class DocumentMapper implements ToXContentFragment {
     }
 
     public ParsedDocument parse(SourceToParse source) throws MapperParsingException {
+        for (Mapper mapper: this.fieldMappers) {
+            System.out.println(mapper.name());
+        }
         return documentParser.parseDocument(source, mapping.metadataMappers);
     }
 

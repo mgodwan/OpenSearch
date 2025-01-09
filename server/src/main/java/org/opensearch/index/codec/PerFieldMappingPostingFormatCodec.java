@@ -37,6 +37,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene90.Lucene90DocValuesFormat;
+import org.apache.lucene.codecs.lucene90.SkipIndexDVFormat;
 import org.apache.lucene.codecs.lucene912.Lucene912Codec;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.codec.fuzzy.FuzzyFilterPostingsFormat;
@@ -103,4 +104,6 @@ public class PerFieldMappingPostingFormatCodec extends Lucene912Codec {
     public DocValuesFormat getDocValuesFormatForField(String field) {
         return dvFormat;
     }
+
+
 }
