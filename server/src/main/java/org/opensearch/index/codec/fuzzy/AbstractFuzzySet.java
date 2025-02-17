@@ -18,7 +18,7 @@ import java.util.Iterator;
 /**
  * Encapsulates common behaviour implementation for a fuzzy set.
  */
-public abstract class AbstractFuzzySet<T extends FuzzySet.Meta> implements FuzzySet<T> {
+public abstract class AbstractFuzzySet implements FuzzySet {
 
     /**
      * Add an item to this fuzzy set.

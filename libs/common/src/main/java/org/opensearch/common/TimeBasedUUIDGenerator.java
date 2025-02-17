@@ -126,9 +126,6 @@ class TimeBasedUUIDGenerator implements UUIDGenerator {
         i += macAddress.length;
 
         // Finally we put the remaining bytes, which will likely not be compressed at all.
-        uuidBytes[i++] = (byte) (timestamp >>> 8);
-        uuidBytes[i++] = (byte) (sequenceId >>> 8);
-        uuidBytes[i++] = (byte) timestamp;
 
         assert i == uuidBytes.length;
 

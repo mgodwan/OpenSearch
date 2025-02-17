@@ -90,6 +90,8 @@ dependencies {
   api libs.spatial4j, optional
   api libs.jtscore, optional
 
+  api group: 'org.apache.lucene', name: 'lucene-codecs', version: '10.1.0'
+
   // logging
   api libs.log4japi
   api libs.log4jjul
@@ -110,6 +112,12 @@ dependencies {
   // protobuf
   api libs.protobuf
   api libs.jakartaannotation
+
+  implementation group: 'org.apache.parquet', name: 'parquet-column', version: '1.15.0'
+  implementation group: 'org.apache.parquet', name: 'parquet-format-structures', version: '1.15.0'
+  implementation group: 'org.apache.parquet', name: 'parquet-common', version: '1.15.0'
+  implementation group: 'org.apache.parquet', name: 'parquet-hadoop', version: '1.15.0'
+  implementation group: 'org.apache.hadoop', name: 'hadoop-common', version: '3.4.1'
 
   // https://mvnrepository.com/artifact/org.roaringbitmap/RoaringBitmap
   api libs.roaringbitmap

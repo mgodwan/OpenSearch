@@ -104,7 +104,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 
     static class FuzzyFilteredFieldsProducer extends FieldsProducer {
         private FieldsProducer delegateFieldsProducer;
-        HashMap<String, CheckedSupplier<FuzzySet, IOException>> fuzzySetsByFieldName = new HashMap<>();
+        HashMap<String, CheckedSupplier<? extends FuzzySet, IOException>> fuzzySetsByFieldName = new HashMap<>();
         private List<Closeable> closeables = new ArrayList<>();
 
         public FuzzyFilteredFieldsProducer(SegmentReadState state) throws IOException {
@@ -133,9 +133,8 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 int numFilters = filterIn.readInt();
                 for (int i = 0; i < numFilters; i++) {
                     int fieldNum = filterIn.readInt();
-                    CheckedSupplier<FuzzySet, IOException> setBuilder = FuzzySetFactory.buildSetProvider(filterIn);
                     FieldInfo fieldInfo = state.fieldInfos.fieldInfo(fieldNum);
-                    fuzzySetsByFieldName.put(fieldInfo.name, setBuilder);
+                    fuzzySetsByFieldName.put(fieldInfo.name, FuzzySetFactory.buildSetProvider(filterIn));
                 }
                 CodecUtil.retrieveChecksum(filterIn);
 

@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 /**
  * Fuzzy Filter interface
  */
-public interface FuzzySet<T extends FuzzySet.Meta> extends Accountable, Closeable {
+public interface FuzzySet extends Accountable, Closeable {
 
     /**
      * Name used for a codec to be aware of what fuzzy set has been used.

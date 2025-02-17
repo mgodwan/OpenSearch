@@ -33,7 +33,7 @@ import java.util.Iterator;
  * Since the Lucene implementation is marked experimental,
  * this aims to ensure we can provide a bwc implementation during upgrades.
  */
-public class BloomFilter extends AbstractFuzzySet<BloomFilter.BloomMeta> {
+public class BloomFilter extends AbstractFuzzySet {
 
     private static final Logger logger = LogManager.getLogger(BloomFilter.class);
 

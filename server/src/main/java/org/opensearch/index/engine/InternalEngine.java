@@ -66,6 +66,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
+import org.apache.parquet.conf.ParquetConfiguration;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.common.Booleans;
@@ -842,8 +843,16 @@ public class InternalEngine extends Engine {
         return localCheckpointTracker.generateSeqNo();
     }
 
+    public static boolean WRITE_PARQUET = true;
+
+    private ParquetRecordWriter recordWriter = new ParquetRecordWriter();
+
     @Override
     public IndexResult index(Index index) throws IOException {
+        if (WRITE_PARQUET) {
+            recordWriter.write(index.docs().getFirst());
+            return new IndexResult(1,1,1,true);
+        }
         assert Objects.equals(index.uid().field(), IdFieldMapper.NAME) : index.uid().field();
         final boolean doThrottle = index.origin().isRecovery() == false;
         try (ReleasableLock releasableLock = readLock.acquire()) {
