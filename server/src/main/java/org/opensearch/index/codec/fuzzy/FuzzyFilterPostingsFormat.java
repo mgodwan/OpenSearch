@@ -105,6 +105,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         private FieldsProducer delegateFieldsProducer;
         HashMap<String, FuzzySet> fuzzySetsByFieldName = new HashMap<>();
         private List<Closeable> closeables = new ArrayList<>();
+        private boolean isBelowJDK20 = false;
 
         public FuzzyFilteredFieldsProducer(SegmentReadState state) throws IOException {
             String fuzzyFilterFileName = IndexFileNames.segmentFileName(
@@ -112,6 +113,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 state.segmentSuffix,
                 FUZZY_FILTER_FILE_EXTENSION
             );
+            isBelowJDK20 = isJdkBelow20(state);
             IndexInput filterIn = null;
             boolean success = false;
             try {
@@ -150,6 +152,17 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
             }
         }
 
+        private boolean isJdkBelow20(SegmentReadState state) throws IOException {
+            String jdkRuntimeProp = state.segmentInfo.getDiagnostics().get("java.runtime.version");
+            if (jdkRuntimeProp == null) {
+                jdkRuntimeProp = state.segmentInfo.getDiagnostics().get("java.version");
+            }
+            if (jdkRuntimeProp == null) {
+                return false;
+            }
+            return jdkRuntimeProp.charAt(0) == '1';
+        }
+
         @Override
         public Iterator<String> iterator() {
             return delegateFieldsProducer.iterator();
@@ -172,7 +185,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 if (result == null) {
                     return null;
                 }
-                return new FuzzyFilteredTerms(result, filter);
+                return new FuzzyFilteredTerms(result, filter, isBelowJDK20);
             }
         }
 
@@ -184,10 +197,12 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
         static class FuzzyFilteredTerms extends Terms {
             private Terms delegateTerms;
             private FuzzySet filter;
+            private final boolean isBelowJdk20;
 
-            public FuzzyFilteredTerms(Terms terms, FuzzySet filter) {
+            public FuzzyFilteredTerms(Terms terms, FuzzySet filter, boolean isBelowJdk20) {
                 this.delegateTerms = terms;
                 this.filter = filter;
+                this.isBelowJdk20 = isBelowJdk20;
             }
 
             @Override
@@ -197,7 +212,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
 
             @Override
             public TermsEnum iterator() throws IOException {
-                return new FilterAppliedTermsEnum(delegateTerms, filter);
+                return new FilterAppliedTermsEnum(delegateTerms, filter, isBelowJdk20);
             }
 
             @Override
@@ -256,10 +271,12 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
             private Terms delegateTerms;
             private TermsEnum delegateTermsEnum;
             private final FuzzySet filter;
+            private boolean isBelowJdk20;
 
-            public FilterAppliedTermsEnum(Terms delegateTerms, FuzzySet filter) throws IOException {
+            public FilterAppliedTermsEnum(Terms delegateTerms, FuzzySet filter, boolean isBelowJdk20) throws IOException {
                 this.delegateTerms = delegateTerms;
                 this.filter = filter;
+                this.isBelowJdk20 = isBelowJdk20;
             }
 
             void reset(Terms delegateTerms) throws IOException {
@@ -290,7 +307,7 @@ public final class FuzzyFilterPostingsFormat extends PostingsFormat {
                 // structure
                 // that may occasionally give a false positive but guaranteed no false
                 // negatives
-                if (filter.contains(text) == FuzzySet.Result.NO) {
+                if (filter.contains(text, isBelowJdk20) == FuzzySet.Result.NO) {
                     return false;
                 }
                 return delegate().seekExact(text);

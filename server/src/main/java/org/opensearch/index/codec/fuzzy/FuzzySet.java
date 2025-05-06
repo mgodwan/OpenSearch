@@ -33,6 +33,11 @@ public interface FuzzySet extends Accountable, Closeable {
      */
     Result contains(BytesRef value);
 
+    /**
+     * Hacky for supporting upgrades
+     */
+    Result contains(BytesRef value, boolean useOldHashMux);
+
     boolean isSaturated();
 
     void writeTo(DataOutput out) throws IOException;

@@ -74,6 +74,9 @@ public final class T1ha1 {
         return hash(input, offset, length, SEED);
     }
 
+    public static long hash(byte[] input, int offset, int length, long seed) {
+        return hash(input, offset, length, seed, false);
+    }
     /**
      * Returns the hash code for the specified range of the given {@code byte} array.
      * @param input the input byte array
@@ -82,7 +85,7 @@ public final class T1ha1 {
      * @param seed customized seed
      * @return hash code
      */
-    public static long hash(byte[] input, int offset, int length, long seed) {
+    public static long hash(byte[] input, int offset, int length, long seed, boolean useOldHashMux) {
         long a = seed;
         long b = length;
 
@@ -111,7 +114,7 @@ public final class T1ha1 {
             b ^= p5 * (rotateRight(d, s1) + c);
         }
 
-        return h32(input, offset, length, a, b);
+        return h32(input, offset, length, a, b, useOldHashMux);
     }
 
     /**
@@ -120,10 +123,10 @@ public final class T1ha1 {
      * instruction pointers (tableswitch instruction), making lookups really fast.
      */
     @SuppressWarnings("fallthrough")
-    private static long h32(byte[] input, int offset, int length, long a, long b) {
+    private static long h32(byte[] input, int offset, int length, long a, long b, boolean useOldHashMux) {
         switch (length) {
             default:
-                b += mux64(fetch64(input, offset), p4);
+                b += mux64(fetch64(input, offset), p4, useOldHashMux);
                 offset += 8;
                 length -= 8;
             case 24:
@@ -134,7 +137,7 @@ public final class T1ha1 {
             case 19:
             case 18:
             case 17:
-                a += mux64(fetch64(input, offset), p3);
+                a += mux64(fetch64(input, offset), p3, useOldHashMux);
                 offset += 8;
                 length -= 8;
             case 16:
@@ -145,7 +148,7 @@ public final class T1ha1 {
             case 11:
             case 10:
             case 9:
-                b += mux64(fetch64(input, offset), p2);
+                b += mux64(fetch64(input, offset), p2, useOldHashMux);
                 offset += 8;
                 length -= 8;
             case 8:
@@ -156,18 +159,18 @@ public final class T1ha1 {
             case 3:
             case 2:
             case 1:
-                a += mux64(tail64(input, offset, length), p1);
+                a += mux64(tail64(input, offset, length), p1, useOldHashMux);
             case 0:
                 // Final weak avalanche
-                return mux64(rotateRight(a + b, s1), p4) + mix64(a ^ b, p0);
+                return mux64(rotateRight(a + b, s1), p4, useOldHashMux) + mix64(a ^ b, p0);
         }
     }
 
     /**
      * XOR the high and low parts of the full 128-bit product.
      */
-    private static long mux64(long a, long b) {
-        return MUX_64_IMPL.mux64(a, b);
+    private static long mux64(long a, long b, boolean useOldHashMux) {
+        return useOldHashMux ? oldMux(a, b) : MUX_64_IMPL.mux64(a, b);
     }
 
     /**
@@ -273,5 +276,9 @@ public final class T1ha1 {
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static long oldMux(long a, long b) {
+        return Math.multiplyHigh(a, b) ^ (a * b);
     }
 }

@@ -42,10 +42,18 @@ public abstract class AbstractFuzzySet implements FuzzySet {
         return containsHash(generateKey(val));
     }
 
+    public Result contains(BytesRef val, boolean useOldHashMux) {
+        return containsHash(generateKey(val, useOldHashMux));
+    }
+
     protected abstract Result containsHash(long hash);
 
     protected long generateKey(BytesRef value) {
         return T1ha1.hash(value.bytes, value.offset, value.length, 0L);
+    }
+
+    protected long generateKey(BytesRef value, boolean useOldHashMux) {
+        return T1ha1.hash(value.bytes, value.offset, value.length, 0L, useOldHashMux);
     }
 
     protected void assertAllElementsExist(CheckedSupplier<Iterator<BytesRef>, IOException> iteratorProvider) throws IOException {
