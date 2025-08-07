@@ -13,9 +13,13 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.common.lifecycle.AbstractLifecycleComponent;
 import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.common.util.concurrent.ConcurrentMapLong;
-import org.opensearch.datafusion.core.SessionContext;
+import org.opensearch.datafusion.core.GlobalRuntimeEnv;
+import org.opensearch.datafusion.spi.DataSourceCodec;
+import org.opensearch.datafusion.spi.DataSourceRegistry;
+import org.opensearch.datafusion.spi.RecordBatchStream;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Service for managing DataFusion contexts and operations - essentially like SearchService
@@ -23,87 +27,167 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DataFusionService extends AbstractLifecycleComponent {
 
     private static final Logger logger = LogManager.getLogger(DataFusionService.class);
+    private final ConcurrentMapLong<DataSourceCodec> sessionEngines = ConcurrentCollections.newConcurrentMapLongWithAggressiveConcurrency();
 
-    // in memory contexts, similar to ReaderContext in SearchService, just a ptr to SessionContext for now.
-    private final ConcurrentMapLong<SessionContext> contexts = ConcurrentCollections.newConcurrentMapLongWithAggressiveConcurrency();
+    private final DataSourceRegistry dataSourceRegistry;
+    private final GlobalRuntimeEnv globalRuntimeEnv;
 
-    private final AtomicLong idGenerator = new AtomicLong();
+    public DataFusionService() {
+        this.dataSourceRegistry = DataSourceRegistry.getInstance();
+        String version = DataFusionJNI.getVersion();
+        this.globalRuntimeEnv = new GlobalRuntimeEnv();
+    }
 
     @Override
     protected void doStart() {
         logger.info("Starting DataFusion service");
         try {
-            // Test that the native library loads correctly
-            String version = DataFusionJNI.getVersion();
-            logger.info("DataFusion service started successfully. Version info: {}", version);
+            // Initialize the data source registry
+            dataSourceRegistry.initialize();
+
+            // Test that at least one data source is available
+            if (!dataSourceRegistry.hasCodecs()) {
+                logger.warn("No data sources available");
+            } else {
+                logger.info("DataFusion service started successfully with {} data sources: {}",
+                    dataSourceRegistry.getCodecNames().size(), dataSourceRegistry.getCodecNames());
+
+            }
         } catch (Exception e) {
             logger.error("Failed to start DataFusion service", e);
-            throw new RuntimeException("Failed to initialize DataFusion JNI", e);
+            throw new RuntimeException("Failed to initialize DataFusion service", e);
         }
     }
 
     @Override
     protected void doStop() {
         logger.info("Stopping DataFusion service");
-        // Close all named contexts
-        for (SessionContext ctx : contexts.values()) {
+
+        // Close all session contexts
+        for (Long sessionId : sessionEngines.keySet()) {
             try {
-                ctx.close();
+                closeSessionContext(sessionId).get();
             } catch (Exception e) {
-                logger.warn("Error closing DataFusion context", e);
+                logger.warn("Error closing session context {}", sessionId, e);
             }
         }
-        contexts.clear();
+
+        // Shutdown the engine registry
+        dataSourceRegistry.shutdown();
+        sessionEngines.clear();
+        globalRuntimeEnv.close();
         logger.info("DataFusion service stopped");
     }
 
     @Override
     protected void doClose() {
-        // Ensure all resources are cleaned up
         doStop();
     }
 
     /**
-     * Create a new named DataFusion context
-     * @return the context ID
+     * Register a directory with list of files to create a runtime environment
+     * with listing files cache of DataFusion
+     *
+     * @param directoryPath path to the directory containing files
+     * @param fileNames list of file names in the directory
+     * @return runtime environment ID
      */
-    long createContext() {
-        SessionContext ctx = new SessionContext();
-        // just stores the context for now
-        long id = idGenerator.incrementAndGet();
-        SessionContext existing = contexts.put(id, ctx);
-        assert existing == null;
-        return id;
-    }
-
-    /**
-     * Get a context by id
-     * @param id the context id
-     * @return the context ID, or null if not found
-     */
-    SessionContext getContext(long id) {
-        return contexts.get(id);
-    }
-
-    /**
-     * Close a context
-     * @param contextId the context id
-     * @return true if the context was found and closed, false otherwise
-     */
-    public boolean closeContext(long contextId) {
-        try (SessionContext ignored = contexts.remove(contextId)) {
-            // do nothing
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    public CompletableFuture<Void> registerDirectory(String directoryPath, List<String> fileNames) {
+        DataSourceCodec engine = dataSourceRegistry.getDefaultEngine();
+        if (engine == null) {
+            return CompletableFuture.failedFuture(
+                new IllegalStateException("No DataFusion engine available"));
         }
-        return false;
+
+        logger.debug("Registering directory {} with {} files using engine {}",
+            directoryPath, fileNames.size(), engine.getClass().getSimpleName());
+
+        return engine.registerDirectory(directoryPath, fileNames, globalRuntimeEnv.getPointer());
     }
 
     /**
-     * Get version information
+     * Create a session context
+     *
+     * @return session context ID
+     */
+    public CompletableFuture<Long> createSessionContext() {
+        long runtimeEnvironmentId = globalRuntimeEnv.getPointer();
+        DataSourceCodec codec = dataSourceRegistry.getDefaultEngine();
+        if (codec == null) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("Runtime environment not found: " + runtimeEnvironmentId));
+        }
+
+        logger.debug("Creating session context for runtime environment {} using engine {}",
+            runtimeEnvironmentId, codec.getClass().getSimpleName());
+
+        return codec.createSessionContext(runtimeEnvironmentId)
+            .thenApply(sessionId -> {
+                // Track which engine created this session context
+                sessionEngines.put(sessionId, codec);
+                logger.debug("Created session context {} with engine {}",
+                    sessionId, codec.getClass().getSimpleName());
+                return sessionId;
+            });
+    }
+
+    /**
+     * Execute a query accepting substrait plan bytes and run via session context
+     *
+     * @param sessionContextId the session context ID
+     * @param substraitPlanBytes the substrait plan as byte array
+     * @return record batch stream containing query results
+     */
+    public CompletableFuture<RecordBatchStream> executeSubstraitQuery(long sessionContextId, byte[] substraitPlanBytes) {
+        DataSourceCodec engine = sessionEngines.get(sessionContextId);
+        if (engine == null) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("Session context not found: " + sessionContextId));
+        }
+
+        logger.debug("Executing substrait query for session {} with plan size {} bytes using engine {}",
+            sessionContextId, substraitPlanBytes.length, engine.getClass().getSimpleName());
+
+        return engine.executeSubstraitQuery(sessionContextId, substraitPlanBytes);
+    }
+
+    /**
+     * Close the session context and clean up resources
+     *
+     * @param sessionContextId the session context ID to close
+     * @return future that completes when cleanup is done
+     */
+    public CompletableFuture<Void> closeSessionContext(long sessionContextId) {
+        DataSourceCodec engine = sessionEngines.remove(sessionContextId);
+        if (engine == null) {
+            logger.debug("Session context {} not found or already closed", sessionContextId);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        logger.debug("Closing session context {} using engine {}",
+            sessionContextId, engine.getClass().getSimpleName());
+
+        return engine.closeSessionContext(sessionContextId);
+    }
+
+    /**
+     * Get version information from available codecs
      * @return JSON version string
      */
     public String getVersion() {
-        return DataFusionJNI.getVersion();
+        StringBuilder version = new StringBuilder();
+        version.append("{\"codecs\":[");
+
+        boolean first = true;
+        for (String engineName : dataSourceRegistry.getCodecNames()) {
+            if (!first) {
+                version.append(",");
+            }
+            version.append("{\"name\":\"").append(engineName).append("\"}");
+            first = false;
+        }
+
+        version.append("]}");
+        return version.toString();
     }
 }

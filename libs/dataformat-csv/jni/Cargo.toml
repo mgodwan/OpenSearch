@@ -1,26 +1,28 @@
 [package]
-name = "opensearch-datafusion-jni"
+name = "opensearch-datafusion-csv-jni"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "opensearch_datafusion_jni"
+name = "opensearch_datafusion_csv_jni"
 crate-type = ["cdylib"]
 
 [dependencies]
 # DataFusion dependencies
 datafusion = "49.0.0"
 datafusion-substrait = "49.0.0"
-arrow = "55.2.0"
-arrow-array = "55.2.0"
-arrow-schema = "55.2.0"
-arrow-buffer = "55.2.0"
+arrow = "54.0.0"
+arrow-array = "54.0.0"
+arrow-schema = "54.0.0"
+arrow-buffer = "54.0.0"
 
 # JNI dependencies
 jni = "0.21"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+futures-util = "0.3"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -34,7 +36,7 @@ thiserror = "1.0"
 log = "0.4"
 
 # Parquet support
-parquet = "53.0.0"
+parquet = "54.0.0"
 
 # Object store for file access
 object_store = "0.11"
