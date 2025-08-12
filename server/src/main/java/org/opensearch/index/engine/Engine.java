@@ -79,6 +79,7 @@ import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.engine.exec.composite.CompositeDataFormatWriter;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.Mapping;
 import org.opensearch.index.mapper.ParseContext.Document;
@@ -1607,6 +1608,7 @@ public abstract class Engine implements LifecycleAware, Closeable {
         private final boolean isRetry;
         private final long ifSeqNo;
         private final long ifPrimaryTerm;
+        public CompositeDataFormatWriter.CompositeDocumentInput documentInput = new CompositeDataFormatWriter.CompositeDocumentInput(List.of(), null);
 
         public Index(
             Term uid,

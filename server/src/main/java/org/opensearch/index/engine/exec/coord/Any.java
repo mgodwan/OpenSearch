@@ -6,12 +6,22 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec;
+package org.opensearch.index.engine.exec.coord;
 
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.index.engine.exec.DataFormat;
 
-public class LuceneDataFormat implements DataFormat {
+import java.util.List;
+
+public class Any implements DataFormat {
+
+    private List<DataFormat> dataFormats;
+
+    public Any(List<DataFormat> dataFormats) {
+        this.dataFormats = dataFormats;
+    }
+
     @Override
     public Setting<Settings> dataFormatSettings() {
         return null;
@@ -24,11 +34,17 @@ public class LuceneDataFormat implements DataFormat {
 
     @Override
     public String name() {
-        return "lucene";
+        return "all";
+    }
+
+    public List<DataFormat> getDataFormats() {
+        return dataFormats;
     }
 
     @Override
     public void configureStore() {
-
+        for (DataFormat dataFormat : dataFormats) {
+            dataFormat.configureStore();
+        }
     }
 }

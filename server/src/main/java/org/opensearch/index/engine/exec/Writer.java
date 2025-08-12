@@ -8,19 +8,19 @@
 
 package org.opensearch.index.engine.exec;
 
-import org.opensearch.index.engine.Engine;
-
 import java.io.IOException;
 import java.util.Optional;
 
-public interface Writer<T extends DataFormat, P extends DocumentInput<?>> {
-    Engine.IndexResult addDoc(P d) throws IOException;
+public interface Writer<P extends DocumentInput<?>> {
+    WriteResult addDoc(P d) throws IOException;
 
-    Metadata flush(FlushIn flushIn) throws IOException;
+    FileMetadata flush(FlushIn flushIn) throws IOException;
 
     void sync() throws IOException;
 
     void close();
 
-    Optional<Metadata> getMetadata();
+    Optional<FileMetadata> getMetadata();
+
+    P newDocumentInput();
 }
