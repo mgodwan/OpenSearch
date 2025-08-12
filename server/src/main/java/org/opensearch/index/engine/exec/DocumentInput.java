@@ -10,11 +10,13 @@ package org.opensearch.index.engine.exec;
 
 import org.opensearch.index.mapper.MappedFieldType;
 
+import java.io.IOException;
+
 public interface DocumentInput<T> extends AutoCloseable {
 
     void addField(MappedFieldType fieldType, Object value);
 
     T getFinalInput();
 
-    <P extends DocumentInput<T>> Writer<P> getWriter();
+    WriteResult addToWriter() throws IOException;
 }

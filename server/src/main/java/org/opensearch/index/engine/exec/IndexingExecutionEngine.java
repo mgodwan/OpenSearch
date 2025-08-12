@@ -20,5 +20,7 @@ public interface IndexingExecutionEngine<T extends DataFormat> {
 
     Writer<? extends DocumentInput<?>> createWriter() throws IOException; // A writer responsible for data format vended by this engine.
 
-    RefreshResult refresh();
+    RefreshResult refresh(RefreshInput refreshInput) throws IOException;
+
+    DataFormat getDataFormat();
 }

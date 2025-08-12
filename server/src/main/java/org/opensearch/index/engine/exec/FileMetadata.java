@@ -8,4 +8,4 @@
 
 package org.opensearch.index.engine.exec;
 
-public record FileMetadata(String fileName) { }
+public record FileMetadata(DataFormat df, String fileName) { }

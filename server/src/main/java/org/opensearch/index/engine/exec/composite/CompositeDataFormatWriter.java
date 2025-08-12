@@ -23,23 +23,32 @@ import java.util.stream.Collectors;
 
 public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWriter.CompositeDocumentInput> {
 
-    List<Writer<? extends DocumentInput>> writers;
+    List<Writer<? extends DocumentInput>> writers = new ArrayList<>();
+    Runnable postWrite;
 
     public CompositeDataFormatWriter(CompositeIndexingExecutionEngine engine) {
-
+        engine.delegates.forEach(delegate -> {
+            try {
+                writers.add(delegate.createWriter());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        this.postWrite = () -> engine.pool.offer(this);
     }
 
     @Override
     public WriteResult addDoc(CompositeDocumentInput d) throws IOException {
-        for (DocumentInput docInput: d.getFinalInput()) {
-            docInput.getWriter().addDoc(docInput);
-        }
-        return null;
+        return d.addToWriter();
     }
 
     @Override
     public FileMetadata flush(FlushIn flushIn) throws IOException {
-        return null;
+        FileMetadata metadata = null;
+        for  (Writer<? extends DocumentInput> writer : writers) {
+            metadata = writer.flush(flushIn);
+        }
+        return metadata; // todo: model meta in a way that it can handle multiple writers.
     }
 
     @Override
@@ -60,16 +69,18 @@ public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWrit
     @Override
     public CompositeDocumentInput newDocumentInput() {
         List<DocumentInput<?>> documentInputs = new ArrayList<>();
-        return new CompositeDocumentInput(writers.stream().map(Writer::newDocumentInput).collect(Collectors.toList()), this);
+        return new CompositeDocumentInput(writers.stream().map(Writer::newDocumentInput).collect(Collectors.toList()), this, postWrite);
     }
 
     public static class CompositeDocumentInput implements DocumentInput<List<? extends DocumentInput<?>>> {
         List<? extends DocumentInput<?>> inputs;
         CompositeDataFormatWriter writer;
+        Runnable onClose;
 
-        public CompositeDocumentInput(List<? extends DocumentInput<?>> inputs, CompositeDataFormatWriter writer) {
+        public CompositeDocumentInput(List<? extends DocumentInput<?>> inputs, CompositeDataFormatWriter writer, Runnable onClose) {
             this.inputs = inputs;
             this.writer = writer;
+            this.onClose = onClose;
         }
 
         @Override
@@ -85,13 +96,17 @@ public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWrit
         }
 
         @Override
-        public CompositeDataFormatWriter getWriter() {
-            return writer;
+        public WriteResult addToWriter() throws IOException {
+            WriteResult writeResult = null;
+            for (DocumentInput<?> input : inputs) {
+                writeResult = input.addToWriter();
+            }
+            return writeResult;
         }
 
         @Override
         public void close() throws Exception {
-
+            onClose.run();
         }
     }
 }

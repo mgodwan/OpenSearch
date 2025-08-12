@@ -33,6 +33,10 @@ public class DocumentWriterPool {
         return writers.poll();
     }
 
+    public void offer(CompositeDataFormatWriter writer) {
+        writers.add(writer);
+    }
+
     public List<CompositeDataFormatWriter> freeAll() {
         List<CompositeDataFormatWriter> freeWriters = new ArrayList<>();
         while (!writers.isEmpty()) {

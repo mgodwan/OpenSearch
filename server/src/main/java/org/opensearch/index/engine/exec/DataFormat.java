@@ -10,6 +10,7 @@ package org.opensearch.index.engine.exec;
 
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.index.engine.exec.text.TextDF;
 
 public interface DataFormat {
     Setting<Settings> dataFormatSettings();
@@ -43,4 +44,6 @@ public interface DataFormat {
     }
 
     DataFormat LUCENE = new LuceneDataFormat();
+
+    DataFormat TEXT = new TextDF();
 }

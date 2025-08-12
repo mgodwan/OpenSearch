@@ -13,16 +13,20 @@ import org.opensearch.index.engine.exec.FileMetadata;
 import org.opensearch.index.engine.exec.RefreshResult;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 public class CatalogSnapshot extends AbstractRefCounted {
 
-    private Map<String, Collection<FileMetadata>> dfGroupedSearchableFiles;
+    private Map<String, Collection<FileMetadata>> dfGroupedSearchableFiles = new HashMap<>();
     private final long id;
 
 
     public CatalogSnapshot(RefreshResult refreshResult, long id) {
         super("catalog_snapshot");
+        refreshResult.getRefreshedFiles().forEach((df, files) -> {
+            dfGroupedSearchableFiles.put(df.name(), files);
+        });
         this.id = id;
     }
 
@@ -33,5 +37,18 @@ public class CatalogSnapshot extends AbstractRefCounted {
     @Override
     protected void closeInternal() {
         // notify to file deleter, search, etc
+    }
+
+
+    public long getId() {
+        return id;
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogSnapshot{" +
+            "dfGroupedSearchableFiles=" + dfGroupedSearchableFiles +
+            ", id=" + id +
+            '}';
     }
 }
