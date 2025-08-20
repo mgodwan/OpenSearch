@@ -23,13 +23,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class IndexingExecutionCoordinator {
+public class IndexingManager {  //Internal Engine
 
     private final CompositeIndexingExecutionEngine engine;
     private List<ReferenceManager.RefreshListener> refreshListeners = new ArrayList<>();
     private CatalogSnapshot catalogSnapshot;
 
-    public IndexingExecutionCoordinator(/*MapperService mapperService, EngineConfig engineConfig*/) {
+    public IndexingManager(/*MapperService mapperService, EngineConfig engineConfig*/) {
         this.engine = new CompositeIndexingExecutionEngine(null, new Any(List.of(DataFormat.TEXT)));
     }
 
@@ -102,7 +102,7 @@ public class IndexingExecutionCoordinator {
     }
 
     public static void main(String[] args) throws Exception {
-        IndexingExecutionCoordinator coordinator = new IndexingExecutionCoordinator();
+        IndexingManager coordinator = new IndexingManager();
 
         for (int i = 0; i < 5; i++) {
 
