@@ -28,4 +28,6 @@ public interface StatsHolder {
     PollingIngestStats pollingIngestStats();
 
     MergeStats getMergeStats();
+
+    long unreferencedFileCleanUpsPerformed();
 }

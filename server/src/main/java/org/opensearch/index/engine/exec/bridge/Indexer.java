@@ -8,6 +8,8 @@
 
 package org.opensearch.index.engine.exec.bridge;
 
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineException;
 import org.opensearch.index.engine.SafeCommitInfo;
@@ -55,6 +57,8 @@ public interface Indexer {
      */
     void updateMaxUnsafeAutoIdTimestamp(long newTimestamp);
 
+    long getLastWriteNanos();
+
     int fillSeqNoGaps(long primaryTerm) throws IOException;
 
     // File format methods follow below
@@ -67,11 +71,15 @@ public interface Indexer {
         String forceMergeUUID
     ) throws EngineException, IOException;
 
+    void onSettingsChanged(TimeValue translogRetentionAge, ByteSizeValue translogRetentionSize, long softDeletesRetentionOps);
+
     void writeIndexingBuffer() throws EngineException;
 
     void refresh(String source) throws EngineException;
 
     void flush(boolean force, boolean waitIfOngoing) throws EngineException;
+
+    boolean shouldPeriodicallyFlush();
 
     SafeCommitInfo getSafeCommitInfo();
 
