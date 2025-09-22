@@ -8,12 +8,14 @@
 
 package org.opensearch.index.engine.exec.coord;
 
+import org.apache.lucene.internal.hppc.IntObjectHashMap;
 import org.opensearch.common.util.concurrent.AbstractRefCounted;
 import org.opensearch.index.engine.exec.FileMetadata;
 import org.opensearch.index.engine.exec.RefreshResult;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class CatalogSnapshot extends AbstractRefCounted {
@@ -30,8 +32,16 @@ public class CatalogSnapshot extends AbstractRefCounted {
         this.id = id;
     }
 
+    public Iterable<String> dataFormats() {
+        return dfGroupedSearchableFiles.keySet();
+    }
+
     public Collection<FileMetadata> getSearchableFiles(String df) {
         return dfGroupedSearchableFiles.get(df);
+    }
+
+    public List<Segment> getSegments() {
+        return null;
     }
 
     @Override
@@ -50,5 +60,23 @@ public class CatalogSnapshot extends AbstractRefCounted {
             "dfGroupedSearchableFiles=" + dfGroupedSearchableFiles +
             ", id=" + id +
             '}';
+    }
+
+    public static class Segment {
+        private final long generation;
+        private final Map<String, Collection<FileMetadata>> dfGroupedSearchableFiles;
+
+        public Segment(Map<String, Collection<FileMetadata>> dfGroupedSearchableFiles, long generation) {
+            this.dfGroupedSearchableFiles = dfGroupedSearchableFiles;
+            this.generation = generation;
+        }
+
+        public Collection<FileMetadata> getSearchableFiles(String df) {
+            return dfGroupedSearchableFiles.get(df);
+        }
+
+        public long getGeneration() {
+            return generation;
+        }
     }
 }

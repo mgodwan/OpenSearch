@@ -246,6 +246,8 @@ public class IndicesService extends AbstractLifecycleComponent
         Property.NodeScope
     );
 
+
+
     public static final Setting<Boolean> WRITE_DANGLING_INDICES_INFO_SETTING = Setting.boolSetting(
         "gateway.write_dangling_indices_info",
         true,

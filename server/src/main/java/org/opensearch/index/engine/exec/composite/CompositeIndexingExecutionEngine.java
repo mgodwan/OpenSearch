@@ -65,7 +65,7 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
     }
 
     @Override
-    public RefreshResult refresh(RefreshInput ignore) throws IOException {
+    public RefreshResult refresh(RefreshInput ignore) {
         RefreshResult finalResult = new RefreshResult();
         Map<DataFormat, RefreshInput> refreshInputs = new HashMap<>();
         try {

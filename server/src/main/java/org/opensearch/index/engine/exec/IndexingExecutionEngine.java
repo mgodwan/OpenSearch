@@ -8,6 +8,7 @@
 
 package org.opensearch.index.engine.exec;
 
+import org.opensearch.index.engine.exec.commit.CommitBuilder;
 import org.opensearch.index.mapper.MappedFieldType;
 
 import java.io.IOException;

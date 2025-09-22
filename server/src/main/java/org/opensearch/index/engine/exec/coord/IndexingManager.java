@@ -9,21 +9,30 @@
 package org.opensearch.index.engine.exec.coord;
 
 
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.search.ReferenceManager;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineException;
+import org.opensearch.index.engine.SafeCommitInfo;
+import org.opensearch.index.engine.Segment;
 import org.opensearch.index.engine.exec.DataFormat;
 import org.opensearch.index.engine.exec.RefreshInput;
 import org.opensearch.index.engine.exec.WriteResult;
+import org.opensearch.index.engine.exec.bridge.Indexer;
 import org.opensearch.index.engine.exec.composite.CompositeDataFormatWriter;
 import org.opensearch.index.engine.exec.composite.CompositeIndexingExecutionEngine;
 import org.opensearch.index.mapper.KeywordFieldMapper;
+import org.opensearch.index.translog.Translog;
+import org.opensearch.index.translog.TranslogManager;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class IndexingManager {  //Internal Engine
+public class IndexingManager implements Indexer {  //Internal Engine
 
     private final CompositeIndexingExecutionEngine engine;
     private List<ReferenceManager.RefreshListener> refreshListeners = new ArrayList<>();
@@ -37,14 +46,14 @@ public class IndexingManager {  //Internal Engine
         return engine.createWriter().newDocumentInput();
     }
 
-    public Engine.IndexResult index(Engine.Index index) throws Exception {
+    public Engine.IndexResult index(Engine.Index index) throws IOException {
         WriteResult writeResult = index.documentInput.addToWriter();
         // translog, checkpoint, other checks
         return new Engine.IndexResult(writeResult.version(), writeResult.seqNo(), writeResult.term(), writeResult.success());
     }
 
 
-    public synchronized void refresh(String source) throws EngineException, IOException {
+    public synchronized void refresh(String source) throws EngineException {
         refreshListeners.forEach(ref -> {
             try {
                 ref.beforeRefresh();
@@ -73,6 +82,7 @@ public class IndexingManager {  //Internal Engine
             }
         });
     }
+
 
     // This should get wired into searcher acquireSnapshot for initializing reader context later
     // this now becomes equivalent of the reader
@@ -129,4 +139,105 @@ public class IndexingManager {  //Internal Engine
         }
     }
 
+
+
+    @Override
+    public void flush(boolean force, boolean waitIfOngoing) throws EngineException {
+
+    }
+
+    @Override
+    public boolean shouldPeriodicallyFlush() {
+        return false;
+    }
+
+    @Override
+    public SafeCommitInfo getSafeCommitInfo() {
+        return null;
+    }
+
+    @Override
+    public TranslogManager translogManager() {
+        return null;
+    }
+
+    @Override
+    public Closeable acquireHistoryRetentionLock() {
+        return null;
+    }
+
+    @Override
+    public Translog.Snapshot newChangesSnapshot(String source, long fromSeqNo, long toSeqNo, boolean requiredFullRange, boolean accurateCount) throws IOException {
+        return null;
+    }
+
+    @Override
+    public String getHistoryUUID() {
+        return "";
+    }
+
+    @Override
+    public Engine.DeleteResult delete(Engine.Delete delete) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Engine.NoOpResult noOp(Engine.NoOp noOp) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int countNumberOfHistoryOperations(String source, long fromSeqNo, long toSeqNumber) throws IOException {
+        return 0;
+    }
+
+    @Override
+    public boolean hasCompleteOperationHistory(String reason, long startingSeqNo) {
+        return false;
+    }
+
+    @Override
+    public long getIndexBufferRAMBytesUsed() {
+        return 0;
+    }
+
+    @Override
+    public List<Segment> segments(boolean verbose) {
+        return List.of();
+    }
+
+    @Override
+    public long getMaxSeenAutoIdTimestamp() {
+        return 0;
+    }
+
+    @Override
+    public void updateMaxUnsafeAutoIdTimestamp(long newTimestamp) {
+
+    }
+
+    @Override
+    public long getLastWriteNanos() {
+        return 0;
+    }
+
+    @Override
+    public int fillSeqNoGaps(long primaryTerm) throws IOException {
+        return 0;
+    }
+
+    @Override
+    public void forceMerge(boolean flush, int maxNumSegments, boolean onlyExpungeDeletes, boolean upgrade, boolean upgradeOnlyAncientSegments, String forceMergeUUID) throws EngineException, IOException {
+
+    }
+
+    @Override
+    public void onSettingsChanged(TimeValue translogRetentionAge, ByteSizeValue translogRetentionSize, long softDeletesRetentionOps) {
+
+    }
+
+    @Override
+    public void writeIndexingBuffer() throws EngineException {
+
+    }
 }

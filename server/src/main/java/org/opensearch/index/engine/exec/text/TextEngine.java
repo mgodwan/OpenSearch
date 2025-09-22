@@ -17,6 +17,7 @@ import org.opensearch.index.engine.exec.RefreshInput;
 import org.opensearch.index.engine.exec.RefreshResult;
 import org.opensearch.index.engine.exec.WriteResult;
 import org.opensearch.index.engine.exec.Writer;
+import org.opensearch.index.engine.exec.commit.CommitBuilder;
 import org.opensearch.index.mapper.MappedFieldType;
 
 import java.io.File;
@@ -31,7 +32,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TextEngine implements IndexingExecutionEngine<TextDF> {
+public class TextEngine implements IndexingExecutionEngine<TextDF, TextEngine.TextWriter> {
 
     private final AtomicLong counter = new AtomicLong();
     private final Set<TextWriter> openWriters = new HashSet<>();
@@ -58,6 +59,10 @@ public class TextEngine implements IndexingExecutionEngine<TextDF> {
         RefreshResult refreshResult = new RefreshResult();
         refreshResult.add(DataFormat.TEXT, openFiles);
         return refreshResult;
+    }
+
+    public CommitBuilder commitBuilder(FileMetadata fileMetadata) {
+
     }
 
     public static class TextInput implements DocumentInput<String> {
@@ -99,7 +104,7 @@ public class TextEngine implements IndexingExecutionEngine<TextDF> {
         private final Runnable onClose;
 
         public TextWriter(String currentFile, TextEngine engine) throws IOException{
-            this.currentFile = new File("/Users/mgodwan/" + currentFile);
+            this.currentFile = new File("/Users/mgodwan/Downloads/poc/text/" + currentFile);
             this.currentFile.createNewFile();
             boolean canWrite = this.currentFile.setWritable(true);
             if (!canWrite) {
