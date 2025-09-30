@@ -6,15 +6,15 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec;
+package org.opensearch.index.engine.exec.engine;
 
-import org.opensearch.index.engine.exec.commit.CommitBuilder;
-import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.index.engine.exec.RefreshInput;
+import org.opensearch.index.engine.exec.RefreshResult;
+import org.opensearch.index.engine.exec.Writer;
+import org.opensearch.index.engine.exec.format.DataFormat;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 public interface IndexingExecutionEngine<T extends DataFormat> {
     List<String> supportedFieldTypes();

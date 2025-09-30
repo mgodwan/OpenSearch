@@ -8,6 +8,10 @@
 
 package org.opensearch.index.engine.exec.bridge;
 
+/**
+ * Manages throttling for indexing. This can be used to compose different throttling signals,
+ * and limit indexing on the nodes to allow to handle strenuous situations.
+ */
 public interface IndexingThrottler {
 
     /**

@@ -10,7 +10,7 @@ package org.opensearch.index.engine.exec.text;
 
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.index.engine.exec.DataFormat;
+import org.opensearch.index.engine.exec.format.DataFormat;
 
 
 public class TextDF implements DataFormat {

@@ -8,6 +8,9 @@
 
 package org.opensearch.index.engine.exec;
 
+import org.opensearch.index.engine.exec.engine.DocumentInput;
+import org.opensearch.index.engine.exec.engine.FileMetadata;
+
 import java.io.IOException;
 import java.util.Optional;
 

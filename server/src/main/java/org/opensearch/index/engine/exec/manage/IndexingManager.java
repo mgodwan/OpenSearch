@@ -6,10 +6,9 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec.coord;
+package org.opensearch.index.engine.exec.manage;
 
 
-import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.search.ReferenceManager;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeValue;
@@ -17,7 +16,8 @@ import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineException;
 import org.opensearch.index.engine.SafeCommitInfo;
 import org.opensearch.index.engine.Segment;
-import org.opensearch.index.engine.exec.DataFormat;
+import org.opensearch.index.engine.exec.composite.CompositeDataFormat;
+import org.opensearch.index.engine.exec.format.DataFormat;
 import org.opensearch.index.engine.exec.RefreshInput;
 import org.opensearch.index.engine.exec.WriteResult;
 import org.opensearch.index.engine.exec.bridge.Indexer;
@@ -39,7 +39,7 @@ public class IndexingManager implements Indexer {  //Internal Engine
     private CatalogSnapshot catalogSnapshot;
 
     public IndexingManager(/*MapperService mapperService, EngineConfig engineConfig*/) {
-        this.engine = new CompositeIndexingExecutionEngine(null, new Any(List.of(DataFormat.TEXT)));
+        this.engine = new CompositeIndexingExecutionEngine(null, new CompositeDataFormat(List.of(DataFormat.TEXT)));
     }
 
     public CompositeDataFormatWriter.CompositeDocumentInput documentInput() throws IOException {

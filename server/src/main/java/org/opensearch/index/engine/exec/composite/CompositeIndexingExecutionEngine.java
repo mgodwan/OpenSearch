@@ -8,15 +8,14 @@
 
 package org.opensearch.index.engine.exec.composite;
 
-import org.opensearch.index.engine.DataFormatPlugin;
-import org.opensearch.index.engine.exec.DataFormat;
-import org.opensearch.index.engine.exec.FileMetadata;
-import org.opensearch.index.engine.exec.IndexingExecutionEngine;
+import org.opensearch.index.engine.exec.DataFormatPlugin;
+import org.opensearch.index.engine.exec.format.DataFormat;
+import org.opensearch.index.engine.exec.engine.FileMetadata;
+import org.opensearch.index.engine.exec.engine.IndexingExecutionEngine;
 import org.opensearch.index.engine.exec.RefreshInput;
 import org.opensearch.index.engine.exec.RefreshResult;
 import org.opensearch.index.engine.exec.Writer;
-import org.opensearch.index.engine.exec.coord.Any;
-import org.opensearch.index.engine.exec.coord.DocumentWriterPool;
+import org.opensearch.index.engine.exec.manage.DocumentWriterPool;
 import org.opensearch.index.engine.exec.text.TextEngine;
 import org.opensearch.plugins.PluginsService;
 
@@ -26,13 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine<Any> {
+public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine<CompositeDataFormat> {
 
     final DocumentWriterPool pool;
     private DataFormat dataFormat;
     public final List<IndexingExecutionEngine<?>> delegates = new ArrayList<>();
 
-    public CompositeIndexingExecutionEngine(PluginsService pluginsService, Any dataformat) {
+    public CompositeIndexingExecutionEngine(PluginsService pluginsService, CompositeDataFormat dataformat) {
         this.dataFormat = dataformat;
         try {
             for (DataFormat dataFormat : dataformat.getDataFormats()) {

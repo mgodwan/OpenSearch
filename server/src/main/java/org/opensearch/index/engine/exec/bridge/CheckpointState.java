@@ -10,6 +10,9 @@ package org.opensearch.index.engine.exec.bridge;
 
 import org.opensearch.index.seqno.SeqNoStats;
 
+/**
+ * Interface to maintain the checkpoint state during the indexing process.
+ */
 public interface CheckpointState {
 
     /**
@@ -33,5 +36,8 @@ public interface CheckpointState {
      */
     long getLastSyncedGlobalCheckpoint();
 
+    /**
+     * Returns the minimum sequence number retained for this engine.
+     */
     long getMinRetainedSeqNo();
 }

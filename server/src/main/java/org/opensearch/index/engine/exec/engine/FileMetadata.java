@@ -6,6 +6,8 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec;
+package org.opensearch.index.engine.exec.engine;
+
+import org.opensearch.index.engine.exec.format.DataFormat;
 
 public record FileMetadata(DataFormat df, String fileName) { }

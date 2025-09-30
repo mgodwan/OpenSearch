@@ -15,6 +15,10 @@ import org.opensearch.index.shard.DocsStats;
 import org.opensearch.indices.pollingingest.PollingIngestStats;
 import org.opensearch.search.suggest.completion.CompletionStats;
 
+/**
+ * Manages all engines related stats.
+ *
+ */
 public interface StatsHolder {
 
     CommitStats commitStats();

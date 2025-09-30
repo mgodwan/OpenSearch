@@ -6,12 +6,10 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine;
+package org.opensearch.index.engine.exec;
 
-import org.opensearch.index.engine.exec.DataFormat;
-import org.opensearch.index.engine.exec.IndexingExecutionEngine;
-
-import javax.xml.crypto.Data;
+import org.opensearch.index.engine.exec.engine.IndexingExecutionEngine;
+import org.opensearch.index.engine.exec.format.DataFormat;
 
 public interface DataFormatPlugin  {
 

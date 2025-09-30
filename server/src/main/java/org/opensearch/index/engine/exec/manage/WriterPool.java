@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec.commit;
+package org.opensearch.index.engine.exec.manage;
 
-public final class CommitPoint {
+public class WriterPool {
 }

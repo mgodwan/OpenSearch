@@ -8,11 +8,11 @@
 
 package org.opensearch.index.engine.exec.text;
 
-import org.opensearch.index.engine.exec.DataFormat;
-import org.opensearch.index.engine.exec.DocumentInput;
-import org.opensearch.index.engine.exec.FileMetadata;
+import org.opensearch.index.engine.exec.format.DataFormat;
+import org.opensearch.index.engine.exec.engine.DocumentInput;
+import org.opensearch.index.engine.exec.engine.FileMetadata;
 import org.opensearch.index.engine.exec.FlushIn;
-import org.opensearch.index.engine.exec.IndexingExecutionEngine;
+import org.opensearch.index.engine.exec.engine.IndexingExecutionEngine;
 import org.opensearch.index.engine.exec.RefreshInput;
 import org.opensearch.index.engine.exec.RefreshResult;
 import org.opensearch.index.engine.exec.WriteResult;
@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;

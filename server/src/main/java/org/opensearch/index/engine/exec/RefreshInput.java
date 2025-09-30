@@ -8,6 +8,8 @@
 
 package org.opensearch.index.engine.exec;
 
+import org.opensearch.index.engine.exec.engine.FileMetadata;
+
 import java.util.ArrayList;
 import java.util.List;
 

@@ -6,11 +6,10 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec.coord;
+package org.opensearch.index.engine.exec.manage;
 
-import org.apache.lucene.internal.hppc.IntObjectHashMap;
 import org.opensearch.common.util.concurrent.AbstractRefCounted;
-import org.opensearch.index.engine.exec.FileMetadata;
+import org.opensearch.index.engine.exec.engine.FileMetadata;
 import org.opensearch.index.engine.exec.RefreshResult;
 
 import java.util.Collection;

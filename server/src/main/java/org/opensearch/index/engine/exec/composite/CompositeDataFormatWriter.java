@@ -8,8 +8,8 @@
 
 package org.opensearch.index.engine.exec.composite;
 
-import org.opensearch.index.engine.exec.DocumentInput;
-import org.opensearch.index.engine.exec.FileMetadata;
+import org.opensearch.index.engine.exec.engine.DocumentInput;
+import org.opensearch.index.engine.exec.engine.FileMetadata;
 import org.opensearch.index.engine.exec.FlushIn;
 import org.opensearch.index.engine.exec.WriteResult;
 import org.opensearch.index.engine.exec.Writer;
@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ *
+ */
 public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWriter.CompositeDocumentInput> {
 
     List<Writer<? extends DocumentInput>> writers = new ArrayList<>();

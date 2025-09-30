@@ -6,11 +6,13 @@
  * compatible open source license.
  */
 
-package org.opensearch.index.engine.exec;
+package org.opensearch.index.engine.exec.engine;
 
+import org.opensearch.index.engine.exec.WriteResult;
 import org.opensearch.index.mapper.MappedFieldType;
 
 import java.io.IOException;
+
 
 public interface DocumentInput<T> extends AutoCloseable {
 
