@@ -82,6 +82,21 @@ public final class ArrowSchemaBuilder {
         return fields;
     }
 
+    static List<Field> extractFieldsFromMappers(final List<Mapper> mappers) {
+        final List<Field> fields = new ArrayList<>();
+
+        for (final Mapper mapper : mappers) {
+            if (notSupportedMetadataField(mapper)) {
+                continue;
+            }
+
+            final Field arrowField = createArrowField(mapper);
+            fields.add(arrowField);
+        }
+
+        return fields;
+    }
+
     /**
      * Checks if the given mapper represents a not supported metadata field.
      *
@@ -105,6 +120,12 @@ public final class ArrowSchemaBuilder {
      * @throws IllegalStateException if the mapper type is not supported
      */
     private static Field createArrowField(final Mapper mapper) {
+
+        final ParquetField parquetField = canCreateParquetField(mapper);
+        return new Field(mapper.name(), parquetField.getFieldType(), null);
+    }
+
+    public static ParquetField canCreateParquetField(Mapper mapper) {
         final ParquetField parquetField = ArrowFieldRegistry.getParquetField(mapper.typeName());
 
         if (parquetField == null) {
@@ -114,6 +135,6 @@ public final class ArrowSchemaBuilder {
             );
         }
 
-        return new Field(mapper.name(), parquetField.getFieldType(), null);
+        return parquetField;
     }
 }
