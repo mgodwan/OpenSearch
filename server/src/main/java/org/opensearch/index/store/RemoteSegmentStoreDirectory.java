@@ -16,13 +16,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.store.ByteBuffersDataOutput;
-import org.apache.lucene.store.ByteBuffersIndexOutput;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FilterDirectory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.*;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.annotation.InternalApi;
@@ -35,6 +29,7 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.index.engine.exec.FileMetadata;
 import org.opensearch.index.engine.exec.coord.CatalogSnapshot;
+import org.opensearch.index.engine.exec.coord.CompositeEngineCatalogSnapshot;
 import org.opensearch.index.engine.exec.coord.SegmentInfosCatalogSnapshot;
 import org.opensearch.index.remote.RemoteStorePathStrategy;
 import org.opensearch.index.remote.RemoteStoreUtils;
@@ -51,7 +46,7 @@ import org.opensearch.threadpool.ThreadPool;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.NoSuchFileException;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -278,6 +273,37 @@ public class RemoteSegmentStoreDirectory extends FilterDirectory implements Remo
         try (InputStream inputStream = remoteMetadataDirectory.getBlobStream(metadataFilename)) {
             byte[] metadataBytes = inputStream.readAllBytes();
             return metadataStreamWrapper.readStream(new ByteArrayIndexInput(metadataFilename, metadataBytes));
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        Path metaDir = Paths.get("/Users/mgodwan/shard_meta");
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(metaDir, "segments_*")) {
+            for (Path file : stream) {
+                try (InputStream is = Files.newInputStream(file)) {
+                    byte[] bytes = is.readAllBytes();
+                    RemoteSegmentMetadata metadata = metadataStreamWrapper.readStream(new ByteArrayIndexInput(file.getFileName().toString(), bytes));
+
+                    SegmentInfos sis = SegmentInfos.readCommit(null,
+                        new BufferedChecksumIndexInput(new ByteArrayIndexInput("segments", metadata.getSegmentInfosBytes())),
+                        metadata.getGeneration());
+                    if (sis.getUserData().containsKey(CatalogSnapshot.CATALOG_SNAPSHOT_KEY)) {
+                        // Deserialize catalog snapshot and extract parquet files
+                        String catalogData = sis.getUserData().get(CatalogSnapshot.CATALOG_SNAPSHOT_KEY);
+                        CompositeEngineCatalogSnapshot catalogSnapshot = CompositeEngineCatalogSnapshot.deserializeFromString(catalogData);
+                        List<String> fileNames = new ArrayList<>();
+                        catalogSnapshot.getSegments().forEach(segment -> {
+                            fileNames.addAll(segment.getSearchableFiles("parquet").stream().map(FileMetadata::file)
+                                .toList());
+                        });
+                        // Process catalog snapshot to get parquet file list
+                        System.out.println("Shard: " + file.getFileName().toString().substring(9) + ", Catalog data: " + fileNames);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to process " + file + ": " + e.getMessage());
+                }
+            }
         }
     }
 
