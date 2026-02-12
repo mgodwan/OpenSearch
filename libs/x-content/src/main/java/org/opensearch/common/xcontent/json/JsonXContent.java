@@ -138,6 +138,20 @@ public class JsonXContent implements XContent, XContentConstraints {
         return new JsonXContentParser(xContentRegistry, deprecationHandler, jsonFactory.createParser(data, offset, length));
     }
 
+    public static XContentParser dummy() {
+        return new JsonXContentParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, jsonparser);
+    }
+
+    private static JsonParser jsonparser;
+
+    static {
+        try {
+            jsonparser = jsonFactory.createParser("{}");
+        } catch (Exception ex) {
+            System.out.println("nothing");
+        }
+    }
+
     @Override
     public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, Reader reader)
         throws IOException {

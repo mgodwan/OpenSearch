@@ -42,12 +42,18 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.time.DateFormatter;
 import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.bytes.BytesArray;
+import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.common.util.ByteArray;
 import org.opensearch.core.xcontent.MediaType;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.DynamicTemplate.XContentFieldType;
 import org.opensearch.script.ContextAwareGroupingScript;
+import org.simdjson.JsonValue;
+import org.simdjson.SimdJsonParser;
 
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
@@ -84,12 +90,7 @@ final class DocumentParser {
         final MediaType mediaType = source.getMediaType();
 
         try (
-            XContentParser parser = XContentHelper.createParser(
-                docMapperParser.getXContentRegistry(),
-                LoggingDeprecationHandler.INSTANCE,
-                source.source(),
-                mediaType
-            )
+            XContentParser parser = JsonXContent.dummy()
         ) {
             context = new ParseContext.InternalParseContext(indexSettings, docMapperParser, docMapper, source, parser);
             validateStart(parser);
@@ -128,18 +129,13 @@ final class DocumentParser {
         ParseContext.InternalParseContext context,
         XContentParser parser
     ) throws IOException {
-        final boolean emptyDoc = isEmptyDoc(mapping, parser);
+//        final boolean emptyDoc = isEmptyDoc(mapping, parser);
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.preParse(context);
         }
 
-        if (mapping.root.isEnabled() == false) {
-            // entire type is disabled
-            parser.skipChildren();
-        } else if (emptyDoc == false) {
-            parseObjectOrNested(context, mapping.root);
-        }
+        parseObjectOrNested(context, mapping.root);
 
         for (MetadataFieldMapper metadataMapper : metadataFieldsMappers) {
             metadataMapper.postParse(context);
@@ -148,20 +144,11 @@ final class DocumentParser {
 
     private static void validateStart(XContentParser parser) throws IOException {
         // will result in START_OBJECT
-        XContentParser.Token token = parser.nextToken();
-        if (token != XContentParser.Token.START_OBJECT) {
-            throw new MapperParsingException("Malformed content, must start with an object");
-        }
+        return;
     }
 
     private static void validateEnd(XContentParser parser) throws IOException {
-        XContentParser.Token token;// only check for end of tokens if we created the parser here
-        // try to parse the next token, this should be null if the object is ended properly
-        // but will throw a JSON exception if the extra tokens is not valid JSON (this will be handled by the catch)
-        token = parser.nextToken();
-        if (token != null) {
-            throw new IllegalArgumentException("Malformed content, found extra data after parsing: " + token);
-        }
+        return;
     }
 
     private static boolean isEmptyDoc(Mapping mapping, XContentParser parser) throws IOException {
@@ -487,38 +474,40 @@ final class DocumentParser {
             return;
         }
         XContentParser parser = context.parser();
-        XContentParser.Token token = parser.currentToken();
-        if (token == XContentParser.Token.VALUE_NULL) {
-            // the object is null ("obj1" : null), simply bail
-            return;
-        }
+//        XContentParser.Token token = parser.currentToken();
+//        if (token == XContentParser.Token.VALUE_NULL) {
+//            // the object is null ("obj1" : null), simply bail
+//            return;
+//        }
 
-        String currentFieldName = parser.currentName();
-        if (token.isValue()) {
-            throw new MapperParsingException(
-                "object mapping for ["
-                    + mapper.name()
-                    + "] tried to parse field ["
-                    + currentFieldName
-                    + "] as object, but found a concrete value"
-            );
-        }
+//        String currentFieldName = parser.currentName();
+//        if (token.isValue()) {
+//            throw new MapperParsingException(
+//                "object mapping for ["
+//                    + mapper.name()
+//                    + "] tried to parse field ["
+//                    + currentFieldName
+//                    + "] as object, but found a concrete value"
+//            );
+//        }
 
+        // todo not doing now
         ObjectMapper.Nested nested = mapper.nested();
         if (nested.isNested()) {
             context = nestedContext(context, mapper);
         }
 
-        // if we are at the end of the previous object, advance
-        if (token == XContentParser.Token.END_OBJECT) {
-            token = parser.nextToken();
-        }
-        if (token == XContentParser.Token.START_OBJECT) {
-            // if we are just starting an OBJECT, advance, this is the object we are parsing, we need the name first
-            token = parser.nextToken();
-        }
 
-        innerParseObject(context, mapper, parser, currentFieldName, token);
+        // if we are at the end of the previous object, advance
+//        if (token == XContentParser.Token.END_OBJECT) {
+//            token = parser.nextToken();
+//        }
+//        if (token == XContentParser.Token.START_OBJECT) {
+//            // if we are just starting an OBJECT, advance, this is the object we are parsing, we need the name first
+//            token = parser.nextToken();
+//        }
+
+        innerParseObject(context, mapper, parser);
 
         // restore the enable path flag
         if (nested.isNested()) {
@@ -529,56 +518,30 @@ final class DocumentParser {
     private static void innerParseObject(
         ParseContext context,
         ObjectMapper mapper,
-        XContentParser parser,
-        String currentFieldName,
-        XContentParser.Token token
+        XContentParser parser
     ) throws IOException {
         try {
-            assert token == XContentParser.Token.FIELD_NAME || token == XContentParser.Token.END_OBJECT;
-            String[] paths = null;
             context.incrementFieldCurrentDepth();
             context.checkFieldDepthLimit();
-            while (token != XContentParser.Token.END_OBJECT) {
-                if (token == XContentParser.Token.FIELD_NAME) {
-                    currentFieldName = parser.currentName();
-                    paths = mapper.disableObjects() ? new String[] { currentFieldName } : splitAndValidatePath(currentFieldName);
-                    if (containsDisabledObjectMapper(mapper, paths)) {
-                        parser.nextToken();
-                        parser.skipChildren();
-                    }
-                } else {
-                    // Process different token types during object parsing
-                    switch (token) {
-                        case START_OBJECT:
-                            parseObject(context, mapper, currentFieldName, paths);
-                            break;
-                        case START_ARRAY:
-                            parseArray(context, mapper, currentFieldName, paths);
-                            break;
-                        case VALUE_NULL:
-                            parseNullValue(context, mapper, currentFieldName, paths);
-                            break;
-                        default:
-                            if (token == null) {
-                                throw new MapperParsingException(
-                                    "object mapping for ["
-                                        + mapper.name()
-                                        + "] tried to parse field ["
-                                        + currentFieldName
-                                        + "] as object, but got EOF, has a concrete value been provided to it?"
-                                );
-                            } else if (token.isValue()) {
-                                parseValue(context, mapper, currentFieldName, token, paths);
-                            }
-                    }
+            byte[] arr = BytesReference.toBytes(context.sourceToParse().source());
+            JsonValue val = simdJsonParser.parse(arr, context.sourceToParse().source().length());
+            Iterator<Map.Entry<CharSequence, JsonValue>> it = val.objectIterator();
+            while (it.hasNext()) {
+                Map.Entry<CharSequence, JsonValue> next = it.next();
+                String key = next.getKey().toString();
+                if (!next.getValue().isObject() && context.docMapper().mappers().getMapper(key) instanceof FieldMapper) {
+                    String value = next.getValue().asCharSequence().toString();
+                    System.out.println(key + " -> " + value);
+                    ((FieldMapper) context.docMapper().mappers().getMapper(key)).parse(context.createExternalValueContext(value));
                 }
-                token = parser.nextToken();
             }
             generateGroupingCriteria(context);
         } finally {
             context.decrementFieldCurrentDepth();
         }
     }
+
+    static SimdJsonParser simdJsonParser = new SimdJsonParser(2 * 1024 * 1024, 1000);
 
     private static void generateGroupingCriteria(ParseContext context) {
         if (context.docMapper() != null && context.docMapper().mappers() != null) {
