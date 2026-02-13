@@ -521,18 +521,32 @@ final class DocumentParser {
         XContentParser parser
     ) throws IOException {
         try {
+            SimdJsonParser simdJsonParser = new SimdJsonParser(2 * 1024 * 1024, 1000);
             context.incrementFieldCurrentDepth();
             context.checkFieldDepthLimit();
             byte[] arr = BytesReference.toBytes(context.sourceToParse().source());
             JsonValue val = simdJsonParser.parse(arr, context.sourceToParse().source().length());
-            Iterator<Map.Entry<CharSequence, JsonValue>> it = val.objectIterator();
+            Iterator<Map.Entry<String, JsonValue>> it = val.objectIterator();
             while (it.hasNext()) {
-                Map.Entry<CharSequence, JsonValue> next = it.next();
-                String key = next.getKey().toString();
+                Map.Entry<String, JsonValue> next = it.next();
+                String key = next.getKey();
                 if (!next.getValue().isObject() && context.docMapper().mappers().getMapper(key) instanceof FieldMapper) {
-                    String value = next.getValue().asCharSequence().toString();
-                    System.out.println(key + " -> " + value);
-                    ((FieldMapper) context.docMapper().mappers().getMapper(key)).parse(context.createExternalValueContext(value));
+                    FieldMapper fieldMapper = (FieldMapper) context.docMapper().mappers().getMapper(key);
+                    if (next.getValue().isArray()) {
+                        next.getValue().arrayIterator().forEachRemaining(value -> {
+                            Object parsedValue = inferType(value, fieldMapper);
+                            try {
+                                fieldMapper.parse(context.createExternalValueContext(parsedValue));
+                            } catch (IOException e) {
+                                throw new IllegalStateException(e);
+                            }
+                        });
+                    }
+
+                    Object parsedValue = inferType(next.getValue(), fieldMapper);
+                    ((FieldMapper) context.docMapper().mappers().getMapper(key)).parse(context.createExternalValueContext(parsedValue));
+                } else {
+                    throw new IllegalStateException("Cannot parse sub objects");
                 }
             }
             generateGroupingCriteria(context);
@@ -541,7 +555,18 @@ final class DocumentParser {
         }
     }
 
-    static SimdJsonParser simdJsonParser = new SimdJsonParser(2 * 1024 * 1024, 1000);
+    private static Object inferType(JsonValue jsonNode, Mapper mapper) {
+        if (mapper instanceof NumberFieldMapper) {
+            return switch (((NumberFieldMapper) mapper).fieldType().numberType()) {
+                case HALF_FLOAT, DOUBLE, FLOAT -> jsonNode.asDouble();
+                case LONG, INTEGER, SHORT, BYTE -> jsonNode.asLong();
+                default -> jsonNode.asString();
+            };
+        } else if (mapper instanceof BooleanFieldMapper) {
+            return  jsonNode.asBoolean();
+        }
+        return jsonNode.asString();
+    }
 
     private static void generateGroupingCriteria(ParseContext context) {
         if (context.docMapper() != null && context.docMapper().mappers() != null) {

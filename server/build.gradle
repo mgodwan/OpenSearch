@@ -119,7 +119,7 @@ dependencies {
   api libs.protobuf
   api libs.jakartaannotation
 
-  api "org.simdjson:simdjson-java:0.1.0"
+  api "org.simdjson:simdjson-java:0.3.0"
   // https://mvnrepository.com/artifact/org.roaringbitmap/RoaringBitmap
   api libs.roaringbitmap
   testImplementation 'org.awaitility:awaitility:4.3.0'
