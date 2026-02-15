@@ -556,16 +556,25 @@ final class DocumentParser {
     }
 
     private static Object inferType(JsonValue jsonNode, Mapper mapper) {
+
         if (mapper instanceof NumberFieldMapper) {
             return switch (((NumberFieldMapper) mapper).fieldType().numberType()) {
-                case HALF_FLOAT, DOUBLE, FLOAT -> jsonNode.asDouble();
-                case LONG, INTEGER, SHORT, BYTE -> jsonNode.asLong();
+                case HALF_FLOAT, DOUBLE, FLOAT -> getVal(jsonNode, JsonValue::asDouble);
+                case LONG, INTEGER, SHORT, BYTE -> getVal(jsonNode, JsonValue::asLong);
                 default -> jsonNode.asString();
             };
         } else if (mapper instanceof BooleanFieldMapper) {
             return  jsonNode.asBoolean();
         }
         return jsonNode.asString();
+    }
+
+    private static Object getVal(JsonValue jsonNode, java.util.function.Function<JsonValue, Object> transformer) {
+        if (jsonNode.isString()) {
+            return jsonNode.asString();
+        } else {
+            return transformer.apply(jsonNode);
+        }
     }
 
     private static void generateGroupingCriteria(ParseContext context) {
