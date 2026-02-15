@@ -546,7 +546,7 @@ final class DocumentParser {
                     Object parsedValue = inferType(next.getValue(), fieldMapper);
                     ((FieldMapper) context.docMapper().mappers().getMapper(key)).parse(context.createExternalValueContext(parsedValue));
                 } else {
-                    throw new IllegalStateException("Cannot parse sub objects");
+                    throw new IllegalStateException("Cannot parse sub objects -> " + next.getValue() + " -> " + context.docMapper().mappers().getMapper(key));
                 }
             }
             generateGroupingCriteria(context);
