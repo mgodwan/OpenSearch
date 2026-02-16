@@ -530,8 +530,12 @@ final class DocumentParser {
             while (it.hasNext()) {
                 Map.Entry<String, JsonValue> next = it.next();
                 String key = next.getKey();
-                if (!next.getValue().isObject() && context.docMapper().mappers().getMapper(key) instanceof FieldMapper) {
-                    FieldMapper fieldMapper = (FieldMapper) context.docMapper().mappers().getMapper(key);
+                Mapper keyMapper = context.docMapper().mappers().getMapper(key);
+                if (keyMapper == null) {
+                    continue;
+                    // Dynamic false mapping
+                }
+                if (!next.getValue().isObject() && keyMapper instanceof FieldMapper fieldMapper) {
                     if (next.getValue().isArray()) {
                         next.getValue().arrayIterator().forEachRemaining(value -> {
                             Object parsedValue = inferType(value, fieldMapper);
