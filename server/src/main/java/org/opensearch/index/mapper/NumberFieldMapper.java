@@ -2153,6 +2153,9 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         XContentParser parser = context.parser();
         Number value;
         if (context.externalValueSet()) {
+            if (context.externalValue() == null || (context.externalValue() instanceof String && ((String) context.externalValue()).isEmpty())) {
+                return null;
+            }
             return fieldType().type.parse(context.externalValue(), coerce.value());
         } else if (parser.currentToken() == Token.VALUE_NULL) {
             value = nullValue;
