@@ -32,11 +32,15 @@
 
 package org.opensearch.index.mapper;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexableField;
 import org.opensearch.OpenSearchParseException;
 import org.opensearch.Version;
+import org.opensearch.action.bulk.TransportBulkAction;
 import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.common.StopWatch;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.time.DateFormatter;
@@ -548,16 +552,21 @@ final class DocumentParser {
                     }
 
                     Object parsedValue = inferType(next.getValue(), fieldMapper);
-                    ((FieldMapper) context.docMapper().mappers().getMapper(key)).parse(context.createExternalValueContext(parsedValue));
+                    fieldMapper.parse(context.createExternalValueContext(parsedValue));
                 } else {
-                    throw new IllegalStateException("Cannot parse sub objects -> " + next.getValue() + " -> " + context.docMapper().mappers().getMapper(key));
+                    throw new IllegalStateException("Cannot parse sub objects -> " + next.getValue() + " -> " + keyMapper);
                 }
             }
             generateGroupingCriteria(context);
+        } catch (Exception ex) {
+            logger.error("failed to parse object", ex);
+            logger.error(context.sourceToParse().source().toBytesRef().toString());
         } finally {
             context.decrementFieldCurrentDepth();
         }
     }
+
+    private static final Logger logger = LogManager.getLogger(DocumentParser.class);
 
     private static Object inferType(JsonValue jsonNode, Mapper mapper) {
 
