@@ -525,7 +525,7 @@ final class DocumentParser {
         XContentParser parser
     ) throws IOException {
         try {
-            SimdJsonParser simdJsonParser = new SimdJsonParser(2 * 1024 * 1024, 1000);
+            SimdJsonParser simdJsonParser = localParser.get();
             context.incrementFieldCurrentDepth();
             context.checkFieldDepthLimit();
             byte[] arr = BytesReference.toBytes(context.sourceToParse().source());
@@ -565,6 +565,8 @@ final class DocumentParser {
             context.decrementFieldCurrentDepth();
         }
     }
+
+    private static final ThreadLocal<SimdJsonParser> localParser = ThreadLocal.withInitial(() -> new SimdJsonParser(2 * 1024 * 1024, 1000));
 
     private static final Logger logger = LogManager.getLogger(DocumentParser.class);
 
