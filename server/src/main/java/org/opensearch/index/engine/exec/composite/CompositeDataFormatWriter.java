@@ -17,6 +17,7 @@ import org.opensearch.index.engine.exec.RowIdGenerator;
 import org.opensearch.index.engine.exec.WriteResult;
 import org.opensearch.index.engine.exec.Writer;
 import org.opensearch.index.engine.exec.WriterFileSet;
+import org.opensearch.index.mapper.DateFieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.SeqNoFieldMapper;
 import org.opensearch.index.mapper.VersionFieldMapper;
@@ -164,6 +165,8 @@ public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWrit
         private long version = -1;
         private long seqNo = -2L;
         private long primaryTerm = 0;
+        private SetOnce<String> timestampField = new SetOnce<>();
+        private int timeStampOccurrences;
 
         public CompositeDocumentInput(List<? extends DocumentInput<?>> inputs, CompositeDataFormatWriter writer, Runnable onClose) {
             this.inputs = inputs;
@@ -182,6 +185,11 @@ public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWrit
         public void addField(MappedFieldType fieldType, Object value) {
             for (DocumentInput<?> input : inputs) {
                 input.addField(fieldType, value);
+            }
+            if (timestampField.get() != null
+                && fieldType instanceof DateFieldMapper.DateFieldType
+                && fieldType.name().equals(timestampField.get())) {
+                timeStampOccurrences ++;
             }
         }
 
@@ -223,5 +231,14 @@ public class CompositeDataFormatWriter implements Writer<CompositeDataFormatWrit
         public void close() throws Exception {
             onClose.run();
         }
+
+        public void setTimestampField(String timestampField) {
+            this.timestampField.set(timestampField);
+        }
+
+        public int timestampFieldCount() {
+            return timeStampOccurrences;
+        }
+
     }
 }

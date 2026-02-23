@@ -135,16 +135,33 @@ public class DataStreamFieldMapper extends MetadataFieldMapper {
     }
 
     @Override
+    public void preParse(ParseContext context) throws IOException {
+        if (enabled && context.indexSettings().isOptimizedIndex()) {
+            context.compositeDocumentInput().setTimestampField(timestampField.getName());
+        }
+    }
+
+    @Override
     public void postParse(ParseContext context) throws IOException {
         // If _data_stream_timestamp metadata mapping is disabled, then skip all the remaining checks.
         if (enabled == false) {
             return;
         }
 
+
         // It is expected that the timestamp field will be parsed by the DateFieldMapper during the parseCreateField step.
         // The parsed field will be added to the document as:
         // 1. LongPoint (indexed = true; an indexed long field to allow fast range filters on the timestamp field value)
         // 2. SortedNumericDocValuesField (hasDocValues = true; allows sorting, aggregations and access to the timestamp field value)
+
+        if (context.indexSettings().isOptimizedIndex()) {
+            if (context.compositeDocumentInput().timestampFieldCount() != 1) {
+                throw new IllegalArgumentException(
+                    "documents must contain a single-valued timestamp field '" + timestampField.getName() + "' of date type"
+                );
+            }
+            return;
+        }
 
         Document document = context.doc();
         IndexableField[] fields = document.getFields(timestampField.getName());
