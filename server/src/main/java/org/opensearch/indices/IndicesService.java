@@ -123,6 +123,7 @@ import org.opensearch.index.engine.MergedSegmentWarmerFactory;
 import org.opensearch.index.engine.NRTReplicationEngineFactory;
 import org.opensearch.index.engine.NoOpEngine;
 import org.opensearch.index.engine.ReadOnlyEngine;
+import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.fielddata.IndexFieldDataCache;
 import org.opensearch.index.flush.FlushStats;
 import org.opensearch.index.get.GetStats;
@@ -385,6 +386,7 @@ public class IndicesService extends AbstractLifecycleComponent
     private final AtomicInteger numUncompletedDeletes = new AtomicInteger();
     private final OldShardsStats oldShardsStats = new OldShardsStats();
     private final MapperRegistry mapperRegistry;
+    private final DataFormatRegistry dataFormatRegistry;
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final IndexingMemoryController indexingMemoryController;
     private final TimeValue cleanInterval; // clean interval for the field data cache
@@ -438,6 +440,7 @@ public class IndicesService extends AbstractLifecycleComponent
         AnalysisRegistry analysisRegistry,
         IndexNameExpressionResolver indexNameExpressionResolver,
         MapperRegistry mapperRegistry,
+        DataFormatRegistry dataFormatRegistry,
         NamedWriteableRegistry namedWriteableRegistry,
         ThreadPool threadPool,
         IndexScopedSettings indexScopedSettings,
@@ -484,6 +487,7 @@ public class IndicesService extends AbstractLifecycleComponent
         }), cacheService, threadPool, clusterService, nodeEnv);
         this.indicesQueryCache = new IndicesQueryCache(settings, clusterService.getClusterSettings());
         this.mapperRegistry = mapperRegistry;
+        this.dataFormatRegistry = dataFormatRegistry;
         this.namedWriteableRegistry = namedWriteableRegistry;
         indexingMemoryController = new IndexingMemoryController(
             settings,
@@ -616,6 +620,7 @@ public class IndicesService extends AbstractLifecycleComponent
         AnalysisRegistry analysisRegistry,
         IndexNameExpressionResolver indexNameExpressionResolver,
         MapperRegistry mapperRegistry,
+        DataFormatRegistry dataFormatRegistry,
         NamedWriteableRegistry namedWriteableRegistry,
         ThreadPool threadPool,
         IndexScopedSettings indexScopedSettings,
@@ -646,6 +651,7 @@ public class IndicesService extends AbstractLifecycleComponent
             analysisRegistry,
             indexNameExpressionResolver,
             mapperRegistry,
+            dataFormatRegistry,
             namedWriteableRegistry,
             threadPool,
             indexScopedSettings,
@@ -2205,6 +2211,13 @@ public class IndicesService extends AbstractLifecycleComponent
      */
     public boolean isMetadataField(String field) {
         return mapperRegistry.isMetadataField(field);
+    }
+
+    /**
+     * Returns the data format registry containing all registered data format plugins.
+     */
+    public DataFormatRegistry getDataFormatRegistry() {
+        return dataFormatRegistry;
     }
 
     /**

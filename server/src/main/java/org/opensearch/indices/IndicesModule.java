@@ -43,6 +43,9 @@ import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry.Entry;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.index.SegmentReplicationPressureService;
+import org.opensearch.index.engine.dataformat.DataFormatPlugin;
+import org.opensearch.index.engine.dataformat.DataFormatRegistry;
+import org.opensearch.index.engine.dataformat.LuceneDataFormatPlugin;
 import org.opensearch.index.mapper.BinaryFieldMapper;
 import org.opensearch.index.mapper.BooleanFieldMapper;
 import org.opensearch.index.mapper.CompletionFieldMapper;
@@ -109,13 +112,19 @@ import java.util.function.Predicate;
 public class IndicesModule extends AbstractModule {
     private final List<Entry> namedWritables = new ArrayList<>();
     private final MapperRegistry mapperRegistry;
+    private final DataFormatRegistry dataFormatRegistry;
 
     public IndicesModule(List<MapperPlugin> mapperPlugins) {
+        this(mapperPlugins, Collections.emptyList());
+    }
+
+    public IndicesModule(List<MapperPlugin> mapperPlugins, List<DataFormatPlugin> dataFormatPlugins) {
         this.mapperRegistry = new MapperRegistry(
             getMappers(mapperPlugins),
             getMetadataMappers(mapperPlugins),
             getFieldFilter(mapperPlugins)
         );
+        this.dataFormatRegistry = buildDataFormatRegistry(dataFormatPlugins);
         registerBuiltinWritables();
     }
 
@@ -313,5 +322,22 @@ public class IndicesModule extends AbstractModule {
      */
     public MapperRegistry getMapperRegistry() {
         return mapperRegistry;
+    }
+
+    /**
+     * Builds the DataFormatRegistry with the built-in Lucene format and any plugin-provided formats.
+     */
+    private static DataFormatRegistry buildDataFormatRegistry(List<DataFormatPlugin> dataFormatPlugins) {
+        List<DataFormatPlugin> allPlugins = new ArrayList<>();
+        allPlugins.add(new LuceneDataFormatPlugin());
+        allPlugins.addAll(dataFormatPlugins);
+        return new DataFormatRegistry(allPlugins);
+    }
+
+    /**
+     * A registry for all data format plugins.
+     */
+    public DataFormatRegistry getDataFormatRegistry() {
+        return dataFormatRegistry;
     }
 }

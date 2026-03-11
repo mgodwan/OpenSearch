@@ -189,6 +189,7 @@ import org.opensearch.index.SegmentReplicationPressureService;
 import org.opensearch.index.SegmentReplicationStatsTracker;
 import org.opensearch.index.analysis.AnalysisRegistry;
 import org.opensearch.index.engine.MergedSegmentWarmerFactory;
+import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.mapper.MappingTransformerRegistry;
 import org.opensearch.index.remote.RemoteStorePressureService;
 import org.opensearch.index.remote.RemoteStoreStatsTrackerFactory;
@@ -2083,6 +2084,7 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                 );
                 final BigArrays bigArrays = new BigArrays(new PageCacheRecycler(settings), null, "test");
                 final MapperRegistry mapperRegistry = new IndicesModule(Collections.emptyList()).getMapperRegistry();
+                final DataFormatRegistry dataFormatRegistry = new IndicesModule(Collections.emptyList()).getDataFormatRegistry();
                 final SetOnce<RepositoriesService> repositoriesServiceReference = new SetOnce<>();
                 repositoriesServiceReference.set(repositoriesService);
                 indicesService = new IndicesService(
@@ -2104,6 +2106,7 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                     ),
                     indexNameExpressionResolver,
                     mapperRegistry,
+                    dataFormatRegistry,
                     namedWriteableRegistry,
                     threadPool,
                     indexScopedSettings,

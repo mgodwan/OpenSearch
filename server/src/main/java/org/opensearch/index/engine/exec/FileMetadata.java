@@ -9,6 +9,7 @@
 package org.opensearch.index.engine.exec;
 
 import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.index.engine.dataformat.DataFormat;
 
 import java.util.Objects;
 
@@ -26,20 +27,19 @@ public class FileMetadata {
      * Delimiter used to separate filename and data format in serialized form.
      */
     public static final String DELIMITER = ":::";
-    private static final String METADATA_KEY = "metadata";
+    private static final String METADATA_KEY = DataFormat.METADATA.name();
 
     private final String file;
-    private final String dataFormat;
+    private final DataFormat dataFormat;
 
-    /**
-     * Constructs a FileMetadata with explicit data format and filename.
+    /* Constructs a FileMetadata with explicit data format and filename.
      *
      * @param dataFormat the data format identifier (e.g., "lucene", "metadata")
      * @param file the filename
      */
-    public FileMetadata(String dataFormat, String file) {
+    public FileMetadata(DataFormat format, String file) {
         this.file = file;
-        this.dataFormat = dataFormat;
+        this.dataFormat = format;
     }
 
     /**
@@ -51,12 +51,12 @@ public class FileMetadata {
      */
     public FileMetadata(String dataFormatAwareFile) {
         if (!dataFormatAwareFile.contains(DELIMITER) && dataFormatAwareFile.startsWith(METADATA_KEY)) {
-            this.dataFormat = "metadata";
+            this.dataFormat = DataFormat.METADATA;
             this.file = dataFormatAwareFile;
             return;
         }
         String[] parts = dataFormatAwareFile.split(DELIMITER);
-        this.dataFormat = (parts.length == 1) ? "lucene" : parts[1];
+        this.dataFormat = (parts.length == 1) ? DataFormat.LUCENE : DataFormat.of(parts[1]);
         this.file = parts[0];
     }
 
@@ -66,7 +66,7 @@ public class FileMetadata {
      * @return the serialized representation
      */
     public String serialize() {
-        return file + DELIMITER + dataFormat;
+        return file + DELIMITER + dataFormat.name();
     }
 
     @Override
@@ -84,11 +84,11 @@ public class FileMetadata {
     }
 
     /**
-     * Returns the data format identifier.
+     * Returns the typed DataFormat instance.
      *
-     * @return the data format (e.g., "lucene", "metadata")
+     * @return the DataFormat
      */
-    public String dataFormat() {
+    public DataFormat dataFormatType() {
         return dataFormat;
     }
 

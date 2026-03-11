@@ -13,6 +13,7 @@ import org.opensearch.common.util.concurrent.AbstractRefCounted;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.index.engine.dataformat.DataFormat;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -108,19 +109,19 @@ public abstract class CatalogSnapshot extends AbstractRefCounted implements Writ
     public abstract List<org.opensearch.index.engine.exec.coord.Segment> getSegments();
 
     /**
-     * Retrieves searchable files for a specific data format.
+     * Retrieves searchable files for a typed DataFormat.
      *
-     * @param dataFormat the data format identifier
+     * @param dataFormat the DataFormat instance
      * @return collection of WriterFileSet objects for the specified format
      */
-    public abstract Collection<WriterFileSet> getSearchableFiles(String dataFormat);
+    public abstract Collection<WriterFileSet> getSearchableFiles(DataFormat dataFormat);
 
     /**
      * Gets all data formats present in this catalog snapshot.
      *
      * @return set of data format identifiers
      */
-    public abstract Set<String> getDataFormats();
+    public abstract Set<DataFormat> getDataFormats();
 
     /**
      * Gets the last writer generation number.

@@ -12,6 +12,7 @@ import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.exec.FileMetadata;
 import org.opensearch.index.engine.exec.WriterFileSet;
 
@@ -32,7 +33,7 @@ import java.util.Map;
 public class Segment implements Serializable, Writeable {
 
     private final long generation;
-    private final Map<String, WriterFileSet> dfGroupedSearchableFiles;
+    private final Map<DataFormat, WriterFileSet> dfGroupedSearchableFiles;
 
     public Segment(long generation) {
         this.dfGroupedSearchableFiles = new HashMap<>();
@@ -50,39 +51,38 @@ public class Segment implements Serializable, Writeable {
         this.dfGroupedSearchableFiles = new HashMap<>();
         int mapSize = in.readVInt();
         for (int i = 0; i < mapSize; i++) {
-            String dataFormat = in.readString();
+            DataFormat dataFormat = DataFormat.of(in.readString());
             WriterFileSet writerFileSet = new WriterFileSet(in);
             dfGroupedSearchableFiles.put(dataFormat, writerFileSet);
         }
     }
 
     /**
-     * Adds searchable files for a specific data format to this segment.
+     * Adds searchable files for a DataFormat to this segment.
      *
-     * @param dataFormat the data format identifier
+     * @param dataFormat the DataFormat instance
      * @param writerFileSetGroup the set of files for this data format
      */
-    public void addSearchableFiles(String dataFormat, WriterFileSet writerFileSetGroup) {
+    public void addSearchableFiles(DataFormat dataFormat, WriterFileSet writerFileSetGroup) {
         dfGroupedSearchableFiles.put(dataFormat, writerFileSetGroup);
     }
 
-    public Map<String, WriterFileSet> getDFGroupedSearchableFiles() {
+    public Map<DataFormat, WriterFileSet> getDFGroupedSearchableFiles() {
         return dfGroupedSearchableFiles;
     }
 
     /**
-     * Retrieves searchable files for a specific data format.
+     * Retrieves searchable files for a DataFormat.
      *
-     * @param df the data format identifier
+     * @param dataFormat the DataFormat instance
      * @return collection of FileMetadata for the specified data format
      */
-    public Collection<FileMetadata> getSearchableFiles(String df) {
+    public Collection<FileMetadata> getSearchableFiles(DataFormat dataFormat) {
         List<FileMetadata> searchableFiles = new ArrayList<>();
-        WriterFileSet fileSet = dfGroupedSearchableFiles.get(df);
+        WriterFileSet fileSet = dfGroupedSearchableFiles.get(dataFormat);
         if (fileSet != null) {
-            String directory = fileSet.getDirectory();
             for (String file : fileSet.getFiles()) {
-                searchableFiles.add(new FileMetadata(df, file));
+                searchableFiles.add(new FileMetadata(dataFormat, file));
             }
         }
         return searchableFiles;
@@ -96,8 +96,8 @@ public class Segment implements Serializable, Writeable {
     public void writeTo(StreamOutput out) throws IOException {
         out.writeLong(generation);
         out.writeVInt(dfGroupedSearchableFiles.size());
-        for (Map.Entry<String, WriterFileSet> entry : dfGroupedSearchableFiles.entrySet()) {
-            out.writeString(entry.getKey());
+        for (Map.Entry<DataFormat, WriterFileSet> entry : dfGroupedSearchableFiles.entrySet()) {
+            out.writeString(entry.getKey().name());
             entry.getValue().writeTo(out);
         }
     }

@@ -22,6 +22,7 @@ import org.apache.lucene.store.ByteBuffersIndexOutput;
 import org.opensearch.common.lucene.store.ByteArrayIndexInput;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.index.engine.dataformat.DataFormat;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -86,7 +87,7 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
 
     @Override
     public Collection<FileMetadata> getFileMetadataList() throws IOException {
-        return segmentInfos.files(true).stream().map(file -> new FileMetadata("lucene", file)).collect(Collectors.toList());
+        return segmentInfos.files(true).stream().map(file -> new FileMetadata(DataFormat.LUCENE, file)).collect(Collectors.toList());
     }
 
     /**
@@ -114,12 +115,12 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
     }
 
     @Override
-    public Collection<WriterFileSet> getSearchableFiles(String dataFormat) {
+    public Collection<WriterFileSet> getSearchableFiles(DataFormat dataFormat) {
         throw new UnsupportedOperationException("SegmentInfosCatalogSnapshot does not support getSearchableFiles()");
     }
 
     @Override
-    public Set<String> getDataFormats() {
+    public Set<DataFormat> getDataFormats() {
         throw new UnsupportedOperationException("SegmentInfosCatalogSnapshot does not support getDataFormats()");
     }
 

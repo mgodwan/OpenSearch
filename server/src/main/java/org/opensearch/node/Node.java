@@ -164,6 +164,7 @@ import org.opensearch.index.autoforcemerge.AutoForceMergeMetrics;
 import org.opensearch.index.compositeindex.CompositeIndexSettings;
 import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.index.engine.MergedSegmentWarmerFactory;
+import org.opensearch.index.engine.dataformat.DataFormatPlugin;
 import org.opensearch.index.mapper.MappingTransformerRegistry;
 import org.opensearch.index.recovery.RemoteStoreRestoreService;
 import org.opensearch.index.remote.RemoteIndexPathUploader;
@@ -788,7 +789,8 @@ public class Node implements Closeable {
             );
             modules.add(clusterModule);
             final List<MapperPlugin> mapperPlugins = pluginsService.filterPlugins(MapperPlugin.class);
-            IndicesModule indicesModule = new IndicesModule(mapperPlugins);
+            final List<DataFormatPlugin> dataFormatPlugins = pluginsService.filterPlugins(DataFormatPlugin.class);
+            IndicesModule indicesModule = new IndicesModule(mapperPlugins, dataFormatPlugins);
             modules.add(indicesModule);
 
             SearchModule searchModule = new SearchModule(settings, pluginsService.filterPlugins(SearchPlugin.class));
@@ -981,6 +983,7 @@ public class Node implements Closeable {
                 analysisModule.getAnalysisRegistry(),
                 clusterModule.getIndexNameExpressionResolver(),
                 indicesModule.getMapperRegistry(),
+                indicesModule.getDataFormatRegistry(),
                 namedWriteableRegistry,
                 threadPool,
                 settingsModule.getIndexScopedSettings(),
