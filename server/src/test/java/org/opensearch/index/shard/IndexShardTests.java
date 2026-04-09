@@ -2701,7 +2701,7 @@ public class IndexShardTests extends IndexShardTestCase {
             newShardIndexMetadata,
             null,
             null,
-            shard.getEngineFactory(),
+            shard.getIndexerFactory(),
             shard.getEngineConfigFactory(),
             shard.getGlobalCheckpointSyncer(),
             shard.getRetentionLeaseSyncer(),

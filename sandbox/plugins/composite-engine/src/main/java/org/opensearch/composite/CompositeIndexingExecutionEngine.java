@@ -14,6 +14,7 @@ import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.queue.LockablePool;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.DataFormatPlugin;
@@ -67,10 +68,6 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
     private final IndexingExecutionEngine<?, ?> primaryEngine;
     private final Set<IndexingExecutionEngine<?, ?>> secondaryEngines;
     private final CompositeDataFormat compositeDataFormat;
-    private final LockablePool<CompositeWriter> writerPool;
-    private final AtomicLong writerGenerationCounter;
-    private final Committer committer;
-    private CatalogSnapshotManager catalogSnapshotManager;
 
     /**
      * Constructs a CompositeIndexingExecutionEngine by reading index settings to
@@ -129,16 +126,6 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         this.secondaryEngines = Set.copyOf(secondaries);
 
         this.compositeDataFormat = new CompositeDataFormat(allFormats);
-
-        // Create the writer pool internally, matching the reference code pattern
-        writerGenerationCounter = new AtomicLong(0);
-        this.writerPool = new LockablePool<>(
-            () -> new CompositeWriter(this, writerGenerationCounter.getAndIncrement()),
-            LinkedList::new,
-            Runtime.getRuntime().availableProcessors()
-        );
-
-        this.committer = committer;
     }
 
     /**
@@ -197,64 +184,17 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
 
     @Override
     public RefreshResult refresh(RefreshInput refreshInput) throws IOException {
-        List<CompositeWriter> dataFormatWriters = writerPool.checkoutAll();
-
-        // Mark each writer as flush-pending before flushing
-        for (CompositeWriter writer : dataFormatWriters) {
-            writer.setFlushPending();
-        }
-
-        List<Segment> refreshedSegments = new ArrayList<>(refreshInput.existingSegments());
-        List<Segment> newSegmentList = new ArrayList<>();
-
-        logger.debug(
-            "Refreshing composite engine: flushing {} writers, existing segments={}",
-            dataFormatWriters.size(),
-            refreshedSegments.size()
-        );
-
-        // Flush each writer to disk and build segments from the file infos
-        for (CompositeWriter writer : dataFormatWriters) {
-            FileInfos fileInfos = writer.flush();
-            Segment.Builder segmentBuilder = Segment.builder(writer.getWriterGeneration());
-            boolean hasFiles = false;
-            for (Map.Entry<DataFormat, WriterFileSet> entry : fileInfos.writerFilesMap().entrySet()) {
-                logger.debug(
-                    "Writer gen={} flushed format=[{}] files={}",
-                    writer.getWriterGeneration(),
-                    entry.getKey().name(),
-                    entry.getValue().files()
-                );
-                segmentBuilder.addSearchableFiles(entry.getKey(), entry.getValue());
-                hasFiles = true;
-            }
-            writer.close();
-            if (hasFiles) {
-                newSegmentList.add(segmentBuilder.build());
-            }
-        }
-
-        if (newSegmentList.isEmpty()) {
-            logger.debug("No new segments produced from flush");
-            return null;
-        }
-
-        logger.debug("Produced {} new segments from flush", newSegmentList.size());
-        refreshedSegments.addAll(newSegmentList);
-
-        // Delegate refresh to each per-format engine
-        RefreshInput emptyInput = RefreshInput.builder().build();
-        primaryEngine.refresh(emptyInput);
+        RefreshResult primary = primaryEngine.refresh(refreshInput);
+        List<RefreshResult> secResults = new ArrayList<>();
         for (IndexingExecutionEngine<?, ?> engine : secondaryEngines) {
-            engine.refresh(emptyInput);
+            secResults.add(engine.refresh(refreshInput));
         }
-
-        return new RefreshResult(refreshedSegments);
+        return null;
     }
 
     @Override
     public long getNextWriterGeneration() {
-        return writerGenerationCounter.getAndIncrement();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -307,46 +247,10 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         return new CompositeDocumentInput(primaryEngine.getDataFormat(), primaryInput, secondaryInputMap);
     }
 
-    /**
-     * Sets the {@link CatalogSnapshotManager} used by {@link #flush()} to acquire the latest snapshot.
-     *
-     * @param catalogSnapshotManager the catalog snapshot manager
-     */
-    public void setCatalogSnapshotManager(CatalogSnapshotManager catalogSnapshotManager) {
-        this.catalogSnapshotManager = catalogSnapshotManager;
-    }
-
-    /**
-     * Durably commits the latest {@link CatalogSnapshot} via the {@link Committer}.
-     * Acquires the current snapshot from the {@link CatalogSnapshotManager}, passes it
-     * to the committer, and releases the snapshot reference when done.
-     *
-     * @throws IOException if the committer's commit fails
-     * @throws IllegalStateException if the CatalogSnapshotManager has not been set
-     */
-    public void flush() throws IOException {
-        if (catalogSnapshotManager == null) {
-            throw new IllegalStateException("CatalogSnapshotManager not set");
-        }
-        try (GatedCloseable<CatalogSnapshot> snapshotRef = catalogSnapshotManager.acquireSnapshot()) {
-            CatalogSnapshot snapshot = snapshotRef.get();
-            Map<String, String> commitData = new HashMap<>(snapshot.getUserData());
-            commitData.put(CatalogSnapshot.CATALOG_SNAPSHOT_KEY, snapshot.serializeToString());
-            committer.commit(commitData);
-        }
-    }
-
-    /**
-     * Closes the committer, releasing any resources it holds (e.g., IndexWriter).
-     * If the committer's close throws an IOException, the error is logged and
-     * shutdown continues.
-     */
-    public void close() {
-        try {
-            committer.close();
-        } catch (IOException e) {
-            logger.error("Failed to close committer", e);
-        }
+    @Override
+    public void close() throws IOException {
+        IOUtils.closeWhileHandlingException(primaryEngine);
+        secondaryEngines.forEach(IOUtils::closeWhileHandlingException);
     }
 
     /**

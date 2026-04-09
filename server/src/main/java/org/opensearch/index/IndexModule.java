@@ -74,9 +74,9 @@ import org.opensearch.index.cache.query.QueryCache;
 import org.opensearch.index.compositeindex.CompositeIndexSettings;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineConfigFactory;
-import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.engine.exec.DataFormatAwareEngineFactory;
+import org.opensearch.index.engine.exec.IndexerFactory;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
@@ -266,7 +266,7 @@ public final class IndexModule {
 
     private final IndexSettings indexSettings;
     private final AnalysisRegistry analysisRegistry;
-    private final EngineFactory engineFactory;
+    private final IndexerFactory indexerFactory;
     private final EngineConfigFactory engineConfigFactory;
     private SetOnce<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> indexReaderWrapper =
         new SetOnce<>();
@@ -291,14 +291,14 @@ public final class IndexModule {
      *
      * @param indexSettings      the index settings
      * @param analysisRegistry   the analysis registry
-     * @param engineFactory      the engine factory
+     * @param indexerFactory      the engine factory
      * @param directoryFactories the available store types
      */
     @InternalApi
     public IndexModule(
         final IndexSettings indexSettings,
         final AnalysisRegistry analysisRegistry,
-        final EngineFactory engineFactory,
+        final IndexerFactory indexerFactory,
         final EngineConfigFactory engineConfigFactory,
         final Map<String, IndexStorePlugin.DirectoryFactory> directoryFactories,
         final Map<String, IndexStorePlugin.CompositeDirectoryFactory> compositeDirectoryFactories,
@@ -311,7 +311,7 @@ public final class IndexModule {
     ) {
         this.indexSettings = indexSettings;
         this.analysisRegistry = analysisRegistry;
-        this.engineFactory = Objects.requireNonNull(engineFactory);
+        this.indexerFactory = Objects.requireNonNull(indexerFactory);
         this.engineConfigFactory = Objects.requireNonNull(engineConfigFactory);
         this.searchOperationListeners.add(new SearchSlowLog(indexSettings));
         this.indexOperationListeners.add(new IndexingSlowLog(indexSettings));
@@ -329,7 +329,7 @@ public final class IndexModule {
     public IndexModule(
         final IndexSettings indexSettings,
         final AnalysisRegistry analysisRegistry,
-        final EngineFactory engineFactory,
+        final IndexerFactory indexerFactory,
         final EngineConfigFactory engineConfigFactory,
         final Map<String, IndexStorePlugin.DirectoryFactory> directoryFactories,
         final BooleanSupplier allowExpensiveQueries,
@@ -339,7 +339,7 @@ public final class IndexModule {
         this(
             indexSettings,
             analysisRegistry,
-            engineFactory,
+            indexerFactory,
             engineConfigFactory,
             directoryFactories,
             Collections.emptyMap(),
@@ -393,8 +393,8 @@ public final class IndexModule {
      *
      * @return the engine factory
      */
-    EngineFactory getEngineFactory() {
-        return engineFactory;
+    IndexerFactory getIndexerFactory() {
+        return indexerFactory;
     }
 
     /**
@@ -919,7 +919,7 @@ public final class IndexModule {
                 new SimilarityService(indexSettings, scriptService, similarities),
                 shardStoreDeleter,
                 indexAnalyzers,
-                engineFactory,
+                indexerFactory,
                 engineConfigFactory,
                 circuitBreakerService,
                 bigArrays,

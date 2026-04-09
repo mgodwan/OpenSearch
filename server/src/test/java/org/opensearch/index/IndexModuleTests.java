@@ -86,6 +86,7 @@ import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.InternalEngineFactory;
 import org.opensearch.index.engine.InternalEngineTests;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
+import org.opensearch.index.engine.exec.EngineBackedIndexerFactory;
 import org.opensearch.index.fielddata.IndexFieldDataCache;
 import org.opensearch.index.mapper.ParsedDocument;
 import org.opensearch.index.mapper.Uid;
@@ -122,6 +123,7 @@ import org.opensearch.test.ClusterServiceUtils;
 import org.opensearch.test.IndexSettingsModule;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.engine.MockEngineFactory;
+import org.opensearch.test.engine.MockIndexerFactory;
 import org.opensearch.threadpool.TestThreadPool;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Transport;
@@ -288,7 +290,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
     }
 
     public void testWrapperIsBound() throws IOException {
-        final MockEngineFactory engineFactory = new MockEngineFactory(AssertingDirectoryReader.class);
+        final MockIndexerFactory engineFactory = new MockIndexerFactory(AssertingDirectoryReader.class);
         IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
@@ -303,7 +305,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
 
         IndexService indexService = newIndexService(module);
         assertTrue(indexService.getReaderWrapper() instanceof Wrapper);
-        assertSame(indexService.getEngineFactory(), module.getEngineFactory());
+        assertSame(indexService.getIndexerFactory(), module.getIndexerFactory());
         indexService.close("simon says", false);
     }
 
@@ -318,7 +320,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         final IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             indexStoreFactories,
             () -> true,
@@ -646,7 +648,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         final IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             Collections.emptyMap(),
             () -> true,
@@ -677,7 +679,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         final IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -709,7 +711,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         final IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -739,7 +741,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         final IndexModule module = new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -770,7 +772,7 @@ public class IndexModuleTests extends OpenSearchTestCase {
         return new IndexModule(
             indexSettings,
             emptyAnalysisRegistry,
-            new InternalEngineFactory(),
+            new EngineBackedIndexerFactory(new InternalEngineFactory()),
             new EngineConfigFactory(indexSettings),
             Collections.emptyMap(),
             () -> true,

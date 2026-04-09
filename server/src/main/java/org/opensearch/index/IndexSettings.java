@@ -2371,6 +2371,7 @@ public final class IndexSettings {
         return derivedSourceEnabled;
     }
 
+
     /**
      * Returns whether the pluggable data format feature is enabled for this index.
      * Requires both the experimental feature flag and the index-level setting.
@@ -2379,5 +2380,9 @@ public final class IndexSettings {
      */
     public boolean isPluggableDataFormatEnabled() {
         return pluggableDataFormatEnabled;
+    }
+
+    public String pluggableDataFormat() {
+        return "composite";
     }
 }

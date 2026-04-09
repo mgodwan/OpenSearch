@@ -124,6 +124,9 @@ import org.opensearch.index.engine.NRTReplicationEngineFactory;
 import org.opensearch.index.engine.NoOpEngine;
 import org.opensearch.index.engine.ReadOnlyEngine;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
+import org.opensearch.index.engine.exec.DataFormatAwareIndexerFactory;
+import org.opensearch.index.engine.exec.EngineBackedIndexerFactory;
+import org.opensearch.index.engine.exec.IndexerFactory;
 import org.opensearch.index.fielddata.IndexFieldDataCache;
 import org.opensearch.index.flush.FlushStats;
 import org.opensearch.index.get.GetStats;
@@ -1094,7 +1097,7 @@ public class IndicesService extends AbstractLifecycleComponent
         final IndexModule indexModule = new IndexModule(
             idxSettings,
             analysisRegistry,
-            getEngineFactory(idxSettings),
+            getIndexerFactory(idxSettings),
             getEngineConfigFactory(idxSettings),
             directoryFactories,
             compositeDirectoryFactories,
@@ -1164,6 +1167,14 @@ public class IndicesService extends AbstractLifecycleComponent
         return null;
     }
 
+    private IndexerFactory getIndexerFactory(final IndexSettings idxSettings) {
+        if (idxSettings.isPluggableDataFormatenabled()) {
+            return new DataFormatAwareIndexerFactory();
+        } else {
+            return new EngineBackedIndexerFactory(getEngineFactory(idxSettings));
+        }
+    }
+
     private EngineFactory getEngineFactory(final IndexSettings idxSettings) {
         final IndexMetadata indexMetadata = idxSettings.getIndexMetadata();
         if (indexMetadata != null && indexMetadata.getState() == IndexMetadata.State.CLOSE) {
@@ -1217,7 +1228,7 @@ public class IndicesService extends AbstractLifecycleComponent
         final IndexModule indexModule = new IndexModule(
             idxSettings,
             analysisRegistry,
-            getEngineFactory(idxSettings),
+            getIndexerFactory(idxSettings),
             getEngineConfigFactory(idxSettings),
             directoryFactories,
             compositeDirectoryFactories,

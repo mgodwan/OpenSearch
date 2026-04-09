@@ -136,7 +136,6 @@ import org.opensearch.index.engine.EngineBackedIndexer;
 import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.EngineException;
-import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.index.engine.IngestionEngine;
 import org.opensearch.index.engine.MergedSegmentWarmerFactory;
 import org.opensearch.index.engine.NRTReplicationEngine;
@@ -147,6 +146,7 @@ import org.opensearch.index.engine.Segment;
 import org.opensearch.index.engine.SegmentsStats;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.engine.exec.Indexer;
+import org.opensearch.index.engine.exec.IndexerFactory;
 import org.opensearch.index.fielddata.FieldDataStats;
 import org.opensearch.index.fielddata.ShardFieldData;
 import org.opensearch.index.flush.FlushStats;
@@ -320,7 +320,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private final Object engineMutex = new Object(); // lock ordering: engineMutex -> mutex
     private final AtomicReference<Indexer> currentEngineReference = new AtomicReference<>();
     private final AtomicReference<DataFormatAwareEngine> currentCompositeEngineReference = new AtomicReference<>();
-    final EngineFactory engineFactory;
+    final IndexerFactory indexerFactory;
     final EngineConfigFactory engineConfigFactory;
 
     private final IndexingOperationListener indexingOperationListeners;
@@ -422,7 +422,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         final IndexCache indexCache,
         final MapperService mapperService,
         final SimilarityService similarityService,
-        final EngineFactory engineFactory,
+        final IndexerFactory indexerFactory,
         final EngineConfigFactory engineConfigFactory,
         final IndexEventListener indexEventListener,
         final CheckedFunction<DirectoryReader, DirectoryReader, IOException> indexReaderWrapper,
@@ -461,7 +461,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         this.warmer = warmer;
         this.similarityService = similarityService;
         Objects.requireNonNull(store, "Store must be provided to the index shard");
-        this.engineFactory = Objects.requireNonNull(engineFactory);
+        this.indexerFactory = Objects.requireNonNull(indexerFactory);
         this.engineConfigFactory = Objects.requireNonNull(engineConfigFactory);
         this.codecService = engineConfigFactory.newDefaultCodecService(indexSettings, mapperService, logger);
         this.store = store;
@@ -3021,7 +3021,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             }
             // we must create a new engine under mutex (see IndexShard#snapshotStoreMetadata).
             // TODO: For composite engine, this would be replaced by a separate factory.
-            final Indexer newEngine = new EngineBackedIndexer(engineFactory.newReadWriteEngine(config));
+            final Indexer newEngine = indexerFactory.createIndexer(config);
             onNewEngine(newEngine);
             currentEngineReference.set(newEngine);
 
@@ -4477,7 +4477,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             () -> docMapper(),
             mergedSegmentWarmerFactory.get(this),
             clusterApplierService,
-            mergedSegmentTransferTracker
+            mergedSegmentTransferTracker,
+            dataFormatRegistry,
+            mapperService
         );
     }
 
@@ -5054,8 +5056,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         }
     }
 
-    EngineFactory getEngineFactory() {
-        return engineFactory;
+    IndexerFactory getIndexerFactory() {
+        return indexerFactory;
     }
 
     EngineConfigFactory getEngineConfigFactory() {
@@ -5397,7 +5399,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             if ((indexSettings.isRemoteTranslogStoreEnabled() || this.isRemoteSeeded()) && shardRouting.primary()) {
                 syncRemoteTranslogAndUpdateGlobalCheckpoint();
             }
-            newEngineReference.set(new EngineBackedIndexer(engineFactory.newReadWriteEngine(newEngineConfig(replicationTracker))));
+            newEngineReference.set(indexerFactory.createIndexer(newEngineConfig(replicationTracker)));
             onNewEngine(newEngineReference.get());
         }
         final TranslogRecoveryRunner translogRunner = (snapshot) -> {

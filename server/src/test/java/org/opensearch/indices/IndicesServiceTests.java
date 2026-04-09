@@ -596,9 +596,9 @@ public class IndicesServiceTests extends OpenSearchSingleNodeTestCase {
                 .build();
             final IndexService indexService = indicesService.createIndex(indexMetadata, Collections.emptyList(), false);
             if (value != null && value) {
-                assertThat(indexService.getEngineFactory(), instanceOf(FooEnginePlugin.FooEngineFactory.class));
+                assertThat(indexService.getIndexerFactory(), instanceOf(FooEnginePlugin.FooEngineFactory.class));
             } else {
-                assertThat(indexService.getEngineFactory(), instanceOf(InternalEngineFactory.class));
+                assertThat(indexService.getIndexerFactory(), instanceOf(InternalEngineFactory.class));
             }
         }
     }

@@ -121,6 +121,7 @@ public interface EnginePlugin {
         return Optional.empty();
     }
 
+
     /**
      * When an index is created this method is invoked for each engine plugin. Engine plugins can inspect the settings to determine
      * whether or not to provide a {@link Committer} for the given index. A plugin that does not provide a Committer should return

@@ -53,7 +53,7 @@ import java.util.function.Supplier;
  * time, where writer-specific settings (e.g., {@code parquet.max_rows_per_vsr}) are
  * extracted and applied.
  */
-public class ParquetIndexingEngine implements IndexingExecutionEngine<ParquetDataFormat, ParquetDocumentInput>, Closeable {
+public class ParquetIndexingEngine implements IndexingExecutionEngine<ParquetDataFormat, ParquetDocumentInput> {
 
     private static final Logger logger = LogManager.getLogger(ParquetIndexingEngine.class);
 
