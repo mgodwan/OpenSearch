@@ -14,7 +14,6 @@ import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.index.IndexSettings;
-import org.opensearch.index.engine.DataFormatAwareEngine;
 import org.opensearch.index.engine.dataformat.stub.MockCatalogSnapshot;
 import org.opensearch.index.engine.dataformat.stub.MockDataFormat;
 import org.opensearch.index.engine.dataformat.stub.MockDataFormatPlugin;

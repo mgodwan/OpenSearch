@@ -72,16 +72,6 @@ public class DataFormatRegistry {
             }
         }
 
-        if (readerManagerBuilders.keySet().equals(dataFormatPlugiRegistry.keySet()) == false) {
-            throw new IllegalStateException(
-                "Cannot build registry as data formats have missing indexing engine/reader managers"
-                    + " - formats with reader managers: "
-                    + readerManagerBuilders.keySet()
-                    + ", formats with plugins: "
-                    + dataFormatPlugiRegistry.keySet()
-            );
-        }
-
         this.dataFormatPluginRegistry = Map.copyOf(dataFormatPlugiRegistry);
         this.dataFormats = Map.copyOf(dataFormats);
         this.readerManagerBuilders = Map.copyOf(readerManagerBuilders);

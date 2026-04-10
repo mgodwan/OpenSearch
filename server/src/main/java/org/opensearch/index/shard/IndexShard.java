@@ -129,7 +129,6 @@ import org.opensearch.index.cache.bitset.ShardBitsetFilterCache;
 import org.opensearch.index.cache.request.ShardRequestCache;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.engine.CommitStats;
-import org.opensearch.index.engine.DataFormatAwareEngine;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.Engine.GetResult;
 import org.opensearch.index.engine.EngineBackedIndexer;
@@ -145,6 +144,7 @@ import org.opensearch.index.engine.SafeCommitInfo;
 import org.opensearch.index.engine.Segment;
 import org.opensearch.index.engine.SegmentsStats;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
+import org.opensearch.index.engine.exec.IndexReaderProvider;
 import org.opensearch.index.engine.exec.Indexer;
 import org.opensearch.index.engine.exec.IndexerFactory;
 import org.opensearch.index.fielddata.FieldDataStats;
@@ -319,7 +319,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private volatile long pendingPrimaryTerm; // see JavaDocs for getPendingPrimaryTerm
     private final Object engineMutex = new Object(); // lock ordering: engineMutex -> mutex
     private final AtomicReference<Indexer> currentEngineReference = new AtomicReference<>();
-    private final AtomicReference<DataFormatAwareEngine> currentCompositeEngineReference = new AtomicReference<>();
     final IndexerFactory indexerFactory;
     final EngineConfigFactory engineConfigFactory;
 
@@ -607,15 +606,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             }
         }
         this.dataFormatRegistry = dataFormatRegistry;
-        if (dataFormatRegistry != null) {
-            // TODO: Wire the Committer from EnginePlugin discovery and pass it here.
-            // For now, reader managers are created without a committer — the Lucene reader manager
-            // will fail if used before the committer is wired at engine construction time.
-            DataFormatAwareEngine dfaEngine = new DataFormatAwareEngine(
-                dataFormatRegistry.getReaderManagers(Optional.empty(), mapperService, indexSettings, path)
-            );
-            this.currentCompositeEngineReference.set(dfaEngine);
-        }
     }
 
     /**
@@ -2249,20 +2239,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     public Engine.Searcher acquireSearcher(String source) {
         return acquireSearcher(source, Engine.SearcherScope.EXTERNAL);
-    }
-
-    /**
-     * Returns the current CompositeEngine, or null if no optimized index is active.
-     */
-    public DataFormatAwareEngine getCompositeEngine() {
-        return currentCompositeEngineReference.get();
-    }
-
-    /**
-     * Sets the CompositeEngine for this shard (called during shard initialization for optimized indexes).
-     */
-    public void setCompositeEngine(DataFormatAwareEngine dataFormatAwareEngine) {
-        currentCompositeEngineReference.set(dataFormatAwareEngine);
     }
 
     private void markSearcherAccessed() {
@@ -5966,6 +5942,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         }
 
         return ingestionEngine.getIngestionState();
+    }
+
+    public IndexReaderProvider getReaderProvider() {
+        return getIndexer();
     }
 
     /**

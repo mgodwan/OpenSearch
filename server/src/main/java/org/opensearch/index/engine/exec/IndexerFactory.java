@@ -6,6 +6,7 @@ import org.opensearch.index.engine.EngineConfig;
 import java.util.function.Supplier;
 
 @ExperimentalApi
+@FunctionalInterface
 public interface IndexerFactory {
 
     Indexer createIndexer(EngineConfig config);

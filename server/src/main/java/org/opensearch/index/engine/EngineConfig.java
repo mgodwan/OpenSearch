@@ -56,7 +56,7 @@ import org.opensearch.index.codec.CodecAliases;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.codec.CodecSettings;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
-import org.opensearch.index.engine.dataformat.commit.CommitterFactory;
+import org.opensearch.index.engine.exec.commit.CommitterFactory;
 import org.opensearch.index.mapper.DocumentMapperForType;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.mapper.ParsedDocument;

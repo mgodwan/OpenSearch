@@ -34,6 +34,9 @@ import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.core.index.Index;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.engine.DataFormatAwareEngine;
+import org.opensearch.index.engine.EngineConfig;
+import org.opensearch.index.engine.EngineConfigFactory;
+import org.opensearch.index.engine.EngineTestCase;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.FieldTypeCapabilities;
 import org.opensearch.index.engine.exec.EngineReaderManager;
@@ -114,11 +117,11 @@ public class DefaultPlanExecutorTests extends OpenSearchTestCase {
             readerManager.afterRefresh(true, ref.get());
         }
 
-        DataFormatAwareEngine engine = new DataFormatAwareEngine(Map.of(format, readerManager), snapshotManager);
+        DataFormatAwareEngine engine = new DataFormatAwareEngine(null);
 
         // Mock shard + cluster wiring
         IndexShard shard = mock(IndexShard.class);
-        when(shard.getCompositeEngine()).thenReturn(engine);
+        when(shard.getReaderProvider()).thenReturn(engine);
 
         Index index = new Index("my_index", "uuid");
         IndexMetadata indexMetadata = mock(IndexMetadata.class);
@@ -239,6 +242,11 @@ public class DefaultPlanExecutorTests extends OpenSearchTestCase {
 
         @Override
         public void onFilesAdded(Collection<String> files) {}
+
+        @Override
+        public void close() throws IOException {
+            readers.clear();
+        }
     }
 
     static class MockCatalogSnapshot extends CatalogSnapshot {

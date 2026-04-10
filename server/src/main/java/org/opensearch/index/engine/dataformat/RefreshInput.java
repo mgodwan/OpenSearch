@@ -10,7 +10,6 @@ package org.opensearch.index.engine.dataformat;
 
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.index.engine.exec.Segment;
-import org.opensearch.index.engine.exec.WriterFileSet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +61,7 @@ public record RefreshInput(List<Segment> existingSegments, List<Segment> writerF
         /**
          * Adds a writer file set.
          *
-         * @param writerFileSet the writer file set to add
+         * @param segment the segment set to add
          * @return this builder
          */
         public Builder addSegment(Segment segment) {

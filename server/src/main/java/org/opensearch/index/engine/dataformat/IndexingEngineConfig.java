@@ -29,6 +29,9 @@ import org.opensearch.index.store.Store;
  * @opensearch.experimental
  */
 @ExperimentalApi
-public record IndexingEngineConfig(Committer committer, MapperService mapperService, ShardPath shardPath, IndexSettings indexSettings,
-    Store store) {
+public record IndexingEngineConfig(Committer committer,
+                                   MapperService mapperService,
+                                   IndexSettings indexSettings,
+                                   Store store,
+                                   DataFormatRegistry registry) {
 }

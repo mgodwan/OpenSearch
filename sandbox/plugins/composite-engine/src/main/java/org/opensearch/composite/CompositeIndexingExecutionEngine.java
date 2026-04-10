@@ -18,14 +18,7 @@ import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.DataFormatPlugin;
-import org.opensearch.index.engine.dataformat.DocumentInput;
-import org.opensearch.index.engine.dataformat.FileInfos;
-import org.opensearch.index.engine.dataformat.IndexingEngineConfig;
 import org.opensearch.index.engine.dataformat.IndexingExecutionEngine;
-import org.opensearch.index.engine.dataformat.Merger;
-import org.opensearch.index.engine.dataformat.RefreshInput;
-import org.opensearch.index.engine.dataformat.RefreshResult;
-import org.opensearch.index.engine.dataformat.Writer;
 import org.opensearch.index.engine.exec.Segment;
 import org.opensearch.index.engine.exec.WriterFileSet;
 import org.opensearch.index.engine.exec.commit.Committer;
@@ -82,7 +75,6 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
      * The writer pool is created internally and initialized with a writer supplier
      * that creates {@link CompositeWriter} instances bound to this engine.
      *
-     * @param dataFormatPlugins the discovered data format plugins keyed by format name
      * @param indexSettings the index settings containing composite configuration
      * @param mapperService the mapper service for field mapping resolution
      * @param shardPath the shard path for file storage
@@ -91,13 +83,12 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
      * @throws IllegalStateException if committer is null
      */
     public CompositeIndexingExecutionEngine(
-        Map<String, DataFormatPlugin> dataFormatPlugins,
         IndexSettings indexSettings,
         MapperService mapperService,
-        ShardPath shardPath,
         Committer committer
+        DataFormatRegistry dataFormatRegistry,
+        ShardPath shardPath
     ) {
-        Objects.requireNonNull(dataFormatPlugins, "dataFormatPlugins must not be null");
         Objects.requireNonNull(indexSettings, "indexSettings must not be null");
         if (committer == null) {
             throw new IllegalStateException("Committer must not be null");
@@ -108,20 +99,18 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         String primaryFormatName = CompositeEnginePlugin.PRIMARY_DATA_FORMAT.get(settings);
         List<String> secondaryFormatNames = CompositeEnginePlugin.SECONDARY_DATA_FORMATS.get(settings);
 
-        validateFormatsRegistered(dataFormatPlugins, primaryFormatName, secondaryFormatNames);
-
-        IndexingEngineConfig engineSettings = new IndexingEngineConfig(committer, mapperService, shardPath, indexSettings, null);
+        IndexingEngineConfig engineSettings = new IndexingEngineConfig(committer, mapperService, shardPath, indexSettings, dataFormatRegistry);
 
         List<DataFormat> allFormats = new ArrayList<>();
-        DataFormatPlugin primaryPlugin = dataFormatPlugins.get(primaryFormatName);
-        this.primaryEngine = primaryPlugin.indexingEngine(engineSettings);
-        allFormats.add(primaryPlugin.getDataFormat());
+        DataFormat primaryFormat = dataFormatRegistry.format(primaryFormatName);
+        this.primaryEngine = dataFormatRegistry.getIndexingEngine(engineSettings, primaryFormat);
+        allFormats.add(primaryFormat);
 
         List<IndexingExecutionEngine<?, ?>> secondaries = new ArrayList<>();
         for (String secondaryName : secondaryFormatNames) {
-            DataFormatPlugin secondaryPlugin = dataFormatPlugins.get(secondaryName);
-            secondaries.add(secondaryPlugin.indexingEngine(engineSettings));
-            allFormats.add(secondaryPlugin.getDataFormat());
+            DataFormat secondaryFormat = dataFormatRegistry.format(secondaryName);
+            secondaries.add(dataFormatRegistry.getIndexingEngine(engineSettings,  secondaryFormat);
+            allFormats.add(secondaryFormat);
         }
         this.secondaryEngines = Set.copyOf(secondaries);
 
@@ -189,7 +178,7 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         for (IndexingExecutionEngine<?, ?> engine : secondaryEngines) {
             secResults.add(engine.refresh(refreshInput));
         }
-        return null;
+        return primary;
     }
 
     @Override

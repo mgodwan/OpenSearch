@@ -132,7 +132,7 @@ public interface EnginePlugin {
      * @throws IOException if committer initialization fails
      */
     @ExperimentalApi
-    default Optional<CommitterFactory> getCommitterFactory(IndexSettings indexSettings) throws IOException {
+    default Optional<CommitterFactory> getCommitterFactory(IndexSettings indexSettings) {
         return Optional.empty();
     }
 }

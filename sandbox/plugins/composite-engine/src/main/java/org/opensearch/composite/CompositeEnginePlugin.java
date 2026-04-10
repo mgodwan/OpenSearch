@@ -10,19 +10,28 @@ package org.opensearch.composite;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.settings.Setting;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.env.Environment;
+import org.opensearch.env.NodeEnvironment;
+import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.DataFormatPlugin;
-import org.opensearch.index.engine.dataformat.IndexingEngineConfig;
+import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.engine.dataformat.IndexingExecutionEngine;
 import org.opensearch.plugins.ExtensiblePlugin;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.repositories.RepositoriesService;
+import org.opensearch.script.ScriptService;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.client.Client;
+import org.opensearch.watcher.ResourceWatcherService;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Sandbox plugin that provides a {@link CompositeIndexingExecutionEngine} for
@@ -58,6 +67,11 @@ public class CompositeEnginePlugin extends Plugin implements ExtensiblePlugin, D
         Setting.Property.IndexScope,
         Setting.Property.Final
     );
+
+    @Override
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
+        return super.createComponents(client, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
+    }
 
     /**
      * Index setting that lists the secondary data formats for an index.
@@ -131,7 +145,7 @@ public class CompositeEnginePlugin extends Plugin implements ExtensiblePlugin, D
     @Override
     public DataFormat getDataFormat() {
         // TODO: Dataformat for Composite is per index, while this one talks about cluster level. Switching it off for now
-        return null;
+        return new CompositeDataFormat();
     }
 
     @Override

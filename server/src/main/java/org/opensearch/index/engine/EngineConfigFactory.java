@@ -29,7 +29,8 @@ import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.codec.CodecServiceConfig;
 import org.opensearch.index.codec.CodecServiceFactory;
 import org.opensearch.index.engine.dataformat.DataFormatRegistry;
-import org.opensearch.index.engine.dataformat.commit.CommitterFactory;
+import org.opensearch.index.engine.exec.commit.Committer;
+import org.opensearch.index.engine.exec.commit.CommitterFactory;
 import org.opensearch.index.mapper.DocumentMapperForType;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.merge.MergedSegmentTransferTracker;
@@ -42,15 +43,14 @@ import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.PluginsService;
 import org.opensearch.threadpool.ThreadPool;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.io.IOException;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
+
+import static org.opensearch.index.engine.Engine.HISTORY_UUID_KEY;
+import static org.opensearch.index.translog.Translog.TRANSLOG_UUID_KEY;
 
 /**
  * A factory to create an EngineConfig based on custom plugin overrides
@@ -126,7 +126,7 @@ public class EngineConfigFactory {
             // collect all available CodecRegistry instances
             enginePlugin.getAdditionalCodecs(idxSettings).ifPresent(codecRegistries::add);
 
-            enginePlugin.getCommitterFactory().ifPresent(committerFactories::add);
+            enginePlugin.getCommitterFactory(idxSettings).ifPresent(committerFactories::add);
         }
 
         if (codecService.isPresent() && codecServiceFactory.isPresent()) {
@@ -138,9 +138,34 @@ public class EngineConfigFactory {
             );
         }
 
-        if (committerFactories.size() > 1 || (committerFactories.size() != 1 && idxSettings.isPluggableDataFormatenabled())) {
-            throw new IllegalStateException("Multiple committer factories detected: " + committerFactories);
+        if (committerFactories.size() > 1 || (committerFactories.size() != 1 && idxSettings.isPluggableDataFormatEnabled())) {
+            committerFactories.add(config -> new Committer() {
+                @Override
+                public void commit(Map<String, String> commitData) throws IOException {
+                }
+
+                @Override
+                public Map<String, String> getLastCommittedData() throws IOException {
+                    return config.store().readLastCommittedSegmentsInfo().getUserData();
+                }
+
+                @Override
+                public CommitStats getCommitStats() {
+                    return null;
+                }
+
+                @Override
+                public SafeCommitInfo getSafeCommitInfo() {
+                    return null;
+                }
+
+                @Override
+                public void close() throws IOException {
+
+                }
+            });
         }
+
 
         final CodecService instance = codecService.orElse(null);
         this.codecServiceFactory = (instance != null) ? (config) -> instance : codecServiceFactory.orElse(null);

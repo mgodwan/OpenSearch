@@ -18,13 +18,9 @@ import org.opensearch.index.store.Store;
  * Initialization parameters for a {@link Committer}.
  * Carries the shard path, index settings, engine configuration, and store needed to set up the backing store.
  *
- * @param indexSettings             the index-level settings
  * @param engineConfig              the engine configuration (nullable — may be absent in tests or standalone mode)
- * @param store                     the shard's store providing the Lucene directory (nullable — may be absent in tests)
- * @param catalogSnapshotManager    allows to acquire snapshots for commit.
  * @opensearch.experimental
  */
 @ExperimentalApi
-public record CommitterConfig(IndexSettings indexSettings, EngineConfig engineConfig, Store store,
-    CatalogSnapshotManager catalogSnapshotManager) {
+public record CommitterConfig(EngineConfig engineConfig) {
 }
