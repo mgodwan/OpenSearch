@@ -11,34 +11,26 @@ package org.opensearch.composite;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.annotation.ExperimentalApi;
-import org.opensearch.common.concurrent.GatedCloseable;
-import org.opensearch.common.queue.LockablePool;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.index.IndexSettings;
-import org.opensearch.index.engine.dataformat.DataFormat;
-import org.opensearch.index.engine.dataformat.DataFormatPlugin;
-import org.opensearch.index.engine.dataformat.IndexingExecutionEngine;
+import org.opensearch.index.engine.dataformat.*;
 import org.opensearch.index.engine.exec.Segment;
 import org.opensearch.index.engine.exec.WriterFileSet;
 import org.opensearch.index.engine.exec.commit.Committer;
 import org.opensearch.index.engine.exec.commit.IndexStoreProvider;
-import org.opensearch.index.engine.exec.coord.CatalogSnapshot;
-import org.opensearch.index.engine.exec.coord.CatalogSnapshotManager;
 import org.opensearch.index.mapper.MapperService;
-import org.opensearch.index.shard.ShardPath;
+import org.opensearch.index.store.Store;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A composite {@link IndexingExecutionEngine} that orchestrates indexing across
@@ -61,6 +53,7 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
     private final IndexingExecutionEngine<?, ?> primaryEngine;
     private final Set<IndexingExecutionEngine<?, ?>> secondaryEngines;
     private final CompositeDataFormat compositeDataFormat;
+    private final Committer committer;
 
     /**
      * Constructs a CompositeIndexingExecutionEngine by reading index settings to
@@ -77,17 +70,18 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
      *
      * @param indexSettings the index settings containing composite configuration
      * @param mapperService the mapper service for field mapping resolution
-     * @param shardPath the shard path for file storage
      * @param committer the committer for durable catalog snapshot persistence during flush
+     * @param dataFormatRegistry registry containing information about available data formats on the node
+     * @param store store for the current index
      * @throws IllegalArgumentException if any configured format is not registered
      * @throws IllegalStateException if committer is null
      */
     public CompositeIndexingExecutionEngine(
         IndexSettings indexSettings,
         MapperService mapperService,
-        Committer committer
+        Committer committer,
         DataFormatRegistry dataFormatRegistry,
-        ShardPath shardPath
+        Store store
     ) {
         Objects.requireNonNull(indexSettings, "indexSettings must not be null");
         if (committer == null) {
@@ -99,7 +93,7 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         String primaryFormatName = CompositeEnginePlugin.PRIMARY_DATA_FORMAT.get(settings);
         List<String> secondaryFormatNames = CompositeEnginePlugin.SECONDARY_DATA_FORMATS.get(settings);
 
-        IndexingEngineConfig engineSettings = new IndexingEngineConfig(committer, mapperService, shardPath, indexSettings, dataFormatRegistry);
+        IndexingEngineConfig engineSettings = new IndexingEngineConfig(committer, mapperService, indexSettings, store, dataFormatRegistry);
 
         List<DataFormat> allFormats = new ArrayList<>();
         DataFormat primaryFormat = dataFormatRegistry.format(primaryFormatName);
@@ -109,12 +103,13 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         List<IndexingExecutionEngine<?, ?>> secondaries = new ArrayList<>();
         for (String secondaryName : secondaryFormatNames) {
             DataFormat secondaryFormat = dataFormatRegistry.format(secondaryName);
-            secondaries.add(dataFormatRegistry.getIndexingEngine(engineSettings,  secondaryFormat);
+            secondaries.add(dataFormatRegistry.getIndexingEngine(engineSettings,  secondaryFormat));
             allFormats.add(secondaryFormat);
         }
         this.secondaryEngines = Set.copyOf(secondaries);
 
         this.compositeDataFormat = new CompositeDataFormat(allFormats);
+        this.committer = committer;
     }
 
     /**
@@ -178,7 +173,27 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
         for (IndexingExecutionEngine<?, ?> engine : secondaryEngines) {
             secResults.add(engine.refresh(refreshInput));
         }
-        return primary;
+
+        Map<Long, Segment.Builder> mergedByGen = new LinkedHashMap<>();
+        buildSegment(primary, mergedByGen);
+        for (RefreshResult secResult : secResults) {
+            buildSegment(secResult, mergedByGen);
+        }
+
+        List<Segment> merged = new ArrayList<>(mergedByGen.size());
+        for (Segment.Builder builder : mergedByGen.values()) {
+            merged.add(builder.build());
+        }
+        return new RefreshResult(merged);
+    }
+
+    private void buildSegment(RefreshResult primary, Map<Long, Segment.Builder> mergedByGen) {
+        for (Segment seg : primary.refreshedSegments()) {
+            Segment.Builder builder = mergedByGen.computeIfAbsent(seg.generation(), Segment::builder);
+            for (Map.Entry<String, WriterFileSet> entry : seg.dfGroupedSearchableFiles().entrySet()) {
+                builder.addSearchableFiles(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override
@@ -240,6 +255,7 @@ public class CompositeIndexingExecutionEngine implements IndexingExecutionEngine
     public void close() throws IOException {
         IOUtils.closeWhileHandlingException(primaryEngine);
         secondaryEngines.forEach(IOUtils::closeWhileHandlingException);
+        IOUtils.closeWhileHandlingException(committer);
     }
 
     /**

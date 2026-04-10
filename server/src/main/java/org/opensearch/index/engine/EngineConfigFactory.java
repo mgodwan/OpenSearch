@@ -138,7 +138,7 @@ public class EngineConfigFactory {
             );
         }
 
-        if (committerFactories.size() > 1 || (committerFactories.size() != 1 && idxSettings.isPluggableDataFormatEnabled())) {
+        if (committerFactories.size() > 1 || (committerFactories.isEmpty() && idxSettings.isPluggableDataFormatEnabled())) {
             committerFactories.add(config -> new Committer() {
                 @Override
                 public void commit(Map<String, String> commitData) throws IOException {
@@ -146,7 +146,7 @@ public class EngineConfigFactory {
 
                 @Override
                 public Map<String, String> getLastCommittedData() throws IOException {
-                    return config.store().readLastCommittedSegmentsInfo().getUserData();
+                    return config.engineConfig().getStore().readLastCommittedSegmentsInfo().getUserData();
                 }
 
                 @Override
@@ -161,7 +161,6 @@ public class EngineConfigFactory {
 
                 @Override
                 public void close() throws IOException {
-
                 }
             });
         }
@@ -171,7 +170,7 @@ public class EngineConfigFactory {
         this.codecServiceFactory = (instance != null) ? (config) -> instance : codecServiceFactory.orElse(null);
         this.translogDeletionPolicyFactory = translogDeletionPolicyFactory.orElse((idxs, rtls) -> null);
         this.additionalCodecs = Collections.unmodifiableList(codecRegistries);
-        this.committerFactory = committerFactories.getFirst();
+        this.committerFactory = committerFactories.isEmpty() ? null : committerFactories.getFirst();
     }
 
     /**

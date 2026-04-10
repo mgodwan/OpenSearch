@@ -53,11 +53,8 @@ public class MockIndexingExecutionEngine implements IndexingExecutionEngine<Data
 
     @Override
     public RefreshResult refresh(RefreshInput refreshInput) {
-        List<Segment> segments = new ArrayList<>();
-        long gen = 0;
-        for (WriterFileSet wfs : refreshInput.writerFiles()) {
-            segments.add(Segment.builder(gen++).addSearchableFiles(dataFormat, wfs).build());
-        }
+        List<Segment> segments = new ArrayList<>(refreshInput.existingSegments());
+        segments.addAll(refreshInput.writerFiles());
         return new RefreshResult(segments);
     }
 
@@ -84,5 +81,10 @@ public class MockIndexingExecutionEngine implements IndexingExecutionEngine<Data
     @Override
     public IndexStoreProvider getProvider() {
         return null;
+    }
+
+    @Override
+    public void close() {
+        // no-op for mock
     }
 }

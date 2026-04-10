@@ -168,3 +168,4 @@ public final class NativeLibraryLoader {
         throw new RuntimeException("Failed to load native library '" + LIBRARY_NAME + "'");
     }
 }
+

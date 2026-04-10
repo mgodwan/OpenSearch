@@ -192,6 +192,7 @@ public class RunTask extends DefaultTestClustersTask {
                     node.jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=" + debugPort);
                     debugPort += 1;
                 }
+                node.jvmArgs("--enable-native-access=ALL-UNNAMED");
                 if (keystorePassword.length() > 0) {
                     node.keystorePassword(keystorePassword);
                 }

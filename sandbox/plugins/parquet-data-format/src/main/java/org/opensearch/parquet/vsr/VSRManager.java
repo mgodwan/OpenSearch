@@ -115,6 +115,7 @@ public class VSRManager implements AutoCloseable {
         maybeRotateActiveVSR();
         ManagedVSR activeVSR = managedVSR.get();
         for (FieldValuePair pair : doc.getFinalInput()) {
+            System.out.println("Field: " + pair.getFieldType().name() + ", Value: " + pair.getValue());
             MappedFieldType fieldType = pair.getFieldType();
             ParquetField parquetField = ArrowFieldRegistry.getParquetField(fieldType.typeName());
             if (parquetField == null) {

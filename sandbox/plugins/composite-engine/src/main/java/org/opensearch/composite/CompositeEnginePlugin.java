@@ -10,28 +10,18 @@ package org.opensearch.composite;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
-import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.settings.Setting;
-import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
-import org.opensearch.env.Environment;
-import org.opensearch.env.NodeEnvironment;
-import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.DataFormatPlugin;
-import org.opensearch.index.engine.dataformat.DataFormatRegistry;
+import org.opensearch.index.engine.dataformat.IndexingEngineConfig;
 import org.opensearch.index.engine.dataformat.IndexingExecutionEngine;
 import org.opensearch.plugins.ExtensiblePlugin;
 import org.opensearch.plugins.Plugin;
-import org.opensearch.repositories.RepositoriesService;
-import org.opensearch.script.ScriptService;
-import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.transport.client.Client;
-import org.opensearch.watcher.ResourceWatcherService;
 
-import java.util.function.Supplier;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Sandbox plugin that provides a {@link CompositeIndexingExecutionEngine} for
@@ -68,11 +58,6 @@ public class CompositeEnginePlugin extends Plugin implements ExtensiblePlugin, D
         Setting.Property.Final
     );
 
-    @Override
-    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
-        return super.createComponents(client, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
-    }
-
     /**
      * Index setting that lists the secondary data formats for an index.
      * Secondary formats receive writes alongside the primary but are not used
@@ -97,47 +82,6 @@ public class CompositeEnginePlugin extends Plugin implements ExtensiblePlugin, D
     public CompositeEnginePlugin() {}
 
     @Override
-    public void loadExtensions(ExtensionLoader loader) {
-        List<DataFormatPlugin> formatPlugins = loader.loadExtensions(DataFormatPlugin.class);
-        Map<String, DataFormatPlugin> registry = new HashMap<>();
-        for (DataFormatPlugin plugin : formatPlugins) {
-            DataFormat format = plugin.getDataFormat();
-            if (format == null) {
-                logger.warn("DataFormatPlugin [{}] returned null DataFormat, skipping", plugin.getClass().getName());
-                continue;
-            }
-            String name = format.name();
-            if (name == null || name.isBlank()) {
-                logger.warn("DataFormatPlugin [{}] returned a DataFormat with null/blank name, skipping", plugin.getClass().getName());
-                continue;
-            }
-            DataFormatPlugin existing = registry.get(name);
-            if (existing != null) {
-                long existingPriority = existing.getDataFormat().priority();
-                if (format.priority() <= existingPriority) {
-                    logger.debug(
-                        "Skipping DataFormatPlugin [{}] for format [{}] (priority {} <= existing {})",
-                        plugin.getClass().getName(),
-                        name,
-                        format.priority(),
-                        existingPriority
-                    );
-                    continue;
-                }
-                logger.info(
-                    "Replacing DataFormatPlugin for format [{}] (priority {} > existing {})",
-                    name,
-                    format.priority(),
-                    existingPriority
-                );
-            }
-            registry.put(name, plugin);
-            logger.info("Registered DataFormatPlugin [{}] for format [{}]", plugin.getClass().getName(), name);
-        }
-        this.dataFormatPlugins = Map.copyOf(registry);
-    }
-
-    @Override
     public List<Setting<?>> getSettings() {
         return List.of(PRIMARY_DATA_FORMAT, SECONDARY_DATA_FORMATS);
     }
@@ -151,11 +95,11 @@ public class CompositeEnginePlugin extends Plugin implements ExtensiblePlugin, D
     @Override
     public IndexingExecutionEngine<?, ?> indexingEngine(IndexingEngineConfig settings) {
         return new CompositeIndexingExecutionEngine(
-            dataFormatPlugins,
             settings.indexSettings(),
             settings.mapperService(),
-            settings.shardPath(),
-            settings.committer()
+            settings.committer(),
+            settings.registry(),
+            settings.store()
         );
     }
 

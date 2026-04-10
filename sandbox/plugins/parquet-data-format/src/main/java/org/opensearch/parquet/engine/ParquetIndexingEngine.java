@@ -29,6 +29,7 @@ import org.opensearch.parquet.writer.ParquetWriter;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -94,6 +95,8 @@ public class ParquetIndexingEngine implements IndexingExecutionEngine<ParquetDat
         this.threadPool = threadPool;
         try {
             Files.createDirectory(shardPath.resolve("parquet"));
+        } catch (FileAlreadyExistsException ex) {
+            logger.warn("Directory already exists: {}", shardPath.resolve("parquet"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

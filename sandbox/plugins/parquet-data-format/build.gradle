@@ -38,6 +38,11 @@ dependencies {
   implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1"
 }
 
+build {
+  dependsOn ":sandbox:libs:dataformat-native:buildRustLibrary"
+}
+
+
 tasks.named("dependencyLicenses").configure {
   mapping from: /jackson-.*/, to: 'jackson'
 }

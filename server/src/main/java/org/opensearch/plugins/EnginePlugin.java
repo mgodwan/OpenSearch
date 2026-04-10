@@ -129,7 +129,6 @@ public interface EnginePlugin {
      *
      * @param indexSettings index settings to detect whether a committer should be passed or not.
      * @return an optional committer factory
-     * @throws IOException if committer initialization fails
      */
     @ExperimentalApi
     default Optional<CommitterFactory> getCommitterFactory(IndexSettings indexSettings) {

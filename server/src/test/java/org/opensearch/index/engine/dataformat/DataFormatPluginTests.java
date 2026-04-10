@@ -12,7 +12,6 @@ import org.opensearch.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.stub.MockCatalogSnapshot;
 import org.opensearch.index.engine.dataformat.stub.MockDataFormat;
@@ -28,7 +27,6 @@ import org.opensearch.index.engine.exec.coord.CatalogSnapshotManager;
 import org.opensearch.index.engine.exec.coord.DataformatAwareCatalogSnapshot;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
-import org.opensearch.index.shard.ShardPath;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
@@ -74,8 +72,8 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
                 new IndexingEngineConfig(
                     null,
                     mock(MapperService.class),
-                    new ShardPath(false, Path.of("/tmp/uuid/0"), Path.of("/tmp/uuid/0"), new ShardId("index", "uuid", 0)),
                     new IndexSettings(IndexMetadata.builder("index").settings(settings).build(), settings),
+                    null,
                     null
                 )
             );
@@ -144,7 +142,7 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         assertNotNull(secondaryMerge.getMergedWriterFileSetForDataformat(format));
 
         // 7. Refresh to produce searchable segments
-        RefreshInput refreshInput = RefreshInput.builder().addWriterFileSet(merged).build();
+        RefreshInput refreshInput = RefreshInput.builder().addSegment(Segment.builder(0L).addSearchableFiles(format, merged).build()).build();
         RefreshResult refreshResult = engine.refresh(refreshInput);
         assertFalse(refreshResult.refreshedSegments().isEmpty());
         Segment segment = refreshResult.refreshedSegments().get(0);
@@ -229,7 +227,10 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         WriterFileSet fs2 = new WriterFileSet(dir.toString(), 2L, Set.of(), 20);
         Segment seg = new Segment(0L, Map.of());
 
-        RefreshInput input = RefreshInput.builder().addWriterFileSet(fs1).addWriterFileSet(fs2).existingSegments(List.of(seg)).build();
+        RefreshInput input = RefreshInput.builder()
+            .addSegment(Segment.builder(0L).addSearchableFiles("mock", fs1).build())
+            .addSegment(Segment.builder(1L).addSearchableFiles("mock", fs2).build())
+            .existingSegments(List.of(seg)).build();
         assertEquals(2, input.writerFiles().size());
         assertEquals(1, input.existingSegments().size());
     }
@@ -252,7 +253,7 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         WriterFileSet fs1 = w1.flush().getWriterFileSet(format).get();
         w1.close();
 
-        RefreshResult rr1 = indexEngine.refresh(RefreshInput.builder().addWriterFileSet(fs1).build());
+        RefreshResult rr1 = indexEngine.refresh(RefreshInput.builder().addSegment(Segment.builder(0L).addSearchableFiles(format, fs1).build()).build());
 
         CatalogSnapshotManager manager = new CatalogSnapshotManager(1L, 1L, 0L, rr1.refreshedSegments(), 1L, Map.of());
 
@@ -261,12 +262,10 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
             readerManager.afterRefresh(true, ref.get());
         }
 
-        DataFormatAwareEngine dataFormatAwareEngine = new DataFormatAwareEngine(Map.of(format, readerManager), manager);
-
-        // Search acquires reader on snapshot1 — holds a ref
-        var dataFormatAwareReader = dataFormatAwareEngine.acquireReader();
-        CatalogSnapshot snapshot1 = dataFormatAwareReader.get().catalogSnapshot();
-        MockReader searchReader = (MockReader) dataFormatAwareReader.get().reader(format);
+        // Acquire reader directly from snapshot manager and reader manager
+        GatedCloseable<CatalogSnapshot> snapshotRef1 = manager.acquireSnapshot();
+        CatalogSnapshot snapshot1 = snapshotRef1.get();
+        MockReader searchReader = readerManager.getReader(snapshot1);
         assertEquals(1, searchReader.totalRows);
         assertEquals(1L, snapshot1.getGeneration());
 
@@ -279,7 +278,10 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         WriterFileSet fs2 = w2.flush().getWriterFileSet(format).get();
         w2.close();
 
-        RefreshResult rr2 = indexEngine.refresh(RefreshInput.builder().addWriterFileSet(fs1).addWriterFileSet(fs2).build());
+        RefreshResult rr2 = indexEngine.refresh(RefreshInput.builder()
+            .addSegment(Segment.builder(0L).addSearchableFiles(format, fs1).build())
+            .addSegment(Segment.builder(1L).addSearchableFiles(format, fs2).build())
+            .build());
         manager.commitNewSnapshot(rr2.refreshedSegments());
 
         try (GatedCloseable<CatalogSnapshot> ref = manager.acquireSnapshot()) {
@@ -289,7 +291,6 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         // Snapshot1 still alive — search reader still works because the ref is held
         assertFalse("Snapshot1 should still be alive while search holds ref", ((DataformatAwareCatalogSnapshot) snapshot1).isClosed());
         assertEquals(1, searchReader.totalRows);
-        assertSame(snapshot1, dataFormatAwareReader.get().catalogSnapshot());
 
         // New acquireSnapshot returns snapshot2, not snapshot1
         try (GatedCloseable<CatalogSnapshot> ref = manager.acquireSnapshot()) {
@@ -298,7 +299,7 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         }
 
         // Search completes — releases the old snapshot ref
-        dataFormatAwareReader.close();
+        snapshotRef1.close();
 
         // Snapshot1 is now dead
         assertTrue(
@@ -308,10 +309,10 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
 
         // Snapshot1 is now dead — tryIncRef would fail (verified via new acquire returning snapshot2)
         // Snapshot 2 works
-        try (var cr2 = dataFormatAwareEngine.acquireReader()) {
-            MockReader r2 = (MockReader) cr2.get().reader(format);
+        try (GatedCloseable<CatalogSnapshot> cr2 = manager.acquireSnapshot()) {
+            MockReader r2 = readerManager.getReader(cr2.get());
             assertEquals(2, r2.totalRows);
-            assertEquals(2L, cr2.get().catalogSnapshot().getGeneration());
+            assertEquals(2L, cr2.get().getGeneration());
         }
 
         manager.close();
@@ -354,11 +355,9 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
             rm2.afterRefresh(true, ref.get());
         }
 
-        DataFormatAwareEngine dataFormatAwareEngine = new DataFormatAwareEngine(Map.of(format1, rm1, format2, rm2), manager);
-
-        try (var cr = dataFormatAwareEngine.acquireReader()) {
-            MockReader r1 = (MockReader) cr.get().reader(format1);
-            MockReader r2 = (MockReader) cr.get().reader(format2);
+        try (GatedCloseable<CatalogSnapshot> cr = manager.acquireSnapshot()) {
+            MockReader r1 = rm1.getReader(cr.get());
+            MockReader r2 = rm2.getReader(cr.get());
             assertNotNull(r1);
             assertNotNull(r2);
             assertEquals(10, r1.totalRows);
@@ -385,7 +384,7 @@ public class DataFormatPluginTests extends OpenSearchTestCase {
         WriterFileSet fs = w.flush().getWriterFileSet(format).get();
         w.close();
 
-        RefreshResult rr = indexEngine.refresh(RefreshInput.builder().addWriterFileSet(fs).build());
+        RefreshResult rr = indexEngine.refresh(RefreshInput.builder().addSegment(Segment.builder(0L).addSearchableFiles(format, fs).build()).build());
         MockCatalogSnapshot snapshot = new MockCatalogSnapshot(1L, rr.refreshedSegments(), format);
 
         MockReaderManager rm = new MockReaderManager(format.name());

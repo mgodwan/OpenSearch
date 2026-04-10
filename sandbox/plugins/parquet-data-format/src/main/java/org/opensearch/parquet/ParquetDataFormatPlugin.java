@@ -90,7 +90,7 @@ public class ParquetDataFormatPlugin extends Plugin implements DataFormatPlugin 
         return new ParquetIndexingEngine(
             settings,
             dataFormat,
-            engineSettings.shardPath(),
+            engineSettings.store().shardPath(),
             () -> ArrowSchemaBuilder.getSchema(engineSettings.mapperService()),
             engineSettings.indexSettings(),
             threadPool

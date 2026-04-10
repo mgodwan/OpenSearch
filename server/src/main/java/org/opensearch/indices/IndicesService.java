@@ -1168,7 +1168,7 @@ public class IndicesService extends AbstractLifecycleComponent
     }
 
     private IndexerFactory getIndexerFactory(final IndexSettings idxSettings) {
-        if (idxSettings.isPluggableDataFormatenabled()) {
+        if (idxSettings.isPluggableDataFormatEnabled()) {
             return new DataFormatAwareIndexerFactory();
         } else {
             return new EngineBackedIndexerFactory(getEngineFactory(idxSettings));

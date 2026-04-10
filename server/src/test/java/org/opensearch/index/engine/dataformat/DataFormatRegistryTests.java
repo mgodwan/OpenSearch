@@ -119,18 +119,20 @@ public class DataFormatRegistryTests extends OpenSearchTestCase {
         assertTrue(e.getMessage().contains("already registered"));
     }
 
-    public void testMismatchedFormatsAndReaderManagersThrows() {
+    public void testMismatchedFormatsAndReaderManagersAllowed() {
+        // DataFormatPlugin and SearchBackEndPlugin may register different formats.
+        // The registry no longer validates that they match — a format can have an
+        // indexing engine without a reader manager (or vice-versa).
         MockDataFormat format1 = new MockDataFormat("columnar", 100L, Set.of());
         MockDataFormat format2 = new MockDataFormat("lucene", 50L, Set.of());
         MockDataFormatPlugin plugin1 = new MockDataFormatPlugin(format1);
-        // Only register reader manager for format2, not format1
         MockSearchBackEndPlugin backEnd = new MockSearchBackEndPlugin(List.of(format2));
 
         when(pluginsService.filterPlugins(DataFormatPlugin.class)).thenReturn(List.of(plugin1));
         when(pluginsService.filterPlugins(SearchBackEndPlugin.class)).thenReturn(List.of(backEnd));
 
-        IllegalStateException e = expectThrows(IllegalStateException.class, () -> new DataFormatRegistry(pluginsService));
-        assertTrue(e.getMessage().contains("missing indexing engine/reader managers"));
+        DataFormatRegistry registry = new DataFormatRegistry(pluginsService);
+        assertEquals(1, registry.getRegisteredFormats().size());
     }
 
     public void testGetIndexingEngine() {
@@ -144,7 +146,7 @@ public class DataFormatRegistryTests extends OpenSearchTestCase {
         DataFormatRegistry registry = new DataFormatRegistry(pluginsService);
 
         IndexingExecutionEngine<?, ?> engine = registry.getIndexingEngine(
-            new IndexingEngineConfig(null, mapperService, shardPath, indexSettings, null),
+            new IndexingEngineConfig(null, mapperService, indexSettings, null, null),
             format
         );
         assertNotNull(engine);
@@ -160,7 +162,7 @@ public class DataFormatRegistryTests extends OpenSearchTestCase {
 
         IllegalArgumentException e = expectThrows(
             IllegalArgumentException.class,
-            () -> registry.getIndexingEngine(new IndexingEngineConfig(null, mapperService, shardPath, indexSettings, null), unregistered)
+            () -> registry.getIndexingEngine(new IndexingEngineConfig(null, mapperService, indexSettings, null, null), unregistered)
         );
         assertTrue(e.getMessage().contains("unknown"));
     }
