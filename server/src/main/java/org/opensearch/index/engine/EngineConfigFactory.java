@@ -138,7 +138,7 @@ public class EngineConfigFactory {
             );
         }
 
-        if (committerFactories.size() > 1 || (committerFactories.size() != 1 && idxSettings.isPluggableDataFormatEnabled())) {
+        if (committerFactories.isEmpty() || committerFactories.size() > 1 || (committerFactories.size() != 1 && idxSettings.isPluggableDataFormatEnabled())) {
             committerFactories.add(store -> new Committer() {
                 @Override
                 public Map<String, String> readLastCommittedUserData() {

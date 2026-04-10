@@ -104,7 +104,8 @@ public class CompositeEnginePluginTests extends OpenSearchTestCase {
             public org.opensearch.index.engine.dataformat.IndexingExecutionEngine<?, ?> indexingEngine(
                 org.opensearch.index.mapper.MapperService mapperService,
                 org.opensearch.index.shard.ShardPath shardPath,
-                IndexSettings indexSettings
+                IndexSettings indexSettings,
+                org.opensearch.index.engine.dataformat.DataFormatRegistry dataFormatRegistry
             ) {
                 return null;
             }

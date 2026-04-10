@@ -89,6 +89,7 @@ import org.opensearch.index.engine.DocIdSeqNoAndSource;
 import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.index.engine.InternalEngineFactory;
+import org.opensearch.index.engine.exec.EngineBackedIndexerFactory;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.seqno.GlobalCheckpointSyncAction;
 import org.opensearch.index.seqno.RetentionLease;
@@ -301,7 +302,7 @@ public abstract class OpenSearchIndexLevelReplicationTestCase extends IndexShard
                 primaryRouting,
                 indexMetadata,
                 null,
-                getEngineFactory(primaryRouting),
+                new EngineBackedIndexerFactory(getEngineFactory(primaryRouting)),
                 () -> {},
                 retentionLeaseSyncer,
                 recoverySettings,
@@ -460,7 +461,7 @@ public abstract class OpenSearchIndexLevelReplicationTestCase extends IndexShard
                 replicaRouting,
                 indexMetadata,
                 null,
-                getEngineFactory(replicaRouting),
+                new EngineBackedIndexerFactory(getEngineFactory(replicaRouting)),
                 () -> {},
                 retentionLeaseSyncer,
                 remotePath
@@ -475,7 +476,7 @@ public abstract class OpenSearchIndexLevelReplicationTestCase extends IndexShard
                 replicaRouting,
                 indexMetadata,
                 null,
-                getEngineFactory(replicaRouting),
+                new EngineBackedIndexerFactory(getEngineFactory(replicaRouting)),
                 () -> {},
                 retentionLeaseSyncer,
                 recoverySettings,
@@ -517,7 +518,7 @@ public abstract class OpenSearchIndexLevelReplicationTestCase extends IndexShard
                 indexMetadata,
                 null,
                 null,
-                getEngineFactory(shardRouting),
+                new EngineBackedIndexerFactory(getEngineFactory(shardRouting)),
                 getEngineConfigFactory(new IndexSettings(indexMetadata, indexMetadata.getSettings())),
                 () -> {},
                 retentionLeaseSyncer,

@@ -8,12 +8,10 @@
 
 package org.opensearch.composite;
 
-import org.opensearch.Version;
-import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.engine.dataformat.DataFormat;
 import org.opensearch.index.engine.dataformat.DataFormatPlugin;
+import org.opensearch.index.engine.dataformat.DataFormatRegistry;
 import org.opensearch.index.engine.dataformat.DocumentInput;
 import org.opensearch.index.engine.dataformat.FieldTypeCapabilities;
 import org.opensearch.index.engine.dataformat.FileInfos;
@@ -26,9 +24,11 @@ import org.opensearch.index.engine.dataformat.Writer;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.ShardPath;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,27 +44,21 @@ final class CompositeTestHelper {
      * Creates a CompositeIndexingExecutionEngine with stub engines for testing.
      */
     static CompositeIndexingExecutionEngine createStubEngine(String primaryName, String... secondaryNames) {
-        Map<String, DataFormatPlugin> plugins = new HashMap<>();
-        plugins.put(primaryName, stubPlugin(primaryName, 1));
+        DataFormat primaryFormat = stubFormat(primaryName, 1, Set.of());
+        IndexingExecutionEngine<?, ?> primaryEngine = new StubIndexingExecutionEngine(primaryFormat);
+
+        List<DataFormat> allFormats = new ArrayList<>();
+        allFormats.add(primaryFormat);
+
+        Set<IndexingExecutionEngine<?, ?>> secondaryEngines = new LinkedHashSet<>();
         for (String name : secondaryNames) {
-            plugins.put(name, stubPlugin(name, 2));
+            DataFormat secondaryFormat = stubFormat(name, 2, Set.of());
+            secondaryEngines.add(new StubIndexingExecutionEngine(secondaryFormat));
+            allFormats.add(secondaryFormat);
         }
 
-        Settings.Builder settingsBuilder = Settings.builder()
-            .put("index.composite.primary_data_format", primaryName)
-            .put(IndexMetadata.SETTING_VERSION_CREATED, Version.CURRENT)
-            .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
-            .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1);
-
-        if (secondaryNames.length > 0) {
-            settingsBuilder.putList("index.composite.secondary_data_formats", secondaryNames);
-        }
-
-        Settings settings = settingsBuilder.build();
-        IndexMetadata indexMetadata = IndexMetadata.builder("test-index").settings(settings).build();
-        IndexSettings indexSettings = new IndexSettings(indexMetadata, Settings.EMPTY);
-
-        return new CompositeIndexingExecutionEngine(plugins, indexSettings, null, null);
+        CompositeDataFormat compositeDataFormat = new CompositeDataFormat(allFormats);
+        return new CompositeIndexingExecutionEngine(primaryEngine, secondaryEngines, compositeDataFormat);
     }
 
     static DataFormatPlugin stubPlugin(String formatName, long priority) {
@@ -79,7 +73,8 @@ final class CompositeTestHelper {
             public IndexingExecutionEngine<?, ?> indexingEngine(
                 MapperService mapperService,
                 ShardPath shardPath,
-                IndexSettings indexSettings
+                IndexSettings indexSettings,
+                DataFormatRegistry dataFormatRegistry
             ) {
                 return new StubIndexingExecutionEngine(format);
             }
@@ -98,7 +93,8 @@ final class CompositeTestHelper {
             public IndexingExecutionEngine<?, ?> indexingEngine(
                 MapperService mapperService,
                 ShardPath shardPath,
-                IndexSettings indexSettings
+                IndexSettings indexSettings,
+                DataFormatRegistry dataFormatRegistry
             ) {
                 return new StubIndexingExecutionEngine(format);
             }
@@ -173,6 +169,9 @@ final class CompositeTestHelper {
         public DocumentInput<?> newDocumentInput() {
             return new StubDocumentInput();
         }
+
+        @Override
+        public void close() {}
     }
 
     /**
@@ -206,6 +205,22 @@ final class CompositeTestHelper {
 
         @Override
         public void close() {}
+
+        @Override
+        public long generation() {
+            return 0L;
+        }
+
+        @Override
+        public void lock() {}
+
+        @Override
+        public boolean tryLock() {
+            return true;
+        }
+
+        @Override
+        public void unlock() {}
     }
 
     /**

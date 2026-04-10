@@ -48,10 +48,9 @@ public class CompositeIndexingExecutionEngineTests extends OpenSearchTestCase {
         Map<String, DataFormatPlugin> plugins = new HashMap<>();
         plugins.put("lucene", CompositeTestHelper.stubPlugin("lucene", 1));
 
-        IndexSettings indexSettings = createIndexSettings("parquet");
         IllegalArgumentException ex = expectThrows(
             IllegalArgumentException.class,
-            () -> new CompositeIndexingExecutionEngine(plugins, indexSettings, null, null)
+            () -> CompositeIndexingExecutionEngine.validateFormatsRegistered(plugins, "parquet", List.of())
         );
         assertTrue(ex.getMessage().contains("parquet"));
     }
@@ -60,31 +59,15 @@ public class CompositeIndexingExecutionEngineTests extends OpenSearchTestCase {
         Map<String, DataFormatPlugin> plugins = new HashMap<>();
         plugins.put("lucene", CompositeTestHelper.stubPlugin("lucene", 1));
 
-        Settings settings = Settings.builder()
-            .put("index.composite.primary_data_format", "lucene")
-            .putList("index.composite.secondary_data_formats", "parquet")
-            .put(IndexMetadata.SETTING_VERSION_CREATED, Version.CURRENT)
-            .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
-            .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
-            .build();
-        IndexMetadata indexMetadata = IndexMetadata.builder("test-index").settings(settings).build();
-        IndexSettings indexSettings = new IndexSettings(indexMetadata, Settings.EMPTY);
-
         IllegalArgumentException ex = expectThrows(
             IllegalArgumentException.class,
-            () -> new CompositeIndexingExecutionEngine(plugins, indexSettings, null, null)
+            () -> CompositeIndexingExecutionEngine.validateFormatsRegistered(plugins, "lucene", List.of("parquet"))
         );
         assertTrue(ex.getMessage().contains("parquet"));
     }
 
-    public void testConstructorRejectsNullDataFormatPlugins() {
-        IndexSettings indexSettings = createIndexSettings("lucene");
-        expectThrows(NullPointerException.class, () -> new CompositeIndexingExecutionEngine(null, indexSettings, null, null));
-    }
-
     public void testConstructorRejectsNullIndexSettings() {
-        Map<String, DataFormatPlugin> plugins = Map.of("lucene", CompositeTestHelper.stubPlugin("lucene", 1));
-        expectThrows(NullPointerException.class, () -> new CompositeIndexingExecutionEngine(plugins, null, null, null));
+        expectThrows(NullPointerException.class, () -> new CompositeIndexingExecutionEngine(null, null, null, null));
     }
 
     public void testValidateFormatsRegisteredAcceptsValidConfig() {
