@@ -8,9 +8,12 @@
 
 package org.opensearch.index.engine.exec.coord;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.concurrent.GatedCloseable;
 import org.opensearch.index.engine.exec.Segment;
+import org.opensearch.index.store.CompositeDirectory;
 
 import java.io.Closeable;
 import java.util.List;
@@ -30,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @ExperimentalApi
 public class CatalogSnapshotManager implements Closeable {
+
+    private static final Logger logger = LogManager.getLogger(CatalogSnapshotManager.class);
 
     private volatile CatalogSnapshot latestCatalogSnapshot;
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -101,9 +106,9 @@ public class CatalogSnapshotManager implements Closeable {
             latestCatalogSnapshot.getLastWriterGeneration() + 1,
             latestCatalogSnapshot.getUserData()
         );
-
         CatalogSnapshot oldSnapshot = latestCatalogSnapshot;
         latestCatalogSnapshot = newSnapshot;
+        logger.trace("New Catalog Snapshot created: {}", latestCatalogSnapshot);
         decRefAndRemove(oldSnapshot);
     }
 
