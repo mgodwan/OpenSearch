@@ -326,5 +326,10 @@ final class CompositeTestHelper {
         public boolean isCommitManagedFile(String fileName) {
             return false;
         }
+
+        @Override
+        public byte[] serializeToCommitFormat(CatalogSnapshot snapshot) {
+            throw new UnsupportedOperationException("stub");
+        }
     }
 }
