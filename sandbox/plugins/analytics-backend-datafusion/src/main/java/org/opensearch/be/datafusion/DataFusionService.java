@@ -95,13 +95,9 @@ public class DataFusionService extends AbstractLifecycleComponent {
         try {
             releaseRuntime();
         } finally {
-            try {
-                if (rootAllocator != null) {
-                    rootAllocator.close();
-                    rootAllocator = null;
-                }
-            } finally {
-                NativeBridge.shutdownTokioRuntimeManager();
+            if (rootAllocator != null) {
+                rootAllocator.close();
+                rootAllocator = null;
             }
         }
         logger.debug("DataFusion service stopped");
@@ -110,6 +106,7 @@ public class DataFusionService extends AbstractLifecycleComponent {
     @Override
     protected void doClose() throws IOException {
         releaseRuntime();
+        NativeBridge.shutdownTokioRuntimeManager();
     }
 
     /**
