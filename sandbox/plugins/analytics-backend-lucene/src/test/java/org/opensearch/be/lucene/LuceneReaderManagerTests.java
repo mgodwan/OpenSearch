@@ -191,7 +191,7 @@ public class LuceneReaderManagerTests extends OpenSearchTestCase {
             }
 
             @Override
-            public Collection<String> getFiles(boolean includeSegmentsFile) {
+            public Collection<String> getFiles(boolean includeCommitFile) {
                 return List.of();
             }
         };

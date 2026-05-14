@@ -28,6 +28,7 @@ import org.apache.lucene.store.ByteBuffersIndexOutput;
 import org.apache.lucene.util.Version;
 import org.opensearch.be.lucene.LuceneDataFormat;
 import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.engine.CommitStats;
 import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.index.engine.SafeCommitInfo;
@@ -66,7 +67,7 @@ import java.util.stream.Collectors;
  * {@code IndexWriter.addIndexes} during refresh in {@link LuceneIndexingExecutionEngine}.
  * <p>
  * Commit data (catalog snapshot, translog UUID, sequence numbers) is persisted atomically
- * via {@link #commit(Map)}, which sets the live commit data on the writer and calls
+ * via {@link #commit(org.opensearch.index.engine.exec.commit.Committer.CommitInput)}, which sets the live commit data on the writer and calls
  * {@link IndexWriter#commit()}.
  * <p>
  * The store reference is incremented on construction and decremented on {@link #close()}.
@@ -126,14 +127,14 @@ public class LuceneCommitter extends SafeBootstrapCommitter {
      * Atomically persists the given commit data (catalog snapshot, translog UUID,
      * sequence numbers) and commits the IndexWriter.
      *
-     * @param commitData the key-value pairs to store as live commit data
+     * @param commitInput the key-value pairs to store as live commit data along with its catalog snapshot
      * @throws IOException if the commit fails
      * @throws IllegalStateException if this committer is closed
      */
     @Override
-    public synchronized CommitResult commit(Map<String, String> commitData) throws IOException {
+    public synchronized CommitResult commit(CommitInput commitInput) throws IOException {
         ensureOpen();
-        indexWriter.setLiveCommitData(commitData.entrySet());
+        indexWriter.setLiveCommitData(commitInput.userData());
         indexWriter.commit();
         SegmentInfos committed = SegmentInfos.readLatestCommit(indexWriter.getDirectory());
         // Encode writer's Lucene version as a long — keeps CatalogSnapshot Lucene-type-agnostic.
@@ -156,7 +157,7 @@ public class LuceneCommitter extends SafeBootstrapCommitter {
     @Override
     public void close() throws IOException {
         if (isClosed.compareAndSet(false, true)) {
-            indexWriter.close();
+            indexWriter.rollback();
             this.store.decRef();
         }
     }
@@ -238,20 +239,8 @@ public class LuceneCommitter extends SafeBootstrapCommitter {
     public byte[] serializeToCommitFormat(CatalogSnapshot catalogSnapshot) throws IOException {
         ensureOpen();
         DirectoryReader reader = readers.get(catalogSnapshot.getVersion());
-        SegmentInfos sis;
-        if (reader == null) {
-            assert catalogSnapshot.getDataFormats().contains(LuceneDataFormat.LUCENE_FORMAT_NAME) == false
-                : "Lucene is listed in catalog data formats but no reader was registered for version=" + catalogSnapshot.getVersion();
-            logger.info("No Lucene reader for catalog snapshot version={} — producing empty SegmentInfos", catalogSnapshot.getVersion());
-            sis = new SegmentInfos(Version.LATEST.major);
-        } else {
-            if (reader instanceof StandardDirectoryReader == false) {
-                throw new IllegalStateException(
-                    "Reader for catalog snapshot version=" + catalogSnapshot.getVersion() + " is not a StandardDirectoryReader: " + reader
-                );
-            }
-            sis = ((StandardDirectoryReader) reader).getSegmentInfos().clone();
-        }
+        SegmentInfos sis = getSegmentInfos(catalogSnapshot, reader, store);
+
         Map<String, String> userData = new HashMap<>(catalogSnapshot.getUserData());
         userData.put(CatalogSnapshot.CATALOG_SNAPSHOT_ID, Long.toString(catalogSnapshot.getId()));
         userData.put(CatalogSnapshot.CATALOG_SNAPSHOT_KEY, catalogSnapshot.serializeToString());
@@ -398,5 +387,21 @@ public class LuceneCommitter extends SafeBootstrapCommitter {
             }
         }
         return result;
+    }
+
+    static SegmentInfos getSegmentInfos(CatalogSnapshot catalogSnapshot, DirectoryReader reader, Store store) throws IOException {
+        if (reader == null) {
+            assert catalogSnapshot.getDataFormats().contains(LuceneDataFormat.LUCENE_FORMAT_NAME) == false
+                : "Lucene is listed in catalog data formats but no reader was registered for version=" + catalogSnapshot.getVersion();
+            logger.info("No Lucene reader for catalog snapshot version={} — producing empty SegmentInfos", catalogSnapshot.getVersion());
+            return Lucene.readSegmentInfos(store.directory());
+        } else {
+            if (reader instanceof StandardDirectoryReader == false) {
+                throw new IllegalStateException(
+                    "Reader for catalog snapshot version=" + catalogSnapshot.getVersion() + " is not a StandardDirectoryReader: " + reader
+                );
+            }
+            return ((StandardDirectoryReader) reader).getSegmentInfos().clone();
+        }
     }
 }

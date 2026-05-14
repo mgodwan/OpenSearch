@@ -131,7 +131,7 @@ public interface IndexerLifecycleOperations {
      * @throws IOException if finalization fails
      */
     default void finalizeReplication(CatalogSnapshot catalogSnapshot) throws IOException {
-        // No-op by default
+        throw new IllegalStateException("finalizeReplication is not supported on indexer");
     }
 
     /**

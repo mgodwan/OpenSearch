@@ -1030,6 +1030,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
             DataformatAwareCatalogSnapshot dfa = DataformatAwareCatalogSnapshot.deserializeFromString(serialized, directoryResolver);
             long version = LuceneVersionConverter.encode(segmentInfos.getCommitLuceneVersion());
             dfa.setLastCommitInfo(segmentInfos.getSegmentsFileName(), segmentInfos.getGeneration(), version);
+            dfa.setReplicatingCommitInfo(segmentInfos);
             return dfa;
         }
         return new SegmentInfosCatalogSnapshot(segmentInfos);
@@ -1059,6 +1060,18 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
             userData.put(LOCAL_CHECKPOINT_KEY, String.valueOf(processedCheckpoint));
             userData.put(SequenceNumbers.MAX_SEQ_NO, Long.toString(maxSeqNo));
             latestSegmentInfos.setUserData(userData, false);
+            latestSegmentInfos.commit(directory());
+            directory.sync(latestSegmentInfos.files(true));
+            directory.syncMetaData();
+        } finally {
+            metadataLock.writeLock().unlock();
+        }
+    }
+
+    public void commitSegmentInfos(SegmentInfos latestSegmentInfos) throws IOException {
+        assert indexSettings.isSegRepEnabledOrRemoteNode() || indexSettings.isAssignedOnRemoteNode();
+        metadataLock.writeLock().lock();
+        try {
             latestSegmentInfos.commit(directory());
             directory.sync(latestSegmentInfos.files(true));
             directory.syncMetaData();

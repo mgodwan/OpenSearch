@@ -240,7 +240,7 @@ public class DataFormatAwareEngine implements Indexer {
             // Lucene merges that skip because the shared writer has no matching segments —
             // applyMergeChanges acquires refreshLock itself. Either way, applyMergeChanges
             // releases the lock before returning.
-            this.committer = engineConfig.getCommitterFactory().getCommitter(new CommitterConfig(engineConfig, refreshLock::lock));
+            this.committer = engineConfig.getCommitterFactory().getCommitter(new CommitterConfig(engineConfig, refreshLock::lock, true));
 
             // 2. Read translogUUID and history UUID from last committed data
             final Map<String, String> userData = committer.getLastCommittedData();
@@ -914,7 +914,7 @@ public class DataFormatAwareEngine implements Indexer {
                         assert Long.parseLong(commitData.get(SequenceNumbers.LOCAL_CHECKPOINT_KEY)) >= -1
                             : "local checkpoint in commit data must be >= -1";
                         assert Long.parseLong(commitData.get(SequenceNumbers.MAX_SEQ_NO)) >= -1 : "max seq no in commit data must be >= -1";
-                        Committer.CommitResult commitResult = committer.commit(commitData);
+                        Committer.CommitResult commitResult = committer.commit(new Committer.CommitInput(commitData.entrySet(), snapshot, 0));
                         if (commitResult != null && snapshot instanceof DataformatAwareCatalogSnapshot dfaSnapshot) {
                             dfaSnapshot.setLastCommitInfo(
                                 commitResult.commitFileName(),

@@ -9,6 +9,7 @@
 package org.opensearch.index.engine.exec;
 
 import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.common.collect.Tuple;
 import org.opensearch.index.engine.exec.coord.CatalogSnapshot;
 
 import java.io.IOException;
@@ -50,4 +51,8 @@ public interface CommitFileManager {
      * registered for the snapshot.
      */
     byte[] serializeToCommitFormat(CatalogSnapshot catalogSnapshot) throws IOException;
+
+    default Tuple<CatalogSnapshot, Object> deserializeFromCommitFormat(byte[] data) throws IOException {
+        return null;
+    }
 }

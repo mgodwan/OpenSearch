@@ -39,6 +39,10 @@ public final class LuceneCommitterFactory implements CommitterFactory {
      * @throws IOException if committer initialization fails
      */
     public Committer getCommitter(CommitterConfig committerConfig) throws IOException {
-        return new LuceneCommitter(committerConfig);
+        if (committerConfig.primaryInit()) {
+            return new LuceneCommitter(committerConfig);
+        } else {
+            return new LuceneReplicaCommitter(committerConfig);
+        }
     }
 }

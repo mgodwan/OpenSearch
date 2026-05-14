@@ -259,19 +259,6 @@ public class CatalogSnapshotManager implements Closeable {
             throw e;
         }
 
-        // New snapshot generation must be strictly greater than the previous
-        assert newSnapshot.getGeneration() > prevGen : "new snapshot generation ["
-            + newSnapshot.getGeneration()
-            + "] must be > previous ["
-            + prevGen
-            + "]";
-        // New snapshot ID must be strictly greater than the previous
-        assert newSnapshot.getId() > latestCatalogSnapshot.getId() : "new snapshot ID ["
-            + newSnapshot.getId()
-            + "] must be > previous ["
-            + latestCatalogSnapshot.getId()
-            + "]";
-
         // Segment generation uniqueness: a generation that appeared in a previous snapshot
         // must not reappear with different files. This prevents generation overlap bugs
         // where a merge output reuses a writer generation, causing file identity confusion.
@@ -289,6 +276,37 @@ public class CatalogSnapshotManager implements Closeable {
         // Every WriterFileSet in every segment must have a positive row count
         assert refreshedSegments.stream().flatMap(s -> s.dfGroupedSearchableFiles().values().stream()).allMatch(wfs -> wfs.numRows() > 0)
             : "every WriterFileSet must have a positive row count";
+
+        applyNewSnapshot(newSnapshot);
+    }
+
+    /**
+     * Replaces the current snapshot with one received from the primary via segment replication.
+     * The incoming snapshot is registered with the file deleter (ref counts for its files), then
+     * the manager's prior reference is released. Replica-only: does not go through a commit.
+     */
+    public synchronized void applyReplicationSnapshot(CatalogSnapshot incoming) throws IOException {
+        if (closed.get()) {
+            throw new IllegalStateException("CatalogSnapshotManager is closed");
+        }
+        applyNewSnapshot(incoming);
+    }
+
+    private void applyNewSnapshot(CatalogSnapshot newSnapshot) throws IOException {
+        final long prevGen = latestCatalogSnapshot.generation;
+
+        // New snapshot generation must be strictly greater than the previous
+        assert newSnapshot.getGeneration() > prevGen : "new snapshot generation ["
+            + newSnapshot.getGeneration()
+            + "] must be > previous ["
+            + prevGen
+            + "]";
+        // New snapshot ID must be strictly greater than the previous
+        assert newSnapshot.getId() > latestCatalogSnapshot.getId() : "new snapshot ID ["
+            + newSnapshot.getId()
+            + "] must be > previous ["
+            + latestCatalogSnapshot.getId()
+            + "]";
 
         // Register file references BEFORE notifying listeners and swapping the snapshot.
         // This ensures that if addFileReferences fails, no listener has been told about
@@ -345,26 +363,6 @@ public class CatalogSnapshotManager implements Closeable {
         // Release the manager's own reference to the old snapshot.
         // The snapshot won't be deleted if the commit path still holds a reference.
         decRefAndMaybeDelete(oldSnapshot);
-    }
-
-    /**
-     * Replaces the current snapshot with one received from the primary via segment replication.
-     * The incoming snapshot is registered with the file deleter (ref counts for its files), then
-     * the manager's prior reference is released. Replica-only: does not go through a commit.
-     */
-    public synchronized void applyReplicationSnapshot(CatalogSnapshot incoming) {
-        if (closed.get()) {
-            throw new IllegalStateException("CatalogSnapshotManager is closed");
-        }
-        try {
-            indexFileDeleter.addFileReferences(incoming);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to add file references for replicated snapshot [gen=" + incoming.getGeneration() + "]", e);
-        }
-        catalogSnapshotMap.put(incoming.getGeneration(), incoming);
-        CatalogSnapshot previous = latestCatalogSnapshot;
-        latestCatalogSnapshot = incoming;
-        decRefAndMaybeDelete(previous);
     }
 
     // ---- Acquire path ----

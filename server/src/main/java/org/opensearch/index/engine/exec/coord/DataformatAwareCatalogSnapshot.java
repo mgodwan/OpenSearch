@@ -54,6 +54,7 @@ public class DataformatAwareCatalogSnapshot extends CatalogSnapshot {
     // Long-encoded format version (see LuceneVersionConverter) that wrote the last commit.
     // Kept as raw long so this class has no dependency on Lucene's Version type.
     private volatile long lastCommitDataFormatVersion = 0L;
+    private volatile Object replicatingCommitInfo;
 
     /**
      * Constructs a new DataformatAwareCatalogSnapshot.
@@ -328,6 +329,14 @@ public class DataformatAwareCatalogSnapshot extends CatalogSnapshot {
         this.lastCommitDataFormatVersion = commitDataFormatVersion;
     }
 
+    public void setReplicatingCommitInfo(Object data) {
+        this.replicatingCommitInfo = data;
+    }
+
+    public Object getReplicatingCommitInfo() {
+        return replicatingCommitInfo;
+    }
+
     @Override
     protected void closeInternal() {
         closed.set(true);
@@ -342,7 +351,7 @@ public class DataformatAwareCatalogSnapshot extends CatalogSnapshot {
     }
 
     @Override
-    public Collection<String> getFiles(boolean includeSegmentsFile) throws IOException {
+    public Collection<String> getFiles(boolean includeCommitFile) throws IOException {
         List<String> fileNames = new ArrayList<>();
         for (Segment segment : segments) {
             for (Map.Entry<String, WriterFileSet> entry : segment.dfGroupedSearchableFiles().entrySet()) {
@@ -352,7 +361,7 @@ public class DataformatAwareCatalogSnapshot extends CatalogSnapshot {
                 }
             }
         }
-        if (includeSegmentsFile) {
+        if (includeCommitFile) {
             String segFile = getLastCommitFileName();
             if (segFile != null) {
                 fileNames.add(segFile);

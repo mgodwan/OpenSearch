@@ -328,8 +328,8 @@ public class SubdirectoryAwareRecoveryTests extends OpenSearchIntegTestCase {
                 SegmentInfos mainInfos = ((SegmentInfosCatalogSnapshot) base.get()).getSegmentInfos();
                 CatalogSnapshot wrapped = new SegmentInfosCatalogSnapshot(mainInfos) {
                     @Override
-                    public Collection<String> getFiles(boolean includeSegmentsFile) throws IOException {
-                        Set<String> files = new HashSet<>(super.getFiles(includeSegmentsFile));
+                    public Collection<String> getFiles(boolean includeCommitFile) throws IOException {
+                        Set<String> files = new HashSet<>(super.getFiles(includeCommitFile));
                         files.addAll(extra);
                         return files;
                     }

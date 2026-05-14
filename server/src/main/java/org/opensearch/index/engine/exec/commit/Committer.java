@@ -48,6 +48,10 @@ public interface Committer extends CommitFileManager, Closeable {
     record CommitResult(String commitFileName, long generation, long commitDataFormatVersion) {
     }
 
+    @ExperimentalApi
+    record CommitInput(Iterable<Map.Entry<String, String>> userData, CatalogSnapshot catalogSnapshot, int bumpCounter) {
+    }
+
     /**
      * Durably commits the given data to the backing store's commit metadata.
      * Called during the engine's flush path.
@@ -56,7 +60,7 @@ public interface Committer extends CommitFileManager, Closeable {
      * @return the commit result containing the segments_N filename and generation, or {@code null} if not applicable
      * @throws IOException if the commit fails
      */
-    CommitResult commit(Map<String, String> commitData) throws IOException;
+    CommitResult commit(CommitInput commitInput) throws IOException;
 
     /**
      * Returns the user data from the last successful commit.

@@ -53,8 +53,10 @@ public abstract class CatalogSnapshot implements Writeable, Cloneable {
      */
     public static final String CATALOG_SNAPSHOT_ID = "_id";
 
+    // These exist for segment infos catalog snapshot.
+    // For DataFormatAwareCatalogSnapshot: id, version and generation should be same.
     protected final long generation;
-    protected long version;
+    protected final long version;
 
     private final AbstractRefCounted refCounter;
 
@@ -108,7 +110,7 @@ public abstract class CatalogSnapshot implements Writeable, Cloneable {
         return generation;
     }
 
-    public long getVersion() {
+    public final long getVersion() {
         return version;
     }
 
@@ -318,10 +320,10 @@ public abstract class CatalogSnapshot implements Writeable, Cloneable {
      *       (e.g., {@code "parquet/data.parquet"}) for non-lucene files</li>
      * </ul>
      *
-     * @param includeSegmentsFile whether to include the segments file in the returned collection
+     * @param includeCommitFile whether to include the segments file in the returned collection
      * @return collection of file name strings ready for upload
      * @throws IOException in case of I/O error
      */
-    public abstract Collection<String> getFiles(boolean includeSegmentsFile) throws IOException;
+    public abstract Collection<String> getFiles(boolean includeCommitFile) throws IOException;
 
 }

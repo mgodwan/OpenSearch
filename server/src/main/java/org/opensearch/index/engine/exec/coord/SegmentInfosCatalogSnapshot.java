@@ -25,6 +25,7 @@ import org.opensearch.index.engine.exec.WriterFileSet;
 import org.opensearch.index.remote.RemoteStoreUtils;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +58,7 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
         super(CATALOG_SNAPSHOT_KEY + segmentInfos.getGeneration(), segmentInfos.getGeneration(), segmentInfos.getVersion());
         this.segmentInfos = segmentInfos;
         this.segmentFileVersionMap = buildSegmentToLuceneVersionMap();
+        assert isEquivalent(segmentInfos) : "method equivalence for segment infos and segment infos catalog snapshot is missing";
     }
 
     /**
@@ -88,7 +90,7 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
 
     @Override
     public long getId() {
-        return generation;
+        return version;
     }
 
     @Override
@@ -198,8 +200,8 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
     }
 
     @Override
-    public Collection<String> getFiles(boolean includeSegmentsFile) throws IOException {
-        return segmentInfos.files(includeSegmentsFile);
+    public Collection<String> getFiles(boolean includeCommitFile) throws IOException {
+        return segmentInfos.files(includeCommitFile);
     }
 
     private Map<String, Version> buildSegmentToLuceneVersionMap() {
@@ -216,5 +218,19 @@ public class SegmentInfosCatalogSnapshot extends CatalogSnapshot {
             }
         }
         return segmentToLuceneVersion;
+    }
+
+    private boolean isEquivalent(SegmentInfos infos) {
+        try {
+            return infos.getUserData().equals(this.getUserData())
+                && infos.getCommitLuceneVersion() == LuceneVersionConverter.toLuceneOrLatest(this.getCommitDataFormatVersion())
+                && Lucene.getNumDocs(segmentInfos) == this.getNumDocs()
+                && infos.getGeneration() == this.getGeneration()
+                && infos.getVersion() == this.getVersion()
+                && infos.getVersion() == this.getId()
+                && infos.files(true).equals(this.getFiles(true));
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
     }
 }
