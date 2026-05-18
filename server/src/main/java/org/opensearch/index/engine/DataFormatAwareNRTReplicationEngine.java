@@ -142,7 +142,8 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
         boolean success = false;
         Committer constructingCommitter = null;
         try {
-            this.committer = constructingCommitter = engineConfig.getCommitterFactory().getCommitter(new CommitterConfig(engineConfig, () -> {}, true));
+            this.committer = constructingCommitter = engineConfig.getCommitterFactory()
+                .getCommitter(new CommitterConfig(engineConfig, () -> {}, true));
             // Bootstrap an empty commit if no segments file exists (fresh replica).
             Map<String, String> userData = committer.getLastCommittedData();
 
@@ -161,27 +162,17 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
             Map<DataFormat, EngineReaderManager<?>> aggregated = new HashMap<>();
             for (String formatName : allDescriptors.keySet()) {
                 DataFormat format = registry.format(formatName);
-                aggregated.putAll(
-                    registry.getReaderManager(
-                        new ReaderManagerConfig(
-                            Optional.of(new IndexStoreProvider() {
-                                @Override
-                                public FormatStore getStore(DataFormat dataFormat) {
-                                    return new FormatStore() {
-                                        @Override
-                                        public Store store() {
-                                            return store;
-                                        }
-                                    };
-                                }
-                            }),
-                            format,
-                            registry,
-                            store.shardPath(),
-                            store.getDataformatAwareStoreHandles()
-                        )
-                    )
-                );
+                aggregated.putAll(registry.getReaderManager(new ReaderManagerConfig(Optional.of(new IndexStoreProvider() {
+                    @Override
+                    public FormatStore getStore(DataFormat dataFormat) {
+                        return new FormatStore() {
+                            @Override
+                            public Store store() {
+                                return store;
+                            }
+                        };
+                    }
+                }), format, registry, store.shardPath(), store.getDataformatAwareStoreHandles())));
             }
             readerManagersRef = Map.copyOf(aggregated);
 
@@ -308,8 +299,12 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
             snapshot.setUserData(commitData, true);
             commitData.put(CatalogSnapshot.CATALOG_SNAPSHOT_KEY, snapshot.serializeToString());
 
-            CommitResult commitResult = committer.commit(new CommitInput(commitData.entrySet(), snapshot, bumpSICounter ? SI_COUNTER_INCREMENT : 0));
-            catalogSnapshotManager.updateLastCommitInfo(commitResult);
+            CommitResult commitResult = committer.commit(
+                new CommitInput(commitData.entrySet(), snapshot, bumpSICounter ? SI_COUNTER_INCREMENT : 0)
+            );
+            if (commitResult != null) {
+                catalogSnapshotManager.updateLastCommitInfo(commitResult);
+            }
             snapshotRef.markSuccess();
         }
         translogManager.syncTranslog();
@@ -882,7 +877,11 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
      * {@link org.opensearch.index.engine.exec.coord}.
      */
     // Visible for testing.
-    static Map<String, FileDeleter> buildReplicaFileDeleters(ShardPath shardPath, DataFormatRegistry registry, CommitFileManager commitFileManager) {
+    static Map<String, FileDeleter> buildReplicaFileDeleters(
+        ShardPath shardPath,
+        DataFormatRegistry registry,
+        CommitFileManager commitFileManager
+    ) {
         Map<String, FileDeleter> deleters = new HashMap<>();
         for (DataFormat format : registry.getRegisteredFormats()) {
             final String formatName = format.name();
@@ -979,7 +978,7 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
         public synchronized List<CatalogSnapshot> onCommit(List<CatalogSnapshot> commits) {
             lastSnapshot = commits.getLast();
             List<CatalogSnapshot> toDelete = new ArrayList<>();
-            for (int i = 0; i < commits.size() - 1; i ++) {
+            for (int i = 0; i < commits.size() - 1; i++) {
                 CatalogSnapshot currentCommit = commits.get(i);
                 if (!acquiredSnapshots.contains(currentCommit)) {
                     toDelete.add(currentCommit);
@@ -991,9 +990,7 @@ public class DataFormatAwareNRTReplicationEngine implements Indexer {
         @Override
         public synchronized GatedCloseable<CatalogSnapshot> acquireCommittedSnapshot(boolean acquiringSafe) {
             acquiredSnapshots.add(lastSnapshot);
-            return new GatedCloseable<>(lastSnapshot, () -> {
-                acquiredSnapshots.remove(lastSnapshot);
-            });
+            return new GatedCloseable<>(lastSnapshot, () -> { acquiredSnapshots.remove(lastSnapshot); });
         }
 
         /**

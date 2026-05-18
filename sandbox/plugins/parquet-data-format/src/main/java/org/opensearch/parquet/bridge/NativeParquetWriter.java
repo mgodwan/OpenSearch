@@ -9,8 +9,10 @@
 package org.opensearch.parquet.bridge;
 
 import org.opensearch.common.SetOnce;
+import org.opensearch.parquet.stats.ParquetShardStats;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -33,6 +35,7 @@ public class NativeParquetWriter {
     private final AtomicBoolean writerFlushed = new AtomicBoolean(false);
     private final String filePath;
     private final SetOnce<ParquetFileMetadata> metadata = new SetOnce<>();
+    private final ParquetShardStats stats;
     private volatile boolean initialized = false;
 
     /**
@@ -40,9 +43,20 @@ public class NativeParquetWriter {
      * call {@link #initialize(String, long, ParquetSortConfig, long)} before the first write.
      *
      * @param filePath the path to the Parquet file to write
+     * @param stats shard-level stats collector
+     */
+    public NativeParquetWriter(String filePath, ParquetShardStats stats) {
+        this.filePath = filePath;
+        this.stats = stats;
+    }
+
+    /**
+     * Creates a new NativeParquetWriter handle without stats collection.
+     *
+     * @param filePath the path to the Parquet file to write
      */
     public NativeParquetWriter(String filePath) {
-        this.filePath = filePath;
+        this(filePath, new ParquetShardStats());
     }
 
     /**
@@ -88,7 +102,17 @@ public class NativeParquetWriter {
         if (initialized == false) {
             throw new IllegalStateException("Writer not initialized: " + filePath);
         }
-        RustBridge.write(filePath, arrayAddress, schemaAddress);
+        long startNanos = System.nanoTime();
+        try {
+            RustBridge.write(filePath, arrayAddress, schemaAddress);
+            stats.incNativeWriteTotal();
+        } catch (IOException e) {
+            stats.incNativeWriteFailures();
+            throw e;
+        } finally {
+            long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            stats.addNativeWriteTimeMillis(elapsed);
+        }
     }
 
     /**
@@ -102,7 +126,17 @@ public class NativeParquetWriter {
     public ParquetFileMetadata flush() throws IOException {
         if (writerFlushed.compareAndSet(false, true)) {
             if (initialized) {
-                metadata.set(RustBridge.finalizeWriter(filePath));
+                long startNanos = System.nanoTime();
+                try {
+                    metadata.set(RustBridge.finalizeWriter(filePath));
+                    stats.incNativeFinalizeTotal();
+                } catch (IOException e) {
+                    stats.incNativeFinalizeFailures();
+                    throw e;
+                } finally {
+                    long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                    stats.addNativeFinalizeTimeMillis(elapsed);
+                }
             }
         }
         return metadata.get();
@@ -118,7 +152,17 @@ public class NativeParquetWriter {
         if (!writerFlushed.get()) {
             flush();
         }
-        RustBridge.syncToDisk(filePath);
+        long startNanos = System.nanoTime();
+        try {
+            RustBridge.syncToDisk(filePath);
+            stats.incNativeSyncTotal();
+        } catch (IOException e) {
+            stats.incNativeSyncFailures();
+            throw e;
+        } finally {
+            long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            stats.addNativeSyncTimeMillis(elapsed);
+        }
     }
 
     /**

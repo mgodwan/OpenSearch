@@ -11,6 +11,7 @@ package org.opensearch.be.lucene.index;
 import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.Version;
+import org.opensearch.be.lucene.stats.LuceneShardStats;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.BigArrays;
 import org.opensearch.core.index.shard.ShardId;
@@ -20,7 +21,9 @@ import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.index.engine.exec.commit.Committer;
 import org.opensearch.index.engine.exec.commit.CommitterConfig;
 import org.opensearch.index.seqno.RetentionLeases;
+import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.store.Store;
+import org.opensearch.index.translog.Translog;
 import org.opensearch.index.translog.TranslogConfig;
 import org.opensearch.test.DummyShardLock;
 import org.opensearch.test.IndexSettingsModule;
@@ -43,9 +46,10 @@ public class LuceneCommitterFactoryTests extends OpenSearchTestCase {
         Files.createDirectories(dataPath);
         Path translogPath = dataPath.resolve("translog");
         Files.createDirectories(translogPath);
+        String translogUUID = Translog.createEmptyTranslog(translogPath, SequenceNumbers.NO_OPS_PERFORMED, shardId, 1L);
         IndexSettings indexSettings = IndexSettingsModule.newIndexSettings("test", Settings.EMPTY);
         Store store = new Store(shardId, indexSettings, new NIOFSDirectory(dataPath), new DummyShardLock(shardId));
-        store.createEmpty(Version.LATEST);
+        store.createEmpty(Version.LATEST, translogUUID);
 
         Committer committer = null;
         try {
@@ -55,7 +59,7 @@ public class LuceneCommitterFactoryTests extends OpenSearchTestCase {
                 .translogConfig(new TranslogConfig(shardId, translogPath, indexSettings, BigArrays.NON_RECYCLING_INSTANCE, "", false))
                 .retentionLeasesSupplier(() -> new RetentionLeases(0, 0, Collections.emptyList()))
                 .build();
-            LuceneCommitterFactory committerFactory = new LuceneCommitterFactory();
+            LuceneCommitterFactory committerFactory = new LuceneCommitterFactory(new LuceneShardStats());
             committer = committerFactory.getCommitter(new CommitterConfig(engineConfig, () -> {}));
 
             assertTrue("getCommitter() should return a LuceneCommitter instance", committer instanceof LuceneCommitter);

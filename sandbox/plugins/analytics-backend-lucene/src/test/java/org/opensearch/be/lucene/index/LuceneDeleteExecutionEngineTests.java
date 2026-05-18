@@ -14,6 +14,7 @@ import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 import org.opensearch.be.lucene.LuceneDataFormat;
+import org.opensearch.be.lucene.stats.LuceneShardStats;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.BigArrays;
 import org.opensearch.core.index.shard.ShardId;
@@ -27,7 +28,9 @@ import org.opensearch.index.engine.dataformat.DocumentInput;
 import org.opensearch.index.engine.dataformat.Writer;
 import org.opensearch.index.engine.exec.commit.CommitterConfig;
 import org.opensearch.index.seqno.RetentionLeases;
+import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.store.Store;
+import org.opensearch.index.translog.Translog;
 import org.opensearch.index.translog.TranslogConfig;
 import org.opensearch.test.DummyShardLock;
 import org.opensearch.test.IndexSettingsModule;
@@ -63,9 +66,10 @@ public class LuceneDeleteExecutionEngineTests extends OpenSearchTestCase {
         Files.createDirectories(dataPath);
         Path translogPath = dataPath.resolve("translog");
         Files.createDirectories(translogPath);
+        String translogUUID = Translog.createEmptyTranslog(translogPath, SequenceNumbers.NO_OPS_PERFORMED, shardId, 1L);
         IndexSettings indexSettings = IndexSettingsModule.newIndexSettings("test", Settings.EMPTY);
         store = new Store(shardId, indexSettings, new NIOFSDirectory(dataPath), new DummyShardLock(shardId));
-        store.createEmpty(Version.LATEST);
+        store.createEmpty(Version.LATEST, translogUUID);
 
         EngineConfig engineConfig = new EngineConfig.Builder().indexSettings(indexSettings)
             .store(store)
@@ -74,8 +78,10 @@ public class LuceneDeleteExecutionEngineTests extends OpenSearchTestCase {
             .retentionLeasesSupplier(() -> new RetentionLeases(0, 0, Collections.emptyList()))
             .build();
 
-        committer = (LuceneCommitter) new LuceneCommitterFactory().getCommitter(new CommitterConfig(engineConfig, () -> {}));
-        deleteEngine = new LuceneDeleteExecutionEngine(new LuceneDataFormat(), committer);
+        committer = (LuceneCommitter) new LuceneCommitterFactory(new LuceneShardStats()).getCommitter(
+            new CommitterConfig(engineConfig, () -> {})
+        );
+        deleteEngine = new LuceneDeleteExecutionEngine(new LuceneDataFormat(), committer, new LuceneShardStats());
         dataFormat = new LuceneDataFormat();
     }
 
@@ -96,7 +102,7 @@ public class LuceneDeleteExecutionEngineTests extends OpenSearchTestCase {
     private LuceneWriter createLuceneWriter(long generation) throws IOException {
         Path writerDir = baseDir.resolve("writers");
         Files.createDirectories(writerDir);
-        return new LuceneWriter(generation, 0L, dataFormat, baseDir, null, Codec.getDefault(), null);
+        return new LuceneWriter(generation, 0L, dataFormat, baseDir, null, Codec.getDefault(), null, new LuceneShardStats());
     }
 
     private Writer<?> createMockCompositeWriter(long generation, boolean hasLucene, boolean hasParquet) {

@@ -22,6 +22,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MMapDirectory;
 import org.opensearch.be.lucene.LuceneDataFormat;
+import org.opensearch.be.lucene.stats.LuceneShardStats;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.index.engine.dataformat.DeleteInput;
@@ -36,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Per-generation Lucene writer that creates segments in an isolated temporary directory.
@@ -73,6 +75,7 @@ public class LuceneWriter implements Writer<LuceneDocumentInput> {
 
     private final long writerGeneration;
     private final LuceneDataFormat dataFormat;
+    private final LuceneShardStats stats;
     private final Path tempDirectory;
     private final Directory directory;
     private final IndexWriter indexWriter;
@@ -89,6 +92,7 @@ public class LuceneWriter implements Writer<LuceneDocumentInput> {
      * @param analyzer         the analyzer to use for tokenized fields, or null for default
      * @param codec            the codec to use, or null for default
      * @param indexSort        the index sort to apply to segments, or null for no sort
+     * @param stats            the shard-level stats collector
      * @throws IOException if directory creation or IndexWriter opening fails
      */
     public LuceneWriter(
@@ -98,11 +102,13 @@ public class LuceneWriter implements Writer<LuceneDocumentInput> {
         Path baseDirectory,
         Analyzer analyzer,
         Codec codec,
-        Sort indexSort
+        Sort indexSort,
+        LuceneShardStats stats
     ) throws IOException {
         this.writerGeneration = writerGeneration;
         this.mappingVersion = mappingVersion;
         this.dataFormat = dataFormat;
+        this.stats = stats;
         this.docCount = 0;
 
         // Create an isolated temp directory for this writer's segment
@@ -132,19 +138,28 @@ public class LuceneWriter implements Writer<LuceneDocumentInput> {
      */
     @Override
     public WriteResult addDoc(LuceneDocumentInput input) throws IOException {
-        Document doc = input.getFinalInput();
-        assert doc.getField(LuceneDocumentInput.ROW_ID_FIELD) != null : "Document missing required "
-            + LuceneDocumentInput.ROW_ID_FIELD
-            + " field at doc position "
-            + docCount;
-        assert doc.getField(LuceneDocumentInput.ROW_ID_FIELD).numericValue().longValue() == docCount : "Row ID mismatch: expected "
-            + docCount
-            + " but got "
-            + doc.getField(LuceneDocumentInput.ROW_ID_FIELD).numericValue().longValue();
-        indexWriter.addDocument(doc);
-        long currentDocId = docCount;
-        docCount++;
-        return new WriteResult.Success(1L, 1L, currentDocId);
+        long start = System.nanoTime();
+        try {
+            Document doc = input.getFinalInput();
+            assert doc.getField(LuceneDocumentInput.ROW_ID_FIELD) != null : "Document missing required "
+                + LuceneDocumentInput.ROW_ID_FIELD
+                + " field at doc position "
+                + docCount;
+            assert doc.getField(LuceneDocumentInput.ROW_ID_FIELD).numericValue().longValue() == docCount : "Row ID mismatch: expected "
+                + docCount
+                + " but got "
+                + doc.getField(LuceneDocumentInput.ROW_ID_FIELD).numericValue().longValue();
+            indexWriter.addDocument(doc);
+            long currentDocId = docCount;
+            docCount++;
+            stats.addDocsIndexed(1);
+            return new WriteResult.Success(1L, 1L, currentDocId);
+        } catch (IOException e) {
+            stats.incDocsIndexedFailures();
+            throw e;
+        } finally {
+            stats.addIndexTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+        }
     }
 
     /**
@@ -165,34 +180,45 @@ public class LuceneWriter implements Writer<LuceneDocumentInput> {
             return FileInfos.empty();
         }
 
-        // Force merge to exactly 1 segment to maintain 1:1 mapping with other formats.
-        indexWriter.forceMerge(1, true);
-        indexWriter.commit();
-
-        // Verify the invariant: exactly 1 segment with docCount documents
-        SegmentInfos segmentInfos = SegmentInfos.readLatestCommit(directory);
-        assert segmentInfos.size() == 1 : "Expected exactly 1 segment after force merge, got " + segmentInfos.size();
-
-        SegmentCommitInfo segmentInfo = segmentInfos.info(0);
-        assert segmentInfo.info.maxDoc() == docCount : "Expected " + docCount + " docs in segment, got " + segmentInfo.info.maxDoc();
-
-        // Build the WriterFileSet pointing to the temp directory
-        WriterFileSet.Builder wfsBuilder = WriterFileSet.builder()
-            .directory(tempDirectory)
-            .writerGeneration(writerGeneration)
-            .addNumRows(docCount);
-
-        // Add all files in the segment
-        for (String file : directory.listAll()) {
-            if (file.startsWith("segments") == false && file.equals("write.lock") == false) {
-                wfsBuilder.addFile(file);
+        long flushStart = System.nanoTime();
+        try {
+            // Force merge to exactly 1 segment to maintain 1:1 mapping with other formats.
+            long forceMergeStart = System.nanoTime();
+            try {
+                indexWriter.forceMerge(1, true);
+            } finally {
+                stats.addFlushForceMergeTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - forceMergeStart));
             }
+            indexWriter.commit();
+
+            // Verify the invariant: exactly 1 segment with docCount documents
+            SegmentInfos segmentInfos = SegmentInfos.readLatestCommit(directory);
+            assert segmentInfos.size() == 1 : "Expected exactly 1 segment after force merge, got " + segmentInfos.size();
+
+            SegmentCommitInfo segmentInfo = segmentInfos.info(0);
+            assert segmentInfo.info.maxDoc() == docCount : "Expected " + docCount + " docs in segment, got " + segmentInfo.info.maxDoc();
+
+            // Build the WriterFileSet pointing to the temp directory
+            WriterFileSet.Builder wfsBuilder = WriterFileSet.builder()
+                .directory(tempDirectory)
+                .writerGeneration(writerGeneration)
+                .addNumRows(docCount);
+
+            // Add all files in the segment
+            for (String file : directory.listAll()) {
+                if (file.startsWith("segments") == false && file.equals("write.lock") == false) {
+                    wfsBuilder.addFile(file);
+                }
+            }
+
+            // Since flush is once only, close the IndexWriter but keep directory open for close()
+            indexWriter.close();
+
+            return FileInfos.builder().putWriterFileSet(dataFormat, wfsBuilder.build()).build();
+        } finally {
+            stats.incFlushTotal();
+            stats.addFlushTimeMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - flushStart));
         }
-
-        // Since flush is once only, close the IndexWriter but keep directory open for close()
-        indexWriter.close();
-
-        return FileInfos.builder().putWriterFileSet(dataFormat, wfsBuilder.build()).build();
     }
 
     /**
