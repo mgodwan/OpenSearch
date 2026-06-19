@@ -1575,11 +1575,7 @@ public class DataFormatAwareEngine implements Indexer {
     public int countNumberOfHistoryOperations(String source, long fromSeqNo, long toSeqNumber) throws IOException {
         ensureOpen();
         try (Translog.Snapshot snapshot = translogManager.newChangesSnapshot(fromSeqNo, toSeqNumber, false)) {
-            int count = 0;
-            while (snapshot.next() != null) {
-                count++;
-            }
-            return count;
+            return snapshot.totalOperations();
         }
     }
 
@@ -1705,7 +1701,7 @@ public class DataFormatAwareEngine implements Indexer {
 
     @Override
     public Closeable acquireHistoryRetentionLock() {
-        return () -> {};
+        return translogManager.acquireHistoryRetentionLock();
     }
 
     /**
